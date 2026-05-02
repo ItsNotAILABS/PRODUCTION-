@@ -106,3 +106,9 @@ export { GoalStackProtocol, GOAL_STATES } from './goal-stack-protocol.js';
 
 // PROTO-220: Artifact Generation — autonomous artifact production, validation
 export { ArtifactGenerationProtocol, ARTIFACT_TYPES } from './artifact-generation-protocol.js';
+
+// PROTO-221: Meta-Learning — adapts learning hyperparameters, MAML-inspired meta-gradients
+export { MetaLearningProtocol, HYPER_BOUNDS } from './meta-learning-protocol.js';
+
+// PROTO-222: Curriculum — structured learning progression, phi-weighted difficulty scaling
+export { CurriculumProtocol, CURRICULUM_DOMAINS, MASTERY_LEVELS } from './curriculum-protocol.js';
