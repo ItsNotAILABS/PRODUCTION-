@@ -127,7 +127,7 @@ function main() {
       if (!fs.existsSync(pkgPath)) continue;
 
       try {
-        const result = cp.execSync('npm pack --pack-destination ' + DIST_DIR, {
+        const result = cp.execFileSync('npm', ['pack', '--pack-destination', DIST_DIR], {
           cwd: sdkPath,
           encoding: 'utf8',
           stdio: ['pipe', 'pipe', 'pipe'],
