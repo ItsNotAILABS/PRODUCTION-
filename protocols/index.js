@@ -112,3 +112,14 @@ export { MetaLearningProtocol, HYPER_BOUNDS } from './meta-learning-protocol.js'
 
 // PROTO-222: Curriculum — structured learning progression, phi-weighted difficulty scaling
 export { CurriculumProtocol, CURRICULUM_DOMAINS, MASTERY_LEVELS } from './curriculum-protocol.js';
+
+// ─── Active Intelligence Contracts & Edge Protocols (PROTO-223 – PROTO-225) ──
+
+// PROTO-223: Intelligence Contract — active self-executing contracts, watch/trigger/fulfill lifecycle
+export { IntelligenceContractProtocol, IntelligenceContract, CONTRACT_STATES, CONTRACT_TYPES } from './intelligence-contract-protocol.js';
+
+// PROTO-224: Edge Compute — Cloudflare Workers orchestration, phi-weighted latency routing
+export { EdgeComputeProtocol, EdgeWorker, WORKER_TYPES, WORKER_STATES, EDGE_REGIONS } from './edge-compute-protocol.js';
+
+// PROTO-225: Cyber Defense — threat matrix, attack surface map, incident engine
+export { CyberDefenseProtocol, ThreatIndicator, THREAT_LEVELS, SURFACE_CATEGORIES } from './cyber-defense-protocol.js';

@@ -36,6 +36,7 @@ const flags = {
   deadLinks:     process.argv.includes('--dead-links'),
   dependencyWeb: process.argv.includes('--dependency-web'),
   report:        process.argv.includes('--report'),
+  dashboard:     process.argv.includes('--dashboard'),
 };
 
 if (!Object.values(flags).some(Boolean)) {
@@ -429,6 +430,56 @@ function generateReport(map, orphans, deadLinks, depWeb) {
   console.log(`  📄 Report written to docs/crawler-report.md`);
 }
 
+// ── Dashboard Generation ──────────────────────────────────────────────────────
+function generateDashboard(map, orphans, deadLinks, depWeb) {
+  console.log('  🕷️ Generating crawler dashboard...');
+
+  const DIST_DASH = path.join(REPO, 'dist', 'dashboards');
+  fs.mkdirSync(DIST_DASH, { recursive: true });
+
+  const state = {
+    summary: {
+      totalFiles:  (map?.files || []).length,
+      totalDirs:   (map?.dirs || []).length,
+      codeFiles:   (map?.files || []).filter(f => f.isCode).length,
+      docFiles:    (map?.files || []).filter(f => f.isDoc).length,
+      orphanCount: (orphans || []).length,
+      referenced:  0,  // computed in orphan scanner
+      deadLinks:   (deadLinks || []).length,
+      filesChecked: (map?.files || []).filter(f => f.isCode || f.ext === '.html').length,
+      graphNodes:  depWeb ? Object.keys(depWeb.graph || {}).length : 0,
+      graphEdges:  depWeb?.totalEdges || 0,
+      topHubScore: depWeb?.mostConnected?.[0]?.[1]?.length || 0,
+    },
+    orphans: (orphans || []).map(o => o.path).slice(0, 100),
+    deadLinks: (deadLinks || []).slice(0, 100),
+    topHubs: (depWeb?.mostConnected || []).slice(0, 15).map(([file, deps]) => ({
+      file,
+      score: ((deps.length * 1.618) + 1).toFixed(3),
+      inDegree: depWeb.mostDepended.find(([f]) => f === file)?.[1] || 0,
+      outDegree: deps.length,
+    })),
+    generatedAt: new Date().toISOString(),
+  };
+
+  // Read the template dashboard and inject state
+  const templatePath = path.join(REPO, 'dist', 'dashboards', 'crawler-dashboard.html');
+  if (!fs.existsSync(templatePath)) {
+    console.log('    ⚠ Dashboard template not found — skipping');
+    return;
+  }
+
+  let html = fs.readFileSync(templatePath, 'utf8');
+
+  // Inject the state as a script tag before closing body
+  const injection = `\n  <script>\n    window.CRAWLER_STATE = ${JSON.stringify(state, null, 2)};\n  </script>\n`;
+  html = html.replace('</body>', `${injection}</body>`);
+
+  fs.writeFileSync(templatePath, html);
+  console.log(`  📊 Dashboard state injected into dist/dashboards/crawler-dashboard.html`);
+  console.log(`    Files: ${state.summary.totalFiles} | Orphans: ${state.summary.orphanCount} | Dead links: ${state.summary.deadLinks}`);
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 function main() {
   console.log('');
@@ -438,13 +489,14 @@ function main() {
 
   let map = null, orphans = null, deadLinks = null, depWeb = null;
 
-  if (flags.map || flags.orphans || flags.deadLinks || flags.dependencyWeb || flags.report) {
+  if (flags.map || flags.orphans || flags.deadLinks || flags.dependencyWeb || flags.report || flags.dashboard) {
     map = buildMap();
   }
   if (flags.orphans && map)       orphans = findOrphans(map);
   if (flags.deadLinks && map)     deadLinks = findDeadLinks(map);
   if (flags.dependencyWeb && map) depWeb = buildDependencyWeb(map);
   if (flags.report)               generateReport(map, orphans, deadLinks, depWeb);
+  if (flags.dashboard)            generateDashboard(map, orphans, deadLinks, depWeb);
 
   console.log('');
   console.log('  ✅ Organism crawl complete');

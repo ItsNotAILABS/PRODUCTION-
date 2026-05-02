@@ -29,16 +29,19 @@ SOVEREIGN ORGANISM
 |-------|-------|
 | Browser Extensions | 38 |
 | SDK Modules | 18 |
-| Protocols | 39 |
+| Protocols | 42 |
+| Active Protocols (Intelligence Contracts) | 8+ |
 | Agents | 4 |
 | Engines | 4 |
+| Microbots | 6 |
 | Organism Runtimes | 6 |
+| Edge Workers | 6 |
 | CSV Registers | 8 |
 | Test Suites | 3 |
 | Governance Docs | 3 |
-| Build Scripts | 22 |
-| GitHub Workflows | 20 |
-| Bot Identities | 16 |
+| Build Scripts | 26 |
+| GitHub Workflows | 24 |
+| Bot Identities | 20 |
 | Bot Divisions | 7 |
 
 ## Entity Taxonomy

@@ -8,6 +8,10 @@
  *   SENSUS → ANIMUS → CORPUS
  *     ↓        ↓        ↓
  *   MEMORIA ←─────────────
+ *       ↓
+ *   MICROBOTS (sub-agents spawned by parent bots, registered here)
+ *       ↓
+ *   CONTRACTS (active intelligence contracts watching organism state)
  * 
  * Features:
  *   - Creates all 4 core engines
@@ -15,6 +19,8 @@
  *   - Wires agent communication
  *   - Manages lifecycle (awaken/shutdown)
  *   - Provides unified API
+ *   - Microbot registry (lightweight sub-agents)
+ *   - Active intelligence contract registry
  */
 
 import { ChronoEngine, NexorisEngine, QuantumFluxEngine, CoreographEngine } from '../engines/index.js';
@@ -44,6 +50,14 @@ class CivitasRuntime {
       sensus: new SensusAgent(this.engines),
       memoria: new MemoriaAgent(this.engines),
     };
+    
+    // Microbot Registry — sub-agents spawned by parent bots
+    // Structure: { microbotName: { parentBot, instanceId, state, spawnedAt } }
+    this.microbots = new Map();
+    
+    // Active Intelligence Contract Registry
+    // Contracts watch organism state and self-execute when conditions are met
+    this.contracts = new Map();
     
     // State
     this.awake = false;
@@ -309,6 +323,107 @@ class CivitasRuntime {
       },
       ...this.getState(),
     };
+  }
+
+  // ── Microbot Registry ──────────────────────────────────────────────────
+
+  /**
+   * Register a microbot with the runtime
+   * @param {string} name       - Microbot name (e.g. 'signal-gatherer')
+   * @param {string} parentBot  - Parent bot name (e.g. 'organism-learning-bot')
+   * @param {string} instanceId - Unique instance ID
+   */
+  registerMicrobot(name, parentBot, instanceId) {
+    this.microbots.set(instanceId, {
+      name,
+      parentBot,
+      instanceId,
+      state:      'registered',
+      spawnedAt:  Date.now(),
+      lastSeenAt: Date.now(),
+    });
+    console.log(`[CIVITAS] Microbot registered: ${name} (parent: ${parentBot})`);
+    return instanceId;
+  }
+
+  /**
+   * Update microbot state
+   */
+  updateMicrobot(instanceId, updates = {}) {
+    const mb = this.microbots.get(instanceId);
+    if (!mb) return false;
+    Object.assign(mb, updates, { lastSeenAt: Date.now() });
+    return true;
+  }
+
+  /**
+   * Deregister a microbot (called when microbot completes or shuts down)
+   */
+  deregisterMicrobot(instanceId) {
+    return this.microbots.delete(instanceId);
+  }
+
+  /**
+   * Get all active microbots
+   */
+  getMicrobots() {
+    return Array.from(this.microbots.values());
+  }
+
+  // ── Intelligence Contract Registry ─────────────────────────────────────
+
+  /**
+   * Register an active intelligence contract
+   * @param {string} id       - Contract ID
+   * @param {object} contract - Contract definition (see IntelligenceContractProtocol)
+   */
+  registerContract(id, contract) {
+    this.contracts.set(id, {
+      id,
+      contract,
+      registeredAt: Date.now(),
+      state: 'active',
+      triggers: 0,
+    });
+    console.log(`[CIVITAS] Intelligence contract registered: ${id}`);
+    return id;
+  }
+
+  /**
+   * Deregister a contract (fulfilled, expired, or breached)
+   */
+  deregisterContract(id) {
+    return this.contracts.delete(id);
+  }
+
+  /**
+   * Get all active contracts
+   */
+  getContracts() {
+    return Array.from(this.contracts.values());
+  }
+
+  /**
+   * Run one watch cycle for all active contracts against current organism state
+   */
+  async watchContracts() {
+    const context = this.getState();
+    const results = [];
+    for (const [id, entry] of this.contracts) {
+      if (entry.contract && typeof entry.contract.watch === 'function') {
+        try {
+          const result = await entry.contract.watch(context);
+          if (result?.executed || result?.triggered) {
+            entry.triggers++;
+            results.push({ id, ...result });
+          }
+          if (result?.state === 'expired' || result?.state === 'fulfilled') {
+            this.contracts.delete(id);
+          }
+        } catch { /* contract errors never kill the runtime */ }
+      }
+    }
+    return results;
   }
 }
 
