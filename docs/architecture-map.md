@@ -39,10 +39,14 @@ SOVEREIGN ORGANISM
 | CSV Registers | 8 |
 | Test Suites | 3 |
 | Governance Docs | 3 |
-| Build Scripts | 26 |
-| GitHub Workflows | 24 |
-| Bot Identities | 20 |
-| Bot Divisions | 7 |
+| Governance Laws (CPL-L rules) | 16 |
+| Atlas Registry Entities | 21 |
+| OCL Charters | 1 |
+| CPL-P Pipelines | 1 |
+| Build Scripts | 28 |
+| GitHub Workflows | 25 |
+| Bot Identities | 21 |
+| Bot Divisions | 8 |
 
 ## Entity Taxonomy
 

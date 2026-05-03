@@ -108,13 +108,45 @@ The organism contains multiple classes of autonomous entities. Here is how they 
 | organism-learning-bot | 🎓 | Trains Hebbian synapses from CI outcomes, evolves protocol weights | signal-gatherer, synapse-trainer, weight-evolver |
 | organism-economy-bot | 💰 | Marketplace analytics, SDK/extension/protocol economy dashboards | — |
 
+### 🏛️ Division VIII — Governance
+
+| Bot | Emoji | What It Does | Microbots |
+|-----|-------|-------------|-----------|
+| organism-governance-bot | 🏛️ | CPL-L law evaluator, CPL-P pipeline runner, meta-analysis, audit trail, escalation routing | — |
+
+---
+
+## Governance Layer (OCL / CPL-L / CPL-P)
+
+The organism has a full governance engine wired to the bot fleet:
+
+### 📜 OCL — Organism Control Language
+Defines the fleet charter: capabilities, limits, drives. File: `governance/organism/bot-fleet.ocl`
+
+### ⚖️ CPL-L — Laws
+Safety rules evaluated against every bot event. File: `governance/laws/bot-fleet.cpl-l`
+
+Rules include: `BLOCK_SECRETS`, `NO_RELEASE_ON_RED`, `ESCALATE_CRITICAL_THREAT`, `NO_DEPLOY_WITHOUT_TESTS`, `PREVENT_WEIGHT_DIVERGENCE`, and more.
+
+### 🔄 CPL-P — Pipelines
+Governance workflow: `collect_state → apply_laws → route_escalations → update_meta → report`. File: `governance/pipelines/bot-governance.cpl-p`
+
+### 🗂️ Atlas Registry
+Every bot has an entity JSON at `governance/organism/registry/entities/organism-{name}-bot.json`. Registry API at `governance/organism/registry/index.js`.
+
+### 🔮 Meta Engine
+Detects patterns across governance cycles: chronically blocked bots, never-triggered rules, override patterns, fleet health trends, new bot proposals. Script: `scripts/governance-meta-engine.js`
+
+### 📝 Human Feedback
+Override files in `governance/feedback/fb-YYYY-MM-DD-NNN.yaml`. When a human overrides a bot decision, a feedback file is created and the meta engine ingests it.
+
 ---
 
 ## Alpha Bot Authority
 
 The **organism-alpha-bot** (👑) is the fleet commander with the following authorities:
 
-1. **Orchestration** — Can trigger any of the 20 bot workflows via `workflow_dispatch`
+1. **Orchestration** — Can trigger any of the 21 bot workflows via `workflow_dispatch`
 2. **Health Monitoring** — Monitors all bot workflow run statuses
 3. **Policy Enforcement** — Enforces fleet-wide rules (commit format, report structure)
 4. **Escalation** — Creates issues when bots fail repeatedly
@@ -155,6 +187,8 @@ IDLE → SPAWNED → RUNNING → (REPORTING) → COMPLETE
 5. Every bot has a script in `scripts/`
 6. The Alpha bot can trigger any other bot
 7. Bots that use microbots register them via `sdk/microbots/index.js`
+8. Every bot has an Atlas entity at `governance/organism/registry/entities/organism-{name}-bot.json`
+9. Every bot is subject to CPL-L laws in `governance/laws/bot-fleet.cpl-l`
 
 ---
 
@@ -162,8 +196,8 @@ IDLE → SPAWNED → RUNNING → (REPORTING) → COMPLETE
 
 | Metric | Current |
 |--------|---------|
-| Total Bots | 20 |
-| Divisions | 7 |
+| Total Bots | 21 |
+| Divisions | 8 |
 | Protocols | 42 |
 | Active Protocols (Intelligence Contracts) | 8+ |
 | Agents | 4 |
@@ -173,9 +207,11 @@ IDLE → SPAWNED → RUNNING → (REPORTING) → COMPLETE
 | Extensions | 38 |
 | SDKs | 18 |
 | Edge Workers | 6 |
+| Governance Laws (CPL-L rules) | 16 |
+| Atlas Registry Entities | 21 |
 
 ---
-*Organism Bot Fleet Charter v2.0 — Maintained by organism-alpha-bot*
+*Organism Bot Fleet Charter v3.0 — Maintained by organism-alpha-bot & organism-governance-bot*
 
 
 ## Mission
