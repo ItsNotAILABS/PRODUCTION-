@@ -210,3 +210,39 @@ subjects:
           - action: "FORBID"
             target: "deploy"
             reason: "Fleet-wide risk score critical (>0.9) — deployments locked"
+
+  # ── Geometry Lock (Nova Protocol Bridge) ───────────────────────────────────
+  - id: "atlas://protocol/geometry-lock"
+    rules:
+      - name: "BLOCK_UNKEYED_CALLS"
+        description: "Block any external call that does not present a valid geometric key"
+        when: 'context.event === "external_call" && context.key_access !== "granted"'
+        then:
+          - action: "FORBID"
+            target: "external_call"
+            reason: "No valid geometric key presented — external call blocked by geometry lock"
+          - action: "NOTIFY"
+            target: "atlas://bot/organism-sentinel-bot"
+            reason: "Unkeyed external call attempt detected — sentinel review required"
+
+      - name: "ESCALATE_REPEATED_KEY_DENIALS"
+        description: "Escalate when the same caller is denied 3+ times in a cycle"
+        when: 'context.caller_deny_count >= 3'
+        then:
+          - action: "ESCALATE"
+            target: "human://operator"
+            reason: "Repeated geometric key denial — possible probing or compromised partner"
+          - action: "FORBID"
+            target: "external_call"
+            reason: "Caller suspended pending operator review"
+
+      - name: "REQUIRE_REKEY_ON_DRIFT"
+        description: "Require re-keying when resonance drops below phi-inverse threshold"
+        when: 'context.resonance_R !== undefined && context.resonance_R < 0.618'
+        then:
+          - action: "REQUIRE"
+            target: "rekey"
+            reason: "Phase resonance below φ⁻¹ threshold — caller must regenerate geometric key"
+          - action: "NOTIFY"
+            target: "atlas://bot/organism-sentinel-bot"
+            reason: "Geometry lock resonance drift detected"

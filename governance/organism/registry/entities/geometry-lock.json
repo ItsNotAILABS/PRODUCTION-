@@ -1,0 +1,33 @@
+{
+  "id": "atlas://protocol/geometry-lock",
+  "name": "geometry-lock",
+  "class": "Protocol",
+  "division": "Secure & Monitor",
+  "divisionNum": "III",
+  "emoji": "🔷",
+  "domain": "Phi-resonance access gate — Nova protocol bridge",
+  "triggers": ["call_attempt", "key_validation", "caller_registration", "key_revocation"],
+  "capabilities": [
+    "geometric_key_generation",
+    "phase_resonance_validation",
+    "caller_registration",
+    "key_revocation",
+    "nova_bridge",
+    "medina_calls_gating"
+  ],
+  "languages": ["atlas://language/cpl-l"],
+  "governance_pipeline": "pipeline://governance/bot_cycle",
+  "ocl_ref": "atlas://organism/bot-fleet",
+  "protocol_refs": [
+    "PROTO-226:GeometricKeyProtocol",
+    "PROTO-223:IntelligenceContractProtocol",
+    "PROTO-204:KuramotoOscillatorProtocol",
+    "PROTO-006:SovereignContractVerificationProtocol"
+  ],
+  "law_refs": [
+    "governance://law/BOT_FLEET_SAFETY#BLOCK_UNKEYED_CALLS"
+  ],
+  "sdk": "sdk/geometry-lock/",
+  "report": "docs/geometry-lock-report.md",
+  "microbots": []
+}
