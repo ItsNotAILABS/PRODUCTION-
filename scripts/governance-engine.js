@@ -43,6 +43,10 @@
 const fs   = require('fs');
 const path = require('path');
 
+// ── Universal Atlas SDK (used for event emission + registry) ──────────────────
+const AtlasEvent    = require('../sdk/governance/atlas-event.js');
+const atlasRegistry = require('../sdk/governance/atlas-registry.js');
+
 const REPO         = path.resolve(__dirname, '..');
 const GOVERNANCE   = path.join(REPO, 'governance');
 const DOCS         = path.join(REPO, 'docs');
@@ -512,6 +516,20 @@ async function runFullCycle() {
   const totalBlocked   = allResults.filter(r => r.blocked).length;
   const totalEscalated = allResults.flatMap(r => r.decisions.filter(d => d.action === 'ESCALATE')).length;
   console.log(`    ✅ CPL-L applied to ${allResults.length} entities | Blocked: ${totalBlocked} | Escalated: ${totalEscalated}`);
+
+  // Emit universal governance event for the atlas cycle to ingest
+  try {
+    const govEvt = AtlasEvent.bot('organism-governance-bot', 'fleet_governance_cycle_completed', {
+      status:         fleetState.fleetHealth === 'green' ? 'success' : 'partial',
+      health_dashboard: fleetState.fleetHealth,
+      risk_score:     fleetState.riskScore,
+      total_entities: allResults.length,
+      blocked:        totalBlocked,
+      escalated:      totalEscalated,
+      findings:       allResults.flatMap(r => r.decisions.filter(d => d.action === 'FORBID').map(d => `${d.rule}@${r.entity.replace('atlas://bot/', '')}`)),
+    }, ['governance', 'fleet']);
+    govEvt.emit();
+  } catch { /* never let event emission break the cycle */ }
 
   return { allResults, fleetState };
 }

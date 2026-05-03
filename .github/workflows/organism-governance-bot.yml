@@ -70,7 +70,13 @@ jobs:
           echo '${{ github.event.inputs.event_json }}' > /tmp/gov-event.json
           node scripts/governance-engine.js --event @/tmp/gov-event.json
 
-      - name: "Phase 5 — Print audit summary"
+      - name: "Phase 5 — Emit governance events for all entities"
+        run: node scripts/atlas-governance-cycle.js --emit-events
+
+      - name: "Phase 6 — Run universal Atlas governance cycle (all domains)"
+        run: node scripts/atlas-governance-cycle.js --cycle
+
+      - name: "Phase 7 — Print audit summary"
         run: node scripts/governance-engine.js --audit
 
       - name: Commit governance outputs
@@ -78,11 +84,11 @@ jobs:
         run: |
           git config user.name "organism-governance-bot"
           git config user.email "organism-governance-bot@users.noreply.github.com"
-          git add docs/governance-report.md docs/governance-meta-report.md dist/governance/ || true
+          git add docs/governance-report.md docs/governance-meta-report.md docs/atlas-governance-report.md dist/governance/ || true
           if git diff --cached --quiet; then
             echo "No governance changes to commit"
           else
-            git commit -m "🏛️ Governance-bot: fleet governance cycle complete — CPL-L/CPL-P applied"
+            git commit -m "🏛️ Governance-bot: universal Atlas governance cycle — CPL-L/CPL-P all domains"
             git push
           fi
 
