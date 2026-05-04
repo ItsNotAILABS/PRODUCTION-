@@ -15,7 +15,7 @@
  *   NEP, ESP, AGCEP, PCP, ARP, MCP, RSP, HDP, GSP, AGP
  *
  * @module protocols
- * @version 3.0.0
+ * @version 3.1.0
  * @powered-by ORO Systems
  */
 
@@ -123,3 +123,9 @@ export { EdgeComputeProtocol, EdgeWorker, WORKER_TYPES, WORKER_STATES, EDGE_REGI
 
 // PROTO-225: Cyber Defense — threat matrix, attack surface map, incident engine
 export { CyberDefenseProtocol, ThreatIndicator, THREAT_LEVELS, SURFACE_CATEGORIES } from './cyber-defense-protocol.js';
+
+// PROTO-226: Geometric Key — phi-resonance access gate, Nova protocol bridge
+export { GeometricKeyProtocol, INTERFACE_TYPES, KEY_STATES, ACCESS, WINDOW_MS, DEFAULT_DIMENSIONS } from './geometric-key-protocol.js';
+
+// PROTO-227: Sovereign Charter — hierarchical covenant binding all protocols, canisters, and the log
+export { SovereignCharterProtocol, TIERS, PROTOCOLS, DEPENDENCIES, CANISTERS, LOG_COVENANT, ACTIVATION_SEQUENCE } from './sovereign-charter.js';
