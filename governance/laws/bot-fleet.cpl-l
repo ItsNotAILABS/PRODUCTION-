@@ -246,3 +246,25 @@ subjects:
           - action: "NOTIFY"
             target: "atlas://bot/organism-sentinel-bot"
             reason: "Geometry lock resonance drift detected"
+
+      - name: "REQUIRE_INTELLIGENCE_KEY_FOR_AI"
+        description: "AI callers must present a geometric key — machine tokens are not accepted on the intelligence interface"
+        when: 'context.caller_interface_type === "intelligence" && context.token_type !== "geometric_key"'
+        then:
+          - action: "FORBID"
+            target: "external_call"
+            reason: "AI caller must present a geometric key (phi-resonant) — machine token rejected on intelligence interface"
+          - action: "NOTIFY"
+            target: "atlas://bot/organism-sentinel-bot"
+            reason: "AI caller attempted machine-interface token on intelligence route — interface mismatch"
+
+      - name: "BLOCK_MACHINE_ON_INTELLIGENCE_ROUTES"
+        description: "Machine-interface callers cannot access intelligence-only routes"
+        when: 'context.caller_interface_type === "machine" && context.route_requires_intelligence === true'
+        then:
+          - action: "FORBID"
+            target: "external_call"
+            reason: "Machine interface callers cannot access intelligence-only routes — register as intelligence caller"
+          - action: "NOTIFY"
+            target: "atlas://bot/organism-sentinel-bot"
+            reason: "Machine caller attempted intelligence-only route — interface boundary violation"
