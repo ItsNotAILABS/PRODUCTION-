@@ -216,6 +216,26 @@ class GeometryLockSDK {
   getAccessLog() {
     return [...this._protocol.accessLog];
   }
+
+  // ── Adaptive threshold ──────────────────────────────────────────────────────
+
+  /**
+   * Enable or disable defensive mode.
+   * In defensive mode the Kuramoto threshold rises to cos(36°) ≈ 0.809,
+   * requiring stronger phase coherence from intelligence callers.
+   * Defensive mode is also triggered automatically when the rolling deny rate
+   * exceeds 50% over the last 10 validations.
+   *
+   * @param {boolean} active
+   */
+  setDefensiveMode(active) {
+    this._protocol.setDefensiveMode(active);
+  }
+
+  /** @returns {boolean} Whether defensive mode is currently active. */
+  get defensiveMode() {
+    return this._protocol.defensiveMode;
+  }
 }
 
 export {

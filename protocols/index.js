@@ -126,3 +126,6 @@ export { CyberDefenseProtocol, ThreatIndicator, THREAT_LEVELS, SURFACE_CATEGORIE
 
 // PROTO-226: Geometric Key — phi-resonance access gate, Nova protocol bridge
 export { GeometricKeyProtocol, INTERFACE_TYPES, KEY_STATES, ACCESS, WINDOW_MS, DEFAULT_DIMENSIONS } from './geometric-key-protocol.js';
+
+// PROTO-227: Sovereign Charter — hierarchical covenant binding all protocols, canisters, and the log
+export { SovereignCharterProtocol, TIERS, PROTOCOLS, DEPENDENCIES, CANISTERS, LOG_COVENANT, ACTIVATION_SEQUENCE } from './sovereign-charter.js';

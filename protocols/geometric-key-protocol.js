@@ -47,7 +47,7 @@
  * @version 1.1.0
  */
 
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
 const PHI                = 1.618033988749895;
 const PHI_INV            = 1 / PHI;
@@ -55,8 +55,19 @@ const HEARTBEAT          = 873;
 const WINDOW_MS          = Math.round(HEARTBEAT * PHI);   // ~1413 ms per time window
 const MACHINE_TOKEN_WINDOW_MS = 30_000;                   // 30s freshness for machine tokens
 const EMERGENCE_THRESHOLD = PHI_INV;                      // 0.618…
+const DEFENSIVE_THRESHOLD = Math.cos(Math.PI / 5);        // cos(36°) ≈ 0.809 — tighter gate
 const DEFAULT_DIMENSIONS = 8;                             // phase vector dimensionality
 const TWO_PI             = 2 * Math.PI;
+
+// Hebbian learning rates
+const LTP_RATE  = 0.05;    // Long-Term Potentiation: reinforce on grant
+const LTD_RATE  = 0.03;    // Long-Term Depression: suppress on deny
+const MAX_WEIGHT = PHI;    // upper bound on core weight
+const MIN_WEIGHT = 0.01;   // lower bound — never fully silent
+
+// Defensive mode auto-triggers when global deny rate exceeds this over a rolling window
+const DEFENSIVE_DENY_RATE = 0.5;  // ≥ 50% denials in last DEFENSIVE_WINDOW_SIZE checks
+const DEFENSIVE_WINDOW_SIZE = 10; // rolling window length
 
 // ── Interface types ───────────────────────────────────────────────────────────
 const INTERFACE_TYPES = {
@@ -180,6 +191,28 @@ class CallerRecord {
     this.grantCount    = 0;
     this.denyCount     = 0;
     this.revoked       = false;
+
+    // ── Hebbian immune memory core ────────────────────────────────────────
+    // coreWeight starts at φ⁻¹ (balanced, not potentiated or suppressed).
+    // Long-Term Potentiation (LTP) on grant: weight grows toward φ.
+    // Long-Term Depression (LTD) on deny:  weight decays toward 0.
+    // The weight modulates how much benefit of the doubt the lock extends
+    // (currently informational; can be wired to threshold dampening).
+    this.coreWeight    = PHI_INV;   // Hebbian core weight [MIN_WEIGHT, MAX_WEIGHT]
+    this.ltpEvents     = 0;         // lifetime LTP (potentiation) count
+    this.ltdEvents     = 0;         // lifetime LTD (depression) count
+  }
+
+  /** Apply Long-Term Potentiation: reinforce on successful validation. */
+  potentiate() {
+    this.coreWeight = Math.min(MAX_WEIGHT, this.coreWeight + (MAX_WEIGHT - this.coreWeight) * LTP_RATE);
+    this.ltpEvents++;
+  }
+
+  /** Apply Long-Term Depression: suppress on failed validation. */
+  depress() {
+    this.coreWeight = Math.max(MIN_WEIGHT, this.coreWeight - this.coreWeight * LTD_RATE);
+    this.ltdEvents++;
   }
 
   /** Generate the expected phase vector for a given time window (intelligence only). */
@@ -204,12 +237,60 @@ class GeometricKeyProtocol {
     this.windowTolerance = config.windowTolerance !== undefined ? config.windowTolerance : 1;
     this.threshold       = config.threshold       !== undefined ? config.threshold : EMERGENCE_THRESHOLD;
 
+    // ── Adaptive Kuramoto threshold ─────────────────────────────────────────
+    // In defensive mode the threshold rises to DEFENSIVE_THRESHOLD (cos 36° ≈ 0.809).
+    // Mode is set explicitly via setDefensiveMode() or automatically when the global
+    // rolling deny rate exceeds DEFENSIVE_DENY_RATE over DEFENSIVE_WINDOW_SIZE checks.
+    this._defensiveMode    = false;
+    this._baseThreshold    = this.threshold;       // user-supplied or φ⁻¹
+    this._recentOutcomes   = [];                   // rolling window of 'granted'|'denied'
+
     this.stats = {
       totalValidations: 0,
       totalGranted:     0,
       totalDenied:      0,
       totalRevocations: 0,
     };
+  }
+
+  // ── Adaptive threshold control ────────────────────────────────────────────
+
+  /**
+   * Explicitly enable or disable defensive mode.
+   * In defensive mode the Kuramoto threshold rises to DEFENSIVE_THRESHOLD (cos 36° ≈ 0.809),
+   * requiring stronger phase coherence for access to be granted.
+   *
+   * @param {boolean} active
+   */
+  setDefensiveMode(active) {
+    this._defensiveMode = Boolean(active);
+    this.threshold = this._defensiveMode ? DEFENSIVE_THRESHOLD : this._baseThreshold;
+    this._log({ event: this._defensiveMode ? 'defensive_mode_on' : 'defensive_mode_off', threshold: this.threshold, at: Date.now() });
+  }
+
+  /** Return whether defensive mode is currently active. */
+  get defensiveMode() { return this._defensiveMode; }
+
+  /**
+   * Update the rolling deny-rate window and auto-engage or disengage defensive mode.
+   * Called after every intelligence-interface validation.
+   * @param {'granted'|'denied'} outcome
+   */
+  _trackOutcome(outcome) {
+    this._recentOutcomes.push(outcome);
+    if (this._recentOutcomes.length > DEFENSIVE_WINDOW_SIZE) {
+      this._recentOutcomes.shift();
+    }
+
+    if (this._recentOutcomes.length < DEFENSIVE_WINDOW_SIZE) return; // not enough data yet
+
+    const denyCount  = this._recentOutcomes.filter(o => o === 'denied').length;
+    const denyRate   = denyCount / this._recentOutcomes.length;
+    const shouldDefend = denyRate >= DEFENSIVE_DENY_RATE;
+
+    if (shouldDefend !== this._defensiveMode) {
+      this.setDefensiveMode(shouldDefend);
+    }
   }
 
   // ── Caller registration ───────────────────────────────────────────────────
@@ -315,7 +396,7 @@ class GeometricKeyProtocol {
    */
   generateMachineToken(callerId, apiKey) {
     const timestamp = Date.now();
-    const nonce     = Math.random().toString(36).slice(2, 12);
+    const nonce     = randomBytes(8).toString('hex');   // cryptographically random nonce
     const payload   = `${callerId}|${timestamp}|${nonce}`;
     const signature = createHmac('sha256', apiKey).update(payload).digest('hex');
 
@@ -356,16 +437,20 @@ class GeometricKeyProtocol {
       if (result.access === ACCESS.GRANTED) {
         record.grantCount++;
         record.state = KEY_STATES.GRANTED;
+        record.potentiate();                     // Hebbian LTP
       } else {
         record.denyCount++;
         record.state = KEY_STATES.DENIED;
+        record.depress();                        // Hebbian LTD
       }
     }
 
     if (result.access === ACCESS.GRANTED) {
       this.stats.totalGranted++;
+      this._trackOutcome('granted');
     } else {
       this.stats.totalDenied++;
+      this._trackOutcome('denied');
     }
 
     this._log({ event: result.access, callerId: token?.callerId, interfaceType: INTERFACE_TYPES.INTELLIGENCE, R: result.R, at: now });
@@ -396,9 +481,11 @@ class GeometricKeyProtocol {
       if (result.access === ACCESS.GRANTED) {
         record.grantCount++;
         record.state = KEY_STATES.GRANTED;
+        record.potentiate();                     // Hebbian LTP
       } else {
         record.denyCount++;
         record.state = KEY_STATES.DENIED;
+        record.depress();                        // Hebbian LTD
       }
     }
 
@@ -565,6 +652,11 @@ class GeometricKeyProtocol {
       denyCount:     record.denyCount,
       lastAccess:    record.lastAccess,
       registeredAt:  record.registeredAt,
+      hebbian: {
+        coreWeight: record.coreWeight,
+        ltpEvents:  record.ltpEvents,
+        ltdEvents:  record.ltdEvents,
+      },
     };
   }
 
@@ -576,6 +668,9 @@ class GeometricKeyProtocol {
     const all          = [...this.callers.values()];
     const intelligence = all.filter(c => c.interfaceType === INTERFACE_TYPES.INTELLIGENCE);
     const machines     = all.filter(c => c.interfaceType === INTERFACE_TYPES.MACHINE);
+    const avgWeight    = all.length > 0
+      ? all.reduce((s, c) => s + c.coreWeight, 0) / all.length
+      : 0;
     return {
       registeredCallers:      all.length,
       activeCallers:          all.filter(c => !c.revoked).length,
@@ -584,7 +679,15 @@ class GeometricKeyProtocol {
       windowMs:               WINDOW_MS,
       machineTokenWindowMs:   MACHINE_TOKEN_WINDOW_MS,
       threshold:              this.threshold,
+      baseThreshold:          this._baseThreshold,
+      defensiveMode:          this._defensiveMode,
       dimensions:             this.dimensions,
+      hebbian: {
+        avgCoreWeight: avgWeight,
+        recentDenyRate: this._recentOutcomes.length > 0
+          ? this._recentOutcomes.filter(o => o === 'denied').length / this._recentOutcomes.length
+          : 0,
+      },
       ...this.stats,
     };
   }
@@ -603,7 +706,10 @@ export {
   WINDOW_MS,
   MACHINE_TOKEN_WINDOW_MS,
   EMERGENCE_THRESHOLD,
+  DEFENSIVE_THRESHOLD,
   DEFAULT_DIMENSIONS,
+  LTP_RATE,
+  LTD_RATE,
   derivePhaseVector,
   orderParameter,
   currentWindow,
