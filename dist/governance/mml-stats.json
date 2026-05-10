@@ -1,25 +1,25 @@
 {
-  "cycles": 1326,
+  "cycles": 1378,
   "domains": {
     "learning": {
-      "cycles": 1326,
-      "blocked": 1326,
-      "escalated": 1326,
-      "total_decisions": 2652
+      "cycles": 1378,
+      "blocked": 1378,
+      "escalated": 1378,
+      "total_decisions": 2756
     }
   },
   "entities": {
     "atlas://bot/organism-learning-bot": {
-      "blocked": 1326,
+      "blocked": 1378,
       "allowed": 0,
-      "escalated": 1326,
-      "rules_triggered": 2652,
+      "escalated": 1378,
+      "rules_triggered": 2756,
       "domain": "learning"
     }
   },
   "rules": {
     "governance://law/learning-stability#HALT_ON_REWARD_DIVERGENCE": {
-      "triggered": 2652,
+      "triggered": 2756,
       "entities": [
         "atlas://bot/organism-learning-bot"
       ],
@@ -28,5 +28,5 @@
       ]
     }
   },
-  "updated_at": "2026-05-10T13:15:10.079Z"
+  "updated_at": "2026-05-10T15:52:30.046Z"
 }
