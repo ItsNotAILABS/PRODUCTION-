@@ -97,8 +97,11 @@ describe('Protocols index', () => {
     const content = fs.readFileSync(indexPath, 'utf8');
     const fromMatches = content.match(/from\s+'\.\/[^']+'/g);
     assert.ok(fromMatches);
-    // Currently there are 43 protocols (PROTO-001 through PROTO-227 with gaps)
-    // Using >= 43 to ensure all current protocols are present while allowing for future additions
+    // Protocol numbering is non-contiguous (selected protocols from various ranges):
+    // - PROTO-001 to PROTO-011: Original core protocols
+    // - PROTO-181 to PROTO-185: AURO Charter protocols
+    // - PROTO-201 to PROTO-227: Alpha Intelligence protocols
+    // Total: 43 unique protocols across these ranges
     assert.ok(fromMatches.length >= 43, `Expected >=43 protocol imports, found ${fromMatches.length}`);
   });
 });
