@@ -97,7 +97,8 @@ describe('Protocols index', () => {
     const content = fs.readFileSync(indexPath, 'utf8');
     const fromMatches = content.match(/from\s+'\.\/[^']+'/g);
     assert.ok(fromMatches);
-    // Protocol count has grown from 11 to 43 as the system evolved
-    assert.ok(fromMatches.length >= 40, `Expected >=40 protocol imports, found ${fromMatches.length}`);
+    // Currently there are 43 protocols (PROTO-001 through PROTO-227 with gaps)
+    // Using >= 43 to ensure all current protocols are present while allowing for future additions
+    assert.ok(fromMatches.length >= 43, `Expected >=43 protocol imports, found ${fromMatches.length}`);
   });
 });
