@@ -6,6 +6,7 @@ const path = require('path');
 const SDK_ROOT = path.resolve(__dirname, '..', '..', 'sdk');
 
 const EXPECTED_SDKS = [
+  'agent-workspace-sdk',
   'ai-model-engines',
   'intelligence-routing-sdk',
   'organism-marketplace',
