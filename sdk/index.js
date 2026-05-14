@@ -279,5 +279,16 @@ export {
   bootstrapWithHashRouting as bootstrapOrganismWithHashRouting,
 } from './organism-bootstrap/src/index.js';
 
+// Organism Marketplace SDK (@medina/organism-marketplace)
+export {
+  ToolSchemaBuilder,
+  ToolRegistry,
+  ToolInvoker,
+  MarketplaceSettlement,
+  MarketplaceRouter,
+  ChatGPTToolAdapter,
+  RepoIntelligenceBridge,
+} from './organism-marketplace/src/index.js';
+
 // Default export is the bootstrap function
 export { default } from './runtime/bootstrap.js';
