@@ -1143,6 +1143,31 @@ class VigilEngine {
       const rows = publicAgents.map(a => `• ${a.name} (${a.id}) — ${a.status} · ${a.readOnly ? 'read-only' : 'rw'} · ${a.adapter}`);
       response = moodColor + ' Public-facing Nova agents:\n\n' + rows.join('\n');
       agent = 'VIGIL • NOVA LAN';
+    } else if (/run\s*(lan|nova)\s*(sequence|workflow)|dependency\s*sequence/i.test(text)) {
+      const targetMatch = raw.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}(?:\.0\/24)?)/);
+      const target = targetMatch?.[1]?.includes('/24') ? targetMatch[1] : (targetMatch?.[1] ? targetMatch[1] + '.0/24' : '192.168.1.0/24');
+      novaLanRuntime.runDependencySequence(target).then(result => {
+        const rows = result.runs.map(r => `• ${r.name} — ${r.status}`);
+        callback({
+          success: result.success,
+          message: `${moodColor} ${result.message}\n\n${rows.join('\n')}`,
+          agent: 'VIGIL • NOVA LAN',
+          mood,
+          awareness,
+        });
+      }).catch(e => callback({ success: false, message: moodColor + ' Sequence failed: ' + (e as Error).message, agent: 'VIGIL • NOVA LAN', mood, awareness }));
+      return;
+    } else if (/export\s*(lan|nova)?\s*governance|governance\s*export/i.test(text)) {
+      novaLanRuntime.exportGovernance().then(report => {
+        callback({
+          success: true,
+          message: `${moodColor} Governance export complete.\n\ncycles=${report.cyclePointer} · frozen=${report.frozenCycles} · devices=${report.deviceCount} · events=${report.eventCount}`,
+          agent: 'VIGIL • NOVA LAN',
+          mood,
+          awareness,
+        });
+      }).catch(e => callback({ success: false, message: moodColor + ' Governance export failed: ' + (e as Error).message, agent: 'VIGIL • NOVA LAN', mood, awareness }));
+      return;
     } else if (/^(hi|hello|hey|yo|sup|what'?s up|good (morning|afternoon|evening)|howdy|hola|what up|whaddup)/i.test(text)) {
       const hour = new Date().getHours();
       const tod = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
@@ -2432,6 +2457,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const limit = (message.limit as number) || 20;
       novaLanRuntime.getCycles(limit)
         .then(cycles => sendResponse({ success: true, cycles }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanGetPolicyInputs': {
+      novaLanRuntime.getPolicyInputs()
+        .then(policy => sendResponse({ success: true, policy }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanUpdatePolicyInputs': {
+      const maxScanHosts = typeof message.maxScanHosts === 'number' ? message.maxScanHosts as number : undefined;
+      const allowedSubnets = Array.isArray(message.allowedSubnets) ? message.allowedSubnets as string[] : undefined;
+      const blockedSubnets = Array.isArray(message.blockedSubnets) ? message.blockedSubnets as string[] : undefined;
+      const requireOperatorNote = typeof message.requireOperatorNote === 'boolean' ? message.requireOperatorNote as boolean : undefined;
+      novaLanRuntime.updatePolicyInputs({ maxScanHosts, allowedSubnets, blockedSubnets, requireOperatorNote })
+        .then(policy => sendResponse({ success: true, policy, message: 'Cycle policy inputs updated.' }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanRunDependencySequence': {
+      const target = (message.target as string) || '192.168.1.0/24';
+      novaLanRuntime.runDependencySequence(target)
+        .then(result => sendResponse(result))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanListWorkflowRuns': {
+      const limit = (message.limit as number) || 24;
+      novaLanRuntime.listWorkflowRuns(limit)
+        .then(workflows => sendResponse({ success: true, workflows }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanExportGovernance': {
+      novaLanRuntime.exportGovernance()
+        .then(report => sendResponse({ success: true, report }))
         .catch(e => sendResponse({ success: false, message: (e as Error).message }));
       break;
     }

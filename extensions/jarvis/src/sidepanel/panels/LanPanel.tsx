@@ -64,6 +64,24 @@ type PublicAgent = {
   adapter: 'http' | 'obd' | 'ssh' | 'multi';
 };
 
+type PolicyInputs = {
+  maxScanHosts: number;
+  allowedSubnets: string[];
+  blockedSubnets: string[];
+  requireOperatorNote: boolean;
+  cycleBound: number;
+  updatedAt: number;
+};
+
+type WorkflowRun = {
+  id: string;
+  name: string;
+  status: 'completed' | 'failed';
+  cycleAtStart: number;
+  endedAt: number;
+  steps: Array<{ step: string; success: boolean; message: string }>;
+};
+
 const riskColor: Record<string, string> = {
   low: 'text-green-300 border-green-700/40 bg-green-900/20',
   medium: 'text-amber-300 border-amber-700/40 bg-amber-900/20',
@@ -79,6 +97,11 @@ export default function LanPanel() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [publicAgents, setPublicAgents] = useState<PublicAgent[]>([]);
+  const [policy, setPolicy] = useState<PolicyInputs | null>(null);
+  const [allowedSubnetsInput, setAllowedSubnetsInput] = useState('');
+  const [blockedSubnetsInput, setBlockedSubnetsInput] = useState('');
+  const [maxScanHostsInput, setMaxScanHostsInput] = useState('64');
+  const [workflowRuns, setWorkflowRuns] = useState<WorkflowRun[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -97,6 +120,18 @@ export default function LanPanel() {
     });
     chrome.runtime.sendMessage({ action: 'lanListPublicAgents' }, (r) => {
       if (!chrome.runtime.lastError && r?.success) setPublicAgents((r.agents || []) as PublicAgent[]);
+    });
+    chrome.runtime.sendMessage({ action: 'lanGetPolicyInputs' }, (r) => {
+      if (!chrome.runtime.lastError && r?.success) {
+        const p = r.policy as PolicyInputs;
+        setPolicy(p);
+        setMaxScanHostsInput(String(p.maxScanHosts));
+        setAllowedSubnetsInput((p.allowedSubnets || []).join(', '));
+        setBlockedSubnetsInput((p.blockedSubnets || []).join(', '));
+      }
+    });
+    chrome.runtime.sendMessage({ action: 'lanListWorkflowRuns', limit: 8 }, (r) => {
+      if (!chrome.runtime.lastError && r?.success) setWorkflowRuns((r.workflows || []) as WorkflowRun[]);
     });
   }, []);
 
@@ -136,6 +171,37 @@ export default function LanPanel() {
     });
   };
 
+  const savePolicyInputs = () => {
+    const maxScanHosts = Number(maxScanHostsInput);
+    const allowedSubnets = allowedSubnetsInput.split(',').map(s => s.trim()).filter(Boolean);
+    const blockedSubnets = blockedSubnetsInput.split(',').map(s => s.trim()).filter(Boolean);
+    chrome.runtime.sendMessage({ action: 'lanUpdatePolicyInputs', maxScanHosts, allowedSubnets, blockedSubnets }, (r) => {
+      setMsg(r?.message || (r?.success ? 'Policy updated.' : 'Policy update failed.'));
+      refresh();
+    });
+  };
+
+  const runDependencySequence = () => {
+    setBusy(true);
+    chrome.runtime.sendMessage({ action: 'lanRunDependencySequence', target }, (r) => {
+      setBusy(false);
+      setMsg(r?.message || (r?.success ? 'Dependency sequence complete.' : 'Dependency sequence failed.'));
+      refresh();
+    });
+  };
+
+  const exportGovernance = () => {
+    chrome.runtime.sendMessage({ action: 'lanExportGovernance' }, (r) => {
+      if (r?.success && r.report) {
+        const rep = r.report as { cyclePointer: number; frozenCycles: number; eventCount: number; deviceCount: number };
+        setMsg(`Governance export: cycles=${rep.cyclePointer} frozen=${rep.frozenCycles} events=${rep.eventCount} devices=${rep.deviceCount}`);
+      } else {
+        setMsg(r?.message || 'Governance export failed.');
+      }
+      refresh();
+    });
+  };
+
   const counts = useMemo(() => ({
     online: devices.filter(d => d.health === 'online').length,
     risky: devices.filter(d => d.riskLevel === 'high').length,
@@ -171,6 +237,47 @@ export default function LanPanel() {
           </button>
         </div>
         <div className="mt-2 text-[11px] text-amber-200/90 min-h-4">{msg}</div>
+        <div className="mt-2 flex gap-1">
+          <button
+            onClick={runDependencySequence}
+            disabled={busy}
+            className="px-2 py-1 text-[10px] rounded border border-violet-700/40 bg-violet-900/20 text-violet-300 disabled:opacity-50"
+          >
+            Run dependency sequence
+          </button>
+          <button
+            onClick={exportGovernance}
+            className="px-2 py-1 text-[10px] rounded border border-emerald-700/40 bg-emerald-900/20 text-emerald-300"
+          >
+            Export governance
+          </button>
+        </div>
+      </div>
+
+      <div className="border border-[#2d2010] rounded p-2 bg-[#13100a] space-y-1">
+        <div className="text-xs text-amber-300">Cycle policy inputs</div>
+        <div className="grid grid-cols-2 gap-1">
+          <input
+            value={maxScanHostsInput}
+            onChange={e => setMaxScanHostsInput(e.target.value)}
+            placeholder="max hosts"
+            className="bg-[#0d0b08] border border-[#2d2010] rounded px-2 py-1 text-[10px] outline-none focus:border-amber-700"
+          />
+          <button onClick={savePolicyInputs} className="text-[10px] rounded border border-amber-700/40 bg-amber-900/20 text-amber-300 px-2 py-1">Save policy</button>
+        </div>
+        <input
+          value={allowedSubnetsInput}
+          onChange={e => setAllowedSubnetsInput(e.target.value)}
+          placeholder="allowed subnets (comma separated)"
+          className="w-full bg-[#0d0b08] border border-[#2d2010] rounded px-2 py-1 text-[10px] outline-none focus:border-amber-700"
+        />
+        <input
+          value={blockedSubnetsInput}
+          onChange={e => setBlockedSubnetsInput(e.target.value)}
+          placeholder="blocked subnets (comma separated)"
+          className="w-full bg-[#0d0b08] border border-[#2d2010] rounded px-2 py-1 text-[10px] outline-none focus:border-amber-700"
+        />
+        {policy && <div className="text-[10px] text-gray-500">cycleBound={policy.cycleBound} · updated {new Date(policy.updatedAt).toLocaleTimeString()}</div>}
       </div>
 
       <div className="border border-[#2d2010] rounded bg-[#13100a]">
@@ -260,6 +367,18 @@ export default function LanPanel() {
             </div>
           ))}
           {publicAgents.length === 0 && <div className="px-2 py-2 text-xs text-gray-500">No public-facing agents defined.</div>}
+        </div>
+      </div>
+
+      <div className="border border-[#2d2010] rounded bg-[#13100a]">
+        <div className="px-2 py-1 border-b border-[#2d2010] text-xs text-amber-300">Workflow runs</div>
+        <div className="max-h-32 overflow-y-auto divide-y divide-[#2d2010]">
+          {workflowRuns.map(w => (
+            <div key={w.id} className="px-2 py-1 text-[10px] text-gray-300">
+              {w.name} · {w.status} · C{w.cycleAtStart}
+            </div>
+          ))}
+          {workflowRuns.length === 0 && <div className="px-2 py-2 text-xs text-gray-500">No workflow runs yet.</div>}
         </div>
       </div>
     </div>

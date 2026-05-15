@@ -31,7 +31,7 @@ export interface LanDeviceRecord {
 export interface MedinaCycleEvent {
   id: string;
   cycle: number;
-  type: 'scan' | 'probe' | 'registry_update' | 'policy_denied';
+  type: 'scan' | 'probe' | 'registry_update' | 'policy_denied' | 'directive_update' | 'workflow' | 'governance_export';
   timestamp: number;
   actor: 'nova-lan-runtime';
   target?: string;
@@ -71,6 +71,38 @@ interface ScopeSummary {
   };
 }
 
+export interface RuntimePolicyInputs {
+  maxScanHosts: number;
+  allowedSubnets: string[];
+  blockedSubnets: string[];
+  requireOperatorNote: boolean;
+  cycleBound: number;
+  updatedAt: number;
+}
+
+export interface LanWorkflowRecord {
+  id: string;
+  name: 'native_host_stabilization' | 'workflow_execution_logging' | 'governance_export';
+  status: 'completed' | 'failed';
+  startedAt: number;
+  endedAt: number;
+  cycleAtStart: number;
+  steps: Array<{ step: string; success: boolean; message: string }>;
+}
+
+export interface GovernanceExport {
+  timestamp: number;
+  doctrineHash: string;
+  lastHash: string;
+  frozenCycles: number;
+  cyclePointer: number;
+  deviceCount: number;
+  eventCount: number;
+  publicAgentCount: number;
+  policy: RuntimePolicyInputs;
+  adapters: ScopeSummary['adapters'];
+}
+
 export interface PublicFacingAgentDef {
   id: string;
   name: string;
@@ -85,11 +117,14 @@ const STORAGE = {
   registry: 'nova_lan_registry_v1',
   events: 'nova_medina_events_v1',
   chain: 'nova_medina_chain_v1',
+  policy: 'nova_runtime_policy_v1',
+  workflows: 'nova_runtime_workflows_v1',
 } as const;
 
 const DEFAULT_SCAN_HOST_LIMIT = 64;
 const MAX_EVENTS = 600;
 const MAX_DEVICES = 500;
+const MAX_WORKFLOWS = 120;
 
 function getStorage<T>(key: string, fallback: T): Promise<T> {
   return new Promise(resolve => {
@@ -231,6 +266,33 @@ class NovaLanRuntime {
     };
   }
 
+  async getPolicyInputs(): Promise<RuntimePolicyInputs> {
+    return this._getPolicy();
+  }
+
+  async updatePolicyInputs(patch: Partial<Pick<RuntimePolicyInputs, 'maxScanHosts' | 'allowedSubnets' | 'blockedSubnets' | 'requireOperatorNote'>>): Promise<RuntimePolicyInputs> {
+    const current = await this._getPolicy();
+    const chain = await this._getChain();
+    const next: RuntimePolicyInputs = {
+      ...current,
+      maxScanHosts: typeof patch.maxScanHosts === 'number' ? Math.max(8, Math.min(254, Math.floor(patch.maxScanHosts))) : current.maxScanHosts,
+      allowedSubnets: Array.isArray(patch.allowedSubnets) ? patch.allowedSubnets.map(s => s.trim()).filter(Boolean) : current.allowedSubnets,
+      blockedSubnets: Array.isArray(patch.blockedSubnets) ? patch.blockedSubnets.map(s => s.trim()).filter(Boolean) : current.blockedSubnets,
+      requireOperatorNote: typeof patch.requireOperatorNote === 'boolean' ? patch.requireOperatorNote : current.requireOperatorNote,
+      cycleBound: chain.nextCycle,
+      updatedAt: now(),
+    };
+    await this._savePolicy(next);
+    await this._emit('directive_update', 'runtime-policy', {
+      maxScanHosts: next.maxScanHosts,
+      allowedSubnets: next.allowedSubnets,
+      blockedSubnets: next.blockedSubnets,
+      requireOperatorNote: next.requireOperatorNote,
+      cycleBound: next.cycleBound,
+    });
+    return next;
+  }
+
   getPublicFacingAgents(): PublicFacingAgentDef[] {
     return [
       {
@@ -282,6 +344,98 @@ class NovaLanRuntime {
     return all.slice(0, Math.max(1, Math.min(250, limit)));
   }
 
+  async listWorkflowRuns(limit = 24): Promise<LanWorkflowRecord[]> {
+    const all = await this._getWorkflowRuns();
+    return all.slice(0, Math.max(1, Math.min(100, limit)));
+  }
+
+  async runDependencySequence(target: string): Promise<{ success: boolean; runs: LanWorkflowRecord[]; message: string }> {
+    const runs: LanWorkflowRecord[] = [];
+    const one = async (
+      name: LanWorkflowRecord['name'],
+      exec: () => Promise<Array<{ step: string; success: boolean; message: string }>>,
+    ): Promise<LanWorkflowRecord> => {
+      const chain = await this._getChain();
+      const startedAt = now();
+      let status: LanWorkflowRecord['status'] = 'completed';
+      let steps: Array<{ step: string; success: boolean; message: string }> = [];
+      try {
+        steps = await exec();
+      } catch (e) {
+        status = 'failed';
+        steps = [{ step: 'runtime', success: false, message: e instanceof Error ? e.message : String(e) }];
+      }
+      const run: LanWorkflowRecord = {
+        id: `wf-${name}-${startedAt}`,
+        name,
+        status,
+        startedAt,
+        endedAt: now(),
+        cycleAtStart: chain.nextCycle,
+        steps,
+      };
+      const all = await this._getWorkflowRuns();
+      all.unshift(run);
+      await this._saveWorkflowRuns(all.slice(0, MAX_WORKFLOWS));
+      await this._emit('workflow', name, { status, steps });
+      return run;
+    };
+
+    runs.push(await one('native_host_stabilization', async () => {
+      const scope = await this.getScope();
+      const policy = await this.getPolicyInputs();
+      return [
+        { step: 'scope_boundary_lock', success: true, message: scope.runtime },
+        { step: 'cycle_policy_inputs', success: true, message: `maxHosts=${policy.maxScanHosts}` },
+      ];
+    }));
+    runs.push(await one('workflow_execution_logging', async () => {
+      const scan = await this.scanSubnet(target || '192.168.1.0/24');
+      const devices = await this.listDevices();
+      return [
+        { step: 'scan_subnet', success: scan.success, message: scan.message },
+        { step: 'inventory_snapshot', success: true, message: `devices=${devices.length}` },
+      ];
+    }));
+    runs.push(await one('governance_export', async () => {
+      const exportReport = await this.exportGovernance();
+      return [
+        { step: 'governance_export', success: true, message: `events=${exportReport.eventCount} frozen=${exportReport.frozenCycles}` },
+      ];
+    }));
+
+    const success = runs.every(r => r.status === 'completed');
+    return { success, runs, message: success ? 'Dependency sequence completed.' : 'Dependency sequence completed with failures.' };
+  }
+
+  async exportGovernance(): Promise<GovernanceExport> {
+    const [chain, events, devices, policy] = await Promise.all([
+      this._getChain(),
+      this._getEvents(),
+      this._getRegistry(),
+      this._getPolicy(),
+    ]);
+    const report: GovernanceExport = {
+      timestamp: now(),
+      doctrineHash: chain.doctrineHash,
+      lastHash: chain.lastHash,
+      frozenCycles: chain.frozenCycles,
+      cyclePointer: chain.nextCycle,
+      deviceCount: devices.length,
+      eventCount: events.length,
+      publicAgentCount: this.getPublicFacingAgents().length,
+      policy,
+      adapters: this._scope.adapters,
+    };
+    await this._emit('governance_export', 'medina-governance', {
+      cyclePointer: report.cyclePointer,
+      deviceCount: report.deviceCount,
+      eventCount: report.eventCount,
+      frozenCycles: report.frozenCycles,
+    });
+    return report;
+  }
+
   async getCycles(limit = 20): Promise<Array<{ cycle: number; events: number; lastHash: string; timestamp: number; frozen: boolean; types: string[] }>> {
     const events = await this._getEvents();
     const grouped = new Map<number, MedinaCycleEvent[]>();
@@ -314,10 +468,21 @@ class NovaLanRuntime {
   }
 
   async scanSubnet(target: string): Promise<{ success: boolean; message: string; target?: string; discovered?: number; live?: number; devices?: LanDeviceRecord[] }> {
-    const parsed = parseScanTarget(target);
+    const policy = await this._getPolicy();
+    const parsed = parseScanTarget(target, policy.maxScanHosts);
     if ('error' in parsed) {
       await this._emit('policy_denied', target, { reason: parsed.error, action: 'scan' });
       return { success: false, message: parsed.error };
+    }
+    if (policy.allowedSubnets.length > 0 && !policy.allowedSubnets.includes(parsed.normalized)) {
+      const reason = 'Scan blocked by directive: subnet not in allowedSubnets.';
+      await this._emit('policy_denied', parsed.normalized, { reason, action: 'scan', allowedSubnets: policy.allowedSubnets });
+      return { success: false, message: reason };
+    }
+    if (policy.blockedSubnets.includes(parsed.normalized)) {
+      const reason = 'Scan blocked by directive: subnet appears in blockedSubnets.';
+      await this._emit('policy_denied', parsed.normalized, { reason, action: 'scan', blockedSubnets: policy.blockedSubnets });
+      return { success: false, message: reason };
     }
 
     const probed = await mapLimit(parsed.ips, 24, ip => this._probeIp(ip));
@@ -481,12 +646,37 @@ class NovaLanRuntime {
     await setStorage({ [STORAGE.registry]: reg });
   }
 
+  private async _getPolicy(): Promise<RuntimePolicyInputs> {
+    const chain = await this._getChain();
+    const fallback: RuntimePolicyInputs = {
+      maxScanHosts: DEFAULT_SCAN_HOST_LIMIT,
+      allowedSubnets: [],
+      blockedSubnets: [],
+      requireOperatorNote: false,
+      cycleBound: chain.nextCycle,
+      updatedAt: now(),
+    };
+    return getStorage<RuntimePolicyInputs>(STORAGE.policy, fallback);
+  }
+
+  private async _savePolicy(policy: RuntimePolicyInputs): Promise<void> {
+    await setStorage({ [STORAGE.policy]: policy });
+  }
+
   private async _getEvents(): Promise<MedinaCycleEvent[]> {
     return getStorage<MedinaCycleEvent[]>(STORAGE.events, []);
   }
 
   private async _saveEvents(events: MedinaCycleEvent[]): Promise<void> {
     await setStorage({ [STORAGE.events]: events });
+  }
+
+  private async _getWorkflowRuns(): Promise<LanWorkflowRecord[]> {
+    return getStorage<LanWorkflowRecord[]>(STORAGE.workflows, []);
+  }
+
+  private async _saveWorkflowRuns(runs: LanWorkflowRecord[]): Promise<void> {
+    await setStorage({ [STORAGE.workflows]: runs });
   }
 
   private async _getChain(): Promise<ChainState> {
