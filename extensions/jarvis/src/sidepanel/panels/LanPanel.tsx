@@ -205,7 +205,9 @@ export default function LanPanel() {
                   >
                     {lifeOpts.map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
-                  <span className="text-[10px] text-gray-600 ml-auto">seen {new Date(d.lastSeen).toLocaleTimeString()}</span>
+                  <span className="text-[10px] text-gray-600 ml-auto" title={'Last seen: ' + new Date(d.lastSeen).toLocaleString()}>
+                    🕒 Seen {new Date(d.lastSeen).toLocaleTimeString()}
+                  </span>
                 </div>
               </div>
             ))}
