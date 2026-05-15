@@ -38,6 +38,7 @@ import {
   initWorkflowSkill, getWorkflowState, workflowStatusText,
   startWorkflow, recordStep, WORKFLOW_INTENTS,
 } from './skills/workflow';
+import { novaLanRuntime } from './lan-runtime.js';
 
 /**
  * Route Solus calls through an offscreen document so onnxruntime-web
@@ -88,6 +89,12 @@ const PHI = 1.618033988749895;
 const HEARTBEAT = 873;
 const NEURO_PHI = 1.618033988749895;
 const NEURO_DECAY = 0.95;
+
+function normalizeLanTarget(raw: string): string {
+  const targetMatch = raw.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}(?:\.0\/24)?)/);
+  if (!targetMatch?.[1]) return '192.168.1.0/24';
+  return targetMatch[1].includes('/24') ? targetMatch[1] : `${targetMatch[1]}.0/24`;
+}
 
 /* ----------------------------------------------------------
  *  Inbox — Vigil's proactive outbox to the user
@@ -1104,6 +1111,67 @@ class VigilEngine {
       response = moodColor + ' ' + workflowStatusText() +
         (ws.results.length > 0 ? '\n\nLast steps:\n' + ws.results.slice(-3).map(r => (r.success ? '✓' : '✗') + ' ' + r.action + ' — ' + r.message).join('\n') : '');
       agent = 'VIGIL • ORCHESTRATOR';
+    } else if (/lan\s*scan|scan\s*(the\s*)?(lan|network)|discover\s*(lan|devices)/i.test(text)) {
+      const target = normalizeLanTarget(raw);
+      novaLanRuntime.scanSubnet(target).then(result => {
+        callback({
+          success: result.success,
+          message: result.success
+            ? `${moodColor} ${result.message}\n\nUse the 🌐 LAN panel for inventory, per-device probes, lifecycle control, and MEDINA audit cycles.`
+            : `${moodColor} ${result.message}`,
+          agent: 'VIGIL • NOVA LAN',
+          mood,
+          awareness,
+        });
+      }).catch(e => {
+        callback({ success: false, message: moodColor + ' LAN scan failed: ' + (e as Error).message, agent: 'VIGIL • NOVA LAN', mood, awareness });
+      });
+      return;
+    } else if (/lan\s*(devices|inventory|status)|list\s*(lan|network)\s*devices/i.test(text)) {
+      novaLanRuntime.listDevices().then(devices => {
+        if (devices.length === 0) {
+          callback({ success: true, message: moodColor + ' No LAN devices are registered yet. Say "scan LAN" or use the 🌐 LAN panel.', agent: 'VIGIL • NOVA LAN', mood, awareness });
+          return;
+        }
+        const lines = devices.slice(0, 8).map(d => `• ${d.ip} · ${d.inferredType} · ports [${d.ports.join(', ') || 'none'}] · ${d.lifecycle} · ${d.health}`);
+        callback({
+          success: true,
+          message: moodColor + ` LAN registry: ${devices.length} device(s).\n\n` + lines.join('\n'),
+          agent: 'VIGIL • NOVA LAN',
+          mood,
+          awareness,
+        });
+      }).catch(e => callback({ success: false, message: moodColor + ' LAN inventory failed: ' + (e as Error).message, agent: 'VIGIL • NOVA LAN', mood, awareness }));
+      return;
+    } else if (/public\s*facing\s*agents|public\s*agents|lan\s*agents/i.test(text)) {
+      const publicAgents = novaLanRuntime.getPublicFacingAgents();
+      const rows = publicAgents.map(a => `• ${a.name} (${a.id}) — ${a.status} · ${a.readOnly ? 'read-only' : 'rw'} · ${a.adapter}`);
+      response = moodColor + ' Public-facing Nova agents:\n\n' + rows.join('\n');
+      agent = 'VIGIL • NOVA LAN';
+    } else if (/run\s*(lan|nova)\s*(sequence|workflow)|dependency\s*sequence/i.test(text)) {
+      const target = normalizeLanTarget(raw);
+      novaLanRuntime.runDependencySequence(target).then(result => {
+        const rows = result.runs.map(r => `• ${r.name} — ${r.status}`);
+        callback({
+          success: result.success,
+          message: `${moodColor} ${result.message}\n\n${rows.join('\n')}`,
+          agent: 'VIGIL • NOVA LAN',
+          mood,
+          awareness,
+        });
+      }).catch(e => callback({ success: false, message: moodColor + ' Sequence failed: ' + (e as Error).message, agent: 'VIGIL • NOVA LAN', mood, awareness }));
+      return;
+    } else if (/export\s*(lan|nova)?\s*governance|governance\s*export/i.test(text)) {
+      novaLanRuntime.exportGovernance().then(report => {
+        callback({
+          success: true,
+          message: `${moodColor} Governance export complete.\n\ncycles=${report.cyclePointer} · frozen=${report.frozenCycles} · devices=${report.deviceCount} · events=${report.eventCount}`,
+          agent: 'VIGIL • NOVA LAN',
+          mood,
+          awareness,
+        });
+      }).catch(e => callback({ success: false, message: moodColor + ' Governance export failed: ' + (e as Error).message, agent: 'VIGIL • NOVA LAN', mood, awareness }));
+      return;
     } else if (/^(hi|hello|hey|yo|sup|what'?s up|good (morning|afternoon|evening)|howdy|hola|what up|whaddup)/i.test(text)) {
       const hour = new Date().getHours();
       const tod = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
@@ -2344,6 +2412,94 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     case 'openSidePanel': if (sender.tab) chrome.sidePanel.open({ windowId: sender.tab.windowId }); sendResponse({ success: true }); break;
     case 'getAgents': sendResponse({ success: true, agents: ProtocolRegistry.listAgents() }); break;
+    case 'lanGetScope': {
+      novaLanRuntime.getScope()
+        .then(scope => sendResponse({ success: true, scope }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanListPublicAgents': {
+      sendResponse({ success: true, agents: novaLanRuntime.getPublicFacingAgents() });
+      break;
+    }
+    case 'lanListDevices': {
+      novaLanRuntime.listDevices()
+        .then(devices => sendResponse({ success: true, devices }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanScan': {
+      const target = (message.target as string) || '';
+      novaLanRuntime.scanSubnet(target)
+        .then(result => sendResponse(result))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanProbeDevice': {
+      const deviceId = (message.deviceId as string) || '';
+      novaLanRuntime.probeDevice(deviceId)
+        .then(result => sendResponse(result))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanSetLifecycle': {
+      const deviceId = (message.deviceId as string) || '';
+      const lifecycle = (message.lifecycle as 'new' | 'known' | 'verified' | 'unreachable' | 'quarantined') || 'known';
+      novaLanRuntime.setLifecycle(deviceId, lifecycle)
+        .then(result => sendResponse({ success: result.updated, ...result, message: result.updated ? 'Lifecycle updated.' : 'Device not found.' }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanListEvents': {
+      const limit = (message.limit as number) || 60;
+      novaLanRuntime.listEvents(limit)
+        .then(events => sendResponse({ success: true, events }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanGetCycles': {
+      const limit = (message.limit as number) || 20;
+      novaLanRuntime.getCycles(limit)
+        .then(cycles => sendResponse({ success: true, cycles }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanGetPolicyInputs': {
+      novaLanRuntime.getPolicyInputs()
+        .then(policy => sendResponse({ success: true, policy }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanUpdatePolicyInputs': {
+      const maxScanHosts = typeof message.maxScanHosts === 'number' ? message.maxScanHosts as number : undefined;
+      const allowedSubnets = Array.isArray(message.allowedSubnets) ? message.allowedSubnets as string[] : undefined;
+      const blockedSubnets = Array.isArray(message.blockedSubnets) ? message.blockedSubnets as string[] : undefined;
+      const requireOperatorNote = typeof message.requireOperatorNote === 'boolean' ? message.requireOperatorNote as boolean : undefined;
+      novaLanRuntime.updatePolicyInputs({ maxScanHosts, allowedSubnets, blockedSubnets, requireOperatorNote })
+        .then(policy => sendResponse({ success: true, policy, message: 'Cycle policy inputs updated.' }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanRunDependencySequence': {
+      const target = (message.target as string) || '192.168.1.0/24';
+      novaLanRuntime.runDependencySequence(target)
+        .then(result => sendResponse(result))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanListWorkflowRuns': {
+      const limit = (message.limit as number) || 24;
+      novaLanRuntime.listWorkflowRuns(limit)
+        .then(workflows => sendResponse({ success: true, workflows }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
+    case 'lanExportGovernance': {
+      novaLanRuntime.exportGovernance()
+        .then(report => sendResponse({ success: true, report }))
+        .catch(e => sendResponse({ success: false, message: (e as Error).message }));
+      break;
+    }
     case 'listDocuments': dbGetDocuments().then(docs => sendResponse({ success: true, documents: docs })).catch(() => chrome.storage.local.get({ 'jarvis_documents': [] }, d => sendResponse({ success: true, documents: d['jarvis_documents'] || [] }))); break;
     case 'switchTab': engine.executeTabSwitch(message.tabIndex as number, (r) => sendResponse(r)); break;
     case 'sandboxSearch': {
@@ -3575,4 +3731,3 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
     });
   });
 });
-

@@ -1,0 +1,58 @@
+workflow: lab_test_and_deploy
+persona: Warr
+cycle: 116
+policy:
+  native_first: true
+  local_data_ownership: true
+  air_gap_capable: true
+  hash_chained_audit: true
+steps:
+  - name: trigger_test
+    agent: grex_labrig_01
+    action: run_test
+    args:
+      test: thermal_stress
+      duration: 30m
+
+  - name: collect_results
+    agent: grex_labrig_01
+    action: pull_logs
+    depends_on: [trigger_test]
+
+  - name: analyze
+    agent: grex_analysis_01
+    action: analyze_data
+    depends_on: [collect_results]
+    args:
+      data: "{{collect_results.output}}"
+      threshold: 0.95
+
+  - name: medi_debate
+    agent: medi
+    action: debate
+    depends_on: [analyze]
+    args:
+      agents: [grex_analysis_01, grex_validation_01]
+      question: "Do results meet deployment criteria?"
+
+  - name: deploy
+    agent: grex_deploy_01
+    action: deploy_to_prod
+    depends_on: [medi_debate]
+    if: 'medi.decision == "pass"'
+
+  - name: notify
+    agent: grex_glasses
+    action: send_notification
+    depends_on: [deploy]
+    args:
+      msg: "Deploy complete. Hash: {{deploy.hash}}"
+
+  - name: commit_chain
+    agent: chain_grex
+    action: commit
+    depends_on: [notify]
+    args:
+      workflow: lab_test_and_deploy
+      result: "{{medi.decision}}"
+      artifacts: [collect_results, deploy]
