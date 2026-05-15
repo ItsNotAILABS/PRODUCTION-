@@ -90,6 +90,12 @@ const HEARTBEAT = 873;
 const NEURO_PHI = 1.618033988749895;
 const NEURO_DECAY = 0.95;
 
+function normalizeLanTarget(raw: string): string {
+  const targetMatch = raw.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}(?:\.0\/24)?)/);
+  if (!targetMatch?.[1]) return '192.168.1.0/24';
+  return targetMatch[1].includes('/24') ? targetMatch[1] : `${targetMatch[1]}.0/24`;
+}
+
 /* ----------------------------------------------------------
  *  Inbox — Vigil's proactive outbox to the user
  *  In-memory, capped at 100 items per session.
@@ -1106,8 +1112,7 @@ class VigilEngine {
         (ws.results.length > 0 ? '\n\nLast steps:\n' + ws.results.slice(-3).map(r => (r.success ? '✓' : '✗') + ' ' + r.action + ' — ' + r.message).join('\n') : '');
       agent = 'VIGIL • ORCHESTRATOR';
     } else if (/lan\s*scan|scan\s*(the\s*)?(lan|network)|discover\s*(lan|devices)/i.test(text)) {
-      const targetMatch = raw.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}(?:\.0\/24)?)/);
-      const target = targetMatch?.[1]?.includes('/24') ? targetMatch[1] : (targetMatch?.[1] ? targetMatch[1] + '.0/24' : '192.168.1.0/24');
+      const target = normalizeLanTarget(raw);
       novaLanRuntime.scanSubnet(target).then(result => {
         callback({
           success: result.success,
@@ -1144,8 +1149,7 @@ class VigilEngine {
       response = moodColor + ' Public-facing Nova agents:\n\n' + rows.join('\n');
       agent = 'VIGIL • NOVA LAN';
     } else if (/run\s*(lan|nova)\s*(sequence|workflow)|dependency\s*sequence/i.test(text)) {
-      const targetMatch = raw.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}(?:\.0\/24)?)/);
-      const target = targetMatch?.[1]?.includes('/24') ? targetMatch[1] : (targetMatch?.[1] ? targetMatch[1] + '.0/24' : '192.168.1.0/24');
+      const target = normalizeLanTarget(raw);
       novaLanRuntime.runDependencySequence(target).then(result => {
         const rows = result.runs.map(r => `• ${r.name} — ${r.status}`);
         callback({

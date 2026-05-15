@@ -239,14 +239,14 @@ class NovaLanRuntime {
       discovery: 'Subnet-level read-only discovery and protocol fingerprinting',
       identity: 'Persistent LAN Device Registry (IP, ports, fingerprint, lifecycle, health, cycle linkage)',
       transportAdapters: 'HTTP active, OBD read-only over HTTP probe, SSH blocked until vault',
-      credentials: 'VAUL boundary defined; storage/execution disabled in Milestone 1',
+      credentials: 'VAULT boundary defined; storage/execution disabled in Milestone 1',
       execution: 'Read-only probe execution only; no destructive commands',
       audit: 'MEDINA-style immutable cycle events with hash chaining and frozen cycles',
     },
     adapters: {
       http: { status: 'active', mode: 'read-only', ports: [80, 443] },
       obd: { status: 'active', mode: 'read-only', ports: [35000], notes: 'Connectivity and banner probe only in Milestone 1' },
-      ssh: { status: 'blocked', mode: 'disabled', ports: [22], reason: 'Requires VAUL credential vault + explicit consent gate' },
+      ssh: { status: 'blocked', mode: 'disabled', ports: [22], reason: 'Requires VAULT credential vault + explicit consent gate' },
     },
     policy: {
       privateNetworkOnly: true,
@@ -325,7 +325,7 @@ class NovaLanRuntime {
       {
         id: 'public-secure-shell',
         name: 'Secure Shell Operator',
-        role: 'SSH automation agent gated behind VAUL credentials and explicit consent',
+        role: 'SSH automation agent gated behind VAULT credentials and explicit consent',
         visibility: 'public-facing',
         status: 'blocked',
         readOnly: false,
