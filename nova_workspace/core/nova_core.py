@@ -20,6 +20,7 @@ CHAIN_FILE = ROOT / "identity" / "identity_chain.jsonl"
 REGISTRY_FILE = ROOT / "agents" / "grex_registry.json"
 FLEET_FILE = ROOT / "artifacts" / "WARR_FLEET_STATUS.json"
 LOG_FILE = ROOT / "logs" / "cycle_116.log"
+GENESIS_HASH = "3e1e7f3f72f40e909c3d53749fe1d0f0d6fcbad20530fcae8967ff4fcb2fbc8a"
 
 
 def _sha256(text: str) -> str:
@@ -57,7 +58,7 @@ class IdentityChain:
 
     def _last_hash(self) -> str:
         events = self._read_all()
-        return events[-1]["hash"] if events else _sha256("GENESIS::NOVA::CYCLE116")
+        return events[-1]["hash"] if events else GENESIS_HASH
 
     def append(self, cycle: int, actor: str, event: str, payload: Dict[str, Any]) -> ChainEvent:
         prev_hash = self._last_hash()
@@ -134,4 +135,3 @@ class NovaCore:
 
 if __name__ == "__main__":
     print(json.dumps(NovaCore().bootstrap_cycle_116(), indent=2))
-
