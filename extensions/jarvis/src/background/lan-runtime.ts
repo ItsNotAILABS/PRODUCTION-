@@ -609,6 +609,8 @@ class NovaLanRuntime {
           cycleLinked: 0,
         };
 
+    const inferredType = inferType(hit.ports, hit.server || base.fingerprint.server, hit.title || base.fingerprint.title);
+
     const next: LanDeviceRecord = {
       ...base,
       ports: [...hit.ports].sort((a, b) => a - b),
@@ -618,7 +620,7 @@ class NovaLanRuntime {
         obdBanner: hit.obdBanner || base.fingerprint.obdBanner,
         protocolHints: [...new Set([...(base.fingerprint.protocolHints || []), ...hit.hints])],
       },
-      inferredType: inferType(hit.ports, hit.server || base.fingerprint.server, hit.title || base.fingerprint.title),
+      inferredType,
       capabilities: {
         http: hit.ports.includes(80),
         https: hit.ports.includes(443),
@@ -627,7 +629,7 @@ class NovaLanRuntime {
       },
       health: hit.live ? (hit.ports.length > 1 ? 'online' : 'degraded') : 'offline',
       lifecycle: hit.live ? (base.lifecycle === 'new' ? 'known' : base.lifecycle) : 'unreachable',
-      riskLevel: riskFromDevice({ ports: hit.ports, inferredType: inferType(hit.ports, hit.server, hit.title) }),
+      riskLevel: riskFromDevice({ ports: hit.ports, inferredType }),
       lastSeen: ts,
     };
 
