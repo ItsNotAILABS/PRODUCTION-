@@ -9,7 +9,7 @@
     "claim_class": {
       "type": "string",
       "pattern": "^C([1-9]|10)$",
-      "description": "SVA claim class in the C1-C10 release-gating taxonomy defined by the Medina Protocol Charter Index v1."
+      "description": "SVA claim class in the C1-C10 release-gating taxonomy documented in protocols/medina-protocol-charter-index-v1.md (SVA section)."
     },
     "statement": { "type": "string", "minLength": 1 },
     "authority_state": {

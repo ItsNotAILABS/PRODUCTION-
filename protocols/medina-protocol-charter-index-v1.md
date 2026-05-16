@@ -74,6 +74,7 @@ ARTIFACTA bodies the output.
 ### 9) SVA — Protocolum Validationis SVA: De Assertionibus et Evidentiis
 - **Name:** SVA Claim and Evidence Review Protocol
 - **Role:** Claim class validation (C1–C10), evidence gating, public-safe wording controls.
+- **Taxonomy note:** C1–C10 are the SVA release-gating claim classes used by THESIS/SVA validation workflows.
 - **Canonical line:** `SVA hardens claims before release.`
 
 ### 10) AUTE — Protocolum Experimentorum AUTE: De Probationibus et Tentaminibus
@@ -98,7 +99,7 @@ ARTIFACTA bodies the output.
 
 ### 14) Production Repository — Protocolum Repositorii Productionis
 - **Name:** ItsNotAILABS Production Repository Protocol
-- **Repository:** `https://github.com/ItsNotAILABS/PRODUCTION-` (exact repository slug; trailing hyphen is intentional)
+- **Repository:** `ItsNotAILABS/PRODUCTION-` (exact GitHub repository slug)
 - **Required directories:**
   - `/licenses`
   - `/papers`
