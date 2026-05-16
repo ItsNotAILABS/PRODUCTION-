@@ -98,7 +98,7 @@ ARTIFACTA bodies the output.
 
 ### 14) Production Repository — Protocolum Repositorii Productionis
 - **Name:** ItsNotAILABS Production Repository Protocol
-- **Repository:** `https://github.com/ItsNotAILABS/PRODUCTION-`
+- **Repository:** `https://github.com/ItsNotAILABS/PRODUCTION-` (exact repository slug; trailing hyphen is intentional)
 - **Required directories:**
   - `/licenses`
   - `/papers`

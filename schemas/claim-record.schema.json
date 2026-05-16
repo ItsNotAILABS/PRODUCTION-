@@ -9,7 +9,7 @@
     "claim_class": {
       "type": "string",
       "pattern": "^C([1-9]|10)$",
-      "description": "SVA claim class in the C1-C10 taxonomy used for claim/evidence release gating."
+      "description": "SVA claim class in the C1-C10 release-gating taxonomy defined by the Medina Protocol Charter Index v1."
     },
     "statement": { "type": "string", "minLength": 1 },
     "authority_state": {
