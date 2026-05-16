@@ -6,7 +6,11 @@
   "required": ["claim_id", "claim_class", "statement", "authority_state", "evidence_ids"],
   "properties": {
     "claim_id": { "type": "string" },
-    "claim_class": { "type": "string", "pattern": "^C([1-9]|10)$" },
+    "claim_class": {
+      "type": "string",
+      "pattern": "^C([1-9]|10)$",
+      "description": "SVA claim class in the C1-C10 taxonomy used for claim/evidence release gating."
+    },
     "statement": { "type": "string", "minLength": 1 },
     "authority_state": {
       "type": "string",
