@@ -30,6 +30,8 @@ export { ToolRegistry } from './tool-registry.js';
 export { ToolInvoker } from './tool-invoker.js';
 export { MarketplaceSettlement } from './marketplace-settlement.js';
 export { MarketplaceRouter } from './marketplace-router.js';
+export { ChatGPTToolAdapter } from './chatgpt-adapter.js';
+export { RepoIntelligenceBridge } from './repo-intelligence-bridge.js';
 
 // Family system
 export {

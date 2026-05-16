@@ -54,3 +54,23 @@ organism/python/*.egg-info/
 # Environment
 .env
 .env.local
+# LaTeX build output
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+# Secrets
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+# Temporary exports
+tmp/
+temp/
