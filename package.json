@@ -1,7 +1,7 @@
 {
   "name": "@medina/sovereign-organism",
   "version": "1.0.0",
-  "description": "AI Intelligence Organism — 8 SDKs, 26 browser extensions, 11 protocols, 30 callable tools. The organism IS the intelligence.",
+  "description": "AI Intelligence Organism \u2014 8 SDKs, 26 browser extensions, 11 protocols, 30 callable tools. The organism IS the intelligence.",
   "private": true,
   "scripts": {
     "build": "bash build-extensions.sh",
@@ -38,7 +38,7 @@
     "multimodal"
   ],
   "author": "Medina",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "engines": {
     "node": ">=18.0.0"
   },
@@ -55,8 +55,18 @@
     ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "extensions/jarvis/dist/icons/icon128.png"
     },
