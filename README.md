@@ -31,6 +31,16 @@ The architecture goes far beyond a chat wrapper. Vigil AI combines:
 
 ---
 
+## Medina Protocol Governance Artifacts
+
+This repository now contains the Medina protocol-governance index and release-governance scaffolding:
+
+- `/protocols/medina-protocol-charter-index-v1.md`
+- `/protocols/medina-protocol-charter-index-v1.json`
+- `/licenses/medina-license-registry-v1.json`
+- `/papers/medina-paper-records-v1.json`
+- `/schemas/*.schema.json`
+
 <a id="download"></a>
 ## Download
 
