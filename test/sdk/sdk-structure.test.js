@@ -84,7 +84,7 @@ describe('Extensions index', () => {
 });
 
 describe('Protocols index', () => {
-  it('should export 11 protocols', () => {
+  it('should export protocol definitions', () => {
     const indexPath = path.join(SDK_ROOT, '..', 'protocols', 'index.js');
     assert.ok(fs.existsSync(indexPath));
     const content = fs.readFileSync(indexPath, 'utf8');
@@ -92,11 +92,17 @@ describe('Protocols index', () => {
     assert.ok(exports, 'No exports found in protocols/index.js');
   });
 
-  it('should reference all 11 protocol files', () => {
+  it('should reference every protocol implementation file exported by the index', () => {
     const indexPath = path.join(SDK_ROOT, '..', 'protocols', 'index.js');
     const content = fs.readFileSync(indexPath, 'utf8');
-    const fromMatches = content.match(/from\s+'\.\/[^']+'/g);
-    assert.ok(fromMatches);
-    assert.equal(fromMatches.length, 11, `Expected 11 protocol imports, found ${fromMatches.length}`);
+    const fromMatches = content.matchAll(/from\s+'\.\/([^']+)'/g);
+    const referencedFiles = [...new Set(Array.from(fromMatches, match => match[1]))].sort();
+    const protocolsDir = path.join(SDK_ROOT, '..', 'protocols');
+    const implementationFiles = fs.readdirSync(protocolsDir)
+      .filter(file => file.endsWith('.js'))
+      .filter(file => !['index.js', 'native-runtime.js'].includes(file))
+      .sort();
+
+    assert.deepEqual(referencedFiles, implementationFiles);
   });
 });
