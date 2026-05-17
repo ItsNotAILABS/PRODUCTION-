@@ -132,3 +132,6 @@ export { SovereignCharterProtocol, TIERS, PROTOCOLS, DEPENDENCIES, CANISTERS, LO
 
 // PROTO-228: Agent Workspace — structured workspace and handoff protocol for multi-AI coordination
 export { AgentWorkspaceProtocol, HANDOFF_STATES, WORKSPACE_VISIBILITY } from './agent-workspace-protocol.js';
+
+// PROTO-229: Centerfold Convergence — linear + exponential + perpendicular folding to center output
+export { CenterfoldConvergenceProtocol, CENTERFOLD_STATES } from './centerfold-convergence-protocol.js';

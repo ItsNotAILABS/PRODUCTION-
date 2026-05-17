@@ -42,6 +42,8 @@ The research program is now anchored to live repository surfaces instead of stan
 
 - [`/research/research-mission.html`](research/research-mission.html) ties the mission to mission routing, cited research UX, packaging, protocol exports, governance, and microbots.
 - [`/docs/sovereign-thinking-theory-paper.md`](docs/sovereign-thinking-theory-paper.md) explains the recent mission work as a full theory paper on sovereign human-AI collaboration, code-grounded research, and broader AI implications.
+- [`/docs/centerfold-engine-spec.md`](docs/centerfold-engine-spec.md) defines the linear/exponential/perpendicular/centerfold internal engine specification and traceability map.
+- [`/docs/github-pages-master-portal.md`](docs/github-pages-master-portal.md) explains the unified master GitHub Pages portal, PowerShell expansion, and public/private link strategy.
 - [`/research/auro-charter.html`](research/auro-charter.html) now links directly to the research mission page.
 - Future papers should pull from working modules first, then expand them into research and publication artifacts.
 

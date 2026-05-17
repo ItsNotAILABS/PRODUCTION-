@@ -12,6 +12,7 @@
     "build:desktop:win": "npm run build:vigil && cd desktop && npm install && npm run dist",
     "build:all": "bash scripts/build-all.sh",
     "start:desktop": "cd desktop && npm install --prefer-offline && npm start",
+    "centerfold:cycle": "node scripts/centerfold-cycle.js",
     "test": "node --test test/**/*.test.js",
     "test:sdk": "node --test test/sdk/*.test.js",
     "test:extensions": "node --test test/extensions/*.test.js",
