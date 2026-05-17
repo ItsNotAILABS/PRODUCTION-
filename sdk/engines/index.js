@@ -14,12 +14,27 @@ export { ChronoEngine, chronoEngine, PHI, PHI_INV, HEARTBEAT_MS, GOLDEN_ANGLE } 
 export { NexorisEngine, nexorisEngine, REGISTERS, DIMENSIONS } from './nexoris-engine.js';
 export { QuantumFluxEngine, quantumFluxEngine } from './quantum-flux-engine.js';
 export { CoreographEngine, coreographEngine, PRIORITY } from './coreograph-engine.js';
+export {
+  CenterfoldEngine,
+  centerfoldEngine,
+  DEFAULT_MODEL as CENTERFOLD_DEFAULT_MODEL,
+} from './centerfold-engine.js';
+export {
+  CENTERFOLD_DEFAULT_KERNEL_ID,
+  CENTERFOLD_KERNEL_CATALOG,
+  CENTERFOLD_KERNEL_BANK,
+  selectKernel as selectCenterfoldKernel,
+  selectKernelByEntropy as selectCenterfoldKernelByEntropy,
+} from './centerfold-kernel-bank.js';
+export { CenterfoldStateStore } from './centerfold-state.js';
+export { CenterfoldObservability } from './centerfold-observability.js';
 
 // Re-export singletons as default engines
 export const CHRONO = chronoEngine;
 export const NEXORIS = nexorisEngine;
 export const QUANTUM_FLUX = quantumFluxEngine;
 export const COREOGRAPH = coreographEngine;
+export const CENTERFOLD = centerfoldEngine;
 
 // Constants
 export const ENGINE_CONSTANTS = {
@@ -37,5 +52,6 @@ export function createEngines() {
     nexoris: new NexorisEngine(),
     quantumFlux: new QuantumFluxEngine(),
     coreograph: new CoreographEngine(),
+    centerfold: new CenterfoldEngine(),
   };
 }
