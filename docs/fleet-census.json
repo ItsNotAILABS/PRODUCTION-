@@ -127,7 +127,7 @@
       "domain": "ICP & Pages Deployment",
       "hasWorkflow": true,
       "workflowFile": "organism-deploy-bot.yml",
-      "script": "cloud-worker-deploy.js",
+      "script": "alpha-deployment-integration.js",
       "status": "active"
     },
     {
@@ -157,7 +157,7 @@
       "domain": "Fleet Commander",
       "hasWorkflow": true,
       "workflowFile": "organism-alpha-bot.yml",
-      "script": "alpha-fleet-controller.js",
+      "script": "alpha-deployment-integration.js",
       "status": "active"
     }
   ],
@@ -168,5 +168,5 @@
     "organism-build-bot",
     "organism-deps-bot"
   ],
-  "timestamp": "2026-05-18T04:14:13.318Z"
+  "timestamp": "2026-05-18T08:22:27.249Z"
 }
