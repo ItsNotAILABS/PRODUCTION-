@@ -138,3 +138,6 @@ export { CenterfoldConvergenceProtocol, CENTERFOLD_STATES } from './centerfold-c
 
 // PROTO-230: Vein of Intelligence — unified interface to cognitive Durable Objects
 export { VeinOfIntelligenceProtocol, FRACTURES, ACCESS_TIERS } from './vein-of-intelligence-protocol.js';
+
+// PROTO-231: Cognitive Architecture — unified AGI infrastructure specification
+export { CognitiveArchitectureProtocol, LAYERS, DURABLE_OBJECTS, DATA_FLOWS, AI_PROVIDERS } from './cognitive-architecture-protocol.js';

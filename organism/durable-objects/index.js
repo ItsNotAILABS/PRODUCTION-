@@ -21,12 +21,28 @@ import { NeuronCluster } from './src/neuron-cluster.js';
 import { MemoryVault } from './src/memory-vault.js';
 import { ConsciousnessStream } from './src/consciousness-stream.js';
 
+// ─── Security Triad ───────────────────────────────────────────────────────────
+import { WraithGuard, SEVERITY, THREAT_TYPES, ACTIONS } from './src/security/wraith-guard.js';
+import { GhostHoneypot, GHOST_TYPES, FAKE_DATA } from './src/security/ghost-honeypot.js';
+
+// ─── Knowledge Layer ──────────────────────────────────────────────────────────
+import { KnowledgeCorpus, DOC_TYPES, CHUNK_SIZES, CLUSTER_STATES } from './src/datasets/knowledge-corpus.js';
+
 // ─── Phi Constants ────────────────────────────────────────────────────────────
 const PHI = 1.618033988749895;
 const HEARTBEAT = 873;
 
 // ─── Export Durable Object Classes ────────────────────────────────────────────
+
+// Cognitive Core
 export { NeuronCluster, MemoryVault, ConsciousnessStream };
+
+// Security Triad
+export { WraithGuard, SEVERITY, THREAT_TYPES, ACTIONS };
+export { GhostHoneypot, GHOST_TYPES, FAKE_DATA };
+
+// Knowledge Layer
+export { KnowledgeCorpus, DOC_TYPES, CHUNK_SIZES, CLUSTER_STATES };
 
 /**
  * Main Worker — Routes requests to appropriate Durable Objects
@@ -52,12 +68,21 @@ export default {
       // ─── Health Check ─────────────────────────────────────────────────────
       if (path === '/' || path === '/health') {
         return jsonResponse({
-          service: 'vein-of-intelligence',
-          version: '1.0.0',
-          fractures: {
-            neuronCluster: 'Hebbian neural network with synaptic plasticity',
-            memoryVault: 'Three-tier memory consolidation system',
-            consciousnessStream: 'Multi-agent coordination nexus',
+          service: 'cognitive-organism',
+          version: '2.0.0',
+          layers: {
+            cognitive: {
+              neuronCluster: 'Hebbian neural network with synaptic plasticity',
+              memoryVault: 'Three-tier memory consolidation system',
+              consciousnessStream: 'Multi-agent coordination nexus',
+            },
+            security: {
+              wraithGuard: 'Invisible threat detection with Hebbian anomaly learning',
+              ghostHoneypot: 'Decoy system that traps and profiles attackers',
+            },
+            knowledge: {
+              knowledgeCorpus: 'RAG-powered document corpus with phi-chunking',
+            },
           },
           phi: PHI,
           heartbeat: HEARTBEAT,
@@ -183,17 +208,122 @@ export default {
         return addCorsHeaders(response, corsHeaders);
       }
       
+      // ═══════════════════════════════════════════════════════════════════════
+      // SECURITY TRIAD — Wraith/Ghost/Phantom
+      // ═══════════════════════════════════════════════════════════════════════
+      
+      // ─── WraithGuard Routes (/security/wraith/*) ───────────────────────────
+      if (path.startsWith('/security/wraith/')) {
+        const wraithId = url.searchParams.get('id') || request.headers.get('X-Wraith-ID') || 'global';
+        const id = env.WRAITH_GUARD.idFromName(wraithId);
+        const stub = env.WRAITH_GUARD.get(id);
+        
+        const wraithPath = path.replace('/security/wraith', '');
+        const newUrl = new URL(request.url);
+        newUrl.pathname = wraithPath;
+        
+        const response = await stub.fetch(new Request(newUrl.toString(), request));
+        return addCorsHeaders(response, corsHeaders);
+      }
+      
+      // ─── GhostHoneypot Routes (/security/ghost/*) ──────────────────────────
+      if (path.startsWith('/security/ghost/')) {
+        const ghostId = url.searchParams.get('id') || request.headers.get('X-Ghost-ID') || 'trap-1';
+        const id = env.GHOST_HONEYPOT.idFromName(ghostId);
+        const stub = env.GHOST_HONEYPOT.get(id);
+        
+        const ghostPath = path.replace('/security/ghost', '');
+        const newUrl = new URL(request.url);
+        newUrl.pathname = ghostPath;
+        
+        const response = await stub.fetch(new Request(newUrl.toString(), request));
+        return addCorsHeaders(response, corsHeaders);
+      }
+      
+      // ═══════════════════════════════════════════════════════════════════════
+      // KNOWLEDGE LAYER — RAG Pipeline
+      // ═══════════════════════════════════════════════════════════════════════
+      
+      // ─── KnowledgeCorpus Routes (/knowledge/*) ─────────────────────────────
+      if (path.startsWith('/knowledge/')) {
+        const corpusId = url.searchParams.get('id') || request.headers.get('X-Corpus-ID') || 'main';
+        const id = env.KNOWLEDGE_CORPUS.idFromName(corpusId);
+        const stub = env.KNOWLEDGE_CORPUS.get(id);
+        
+        const knowledgePath = path.replace('/knowledge', '');
+        const newUrl = new URL(request.url);
+        newUrl.pathname = knowledgePath;
+        
+        const response = await stub.fetch(new Request(newUrl.toString(), request));
+        return addCorsHeaders(response, corsHeaders);
+      }
+      
+      // ═══════════════════════════════════════════════════════════════════════
+      // DIRECT ACCESS ENDPOINTS
+      // ═══════════════════════════════════════════════════════════════════════
+      
+      // POST /security — Direct security check
+      if (path === '/security' && request.method === 'POST') {
+        const body = await request.json();
+        const wraithId = body.wraithId || 'global';
+        const id = env.WRAITH_GUARD.idFromName(wraithId);
+        const stub = env.WRAITH_GUARD.get(id);
+        
+        const response = await stub.fetch(new Request(
+          'https://durable-object/check',
+          { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }
+        ));
+        return addCorsHeaders(response, corsHeaders);
+      }
+      
+      // POST /rag — Direct RAG query
+      if (path === '/rag' && request.method === 'POST') {
+        const body = await request.json();
+        const corpusId = body.corpusId || 'main';
+        const id = env.KNOWLEDGE_CORPUS.idFromName(corpusId);
+        const stub = env.KNOWLEDGE_CORPUS.get(id);
+        
+        const response = await stub.fetch(new Request(
+          'https://durable-object/query',
+          { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }
+        ));
+        return addCorsHeaders(response, corsHeaders);
+      }
+      
+      // POST /ingest — Direct document ingestion
+      if (path === '/ingest' && request.method === 'POST') {
+        const body = await request.json();
+        const corpusId = body.corpusId || 'main';
+        const id = env.KNOWLEDGE_CORPUS.idFromName(corpusId);
+        const stub = env.KNOWLEDGE_CORPUS.get(id);
+        
+        const response = await stub.fetch(new Request(
+          'https://durable-object/ingest',
+          { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }
+        ));
+        return addCorsHeaders(response, corsHeaders);
+      }
+      
       // ─── Unknown Route ────────────────────────────────────────────────────
       return jsonResponse({
         error: 'Unknown route',
         path,
         availableRoutes: {
+          // Cognitive Core
           cluster: '/cluster/* — NeuronCluster operations',
           vault: '/vault/* — MemoryVault operations',
           stream: '/stream/* — ConsciousnessStream operations',
           neuron: 'POST /neuron — Direct NeuronCluster access',
           memory: 'POST /memory — Direct MemoryVault access',
           consciousness: 'POST /consciousness — Direct ConsciousnessStream access',
+          // Security Triad
+          wraith: '/security/wraith/* — WraithGuard operations',
+          ghost: '/security/ghost/* — GhostHoneypot operations',
+          security: 'POST /security — Direct security check',
+          // Knowledge Layer
+          knowledge: '/knowledge/* — KnowledgeCorpus operations',
+          rag: 'POST /rag — Direct RAG query',
+          ingest: 'POST /ingest — Document ingestion',
         },
       }, corsHeaders, 404);
       
