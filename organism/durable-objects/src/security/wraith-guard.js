@@ -217,9 +217,11 @@ export class WraithGuard {
     }
     
     // Injection patterns (simplified to avoid ReDoS)
+    // Note: These are for threat detection/flagging, not XSS sanitization
     const injectionPatterns = [
       /\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION)\b/i,  // SQL keywords
-      /<script\b[^>]*>[\s\S]*?<\/script\s*>/i,          // Script tags (handles whitespace)
+      /<script\b/i,                                      // Script tag opener (flags any script tag)
+      /<\/script/i,                                      // Script tag closer
       /\$\{[^}]{0,100}\}/,                              // Template literals (bounded)
       /\{\{[^}]{0,100}\}\}/,                            // Mustache templates (bounded)
     ];

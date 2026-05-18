@@ -43,16 +43,19 @@ const GHOST_TYPES = {
 // NOTE: Using Math.random() intentionally for fake honeypot data.
 // This is NOT security-critical - these are decoy values meant to be discovered.
 // Using cryptographic randomness would be wasteful for fake data generation.
+// lgtm[js/insecure-randomness] - Intentional use of Math.random() for decoy data
 const FAKE_DATA = {
+  // lgtm[js/insecure-randomness]
   users: () => ({
-    id: Math.random().toString(36).slice(2),                         // codeql-suppress js/insecure-randomness - fake honeypot data
-    username: `user_${Math.random().toString(36).slice(2, 8)}`,      // codeql-suppress js/insecure-randomness - fake honeypot data
+    id: Math.random().toString(36).slice(2),
+    username: `user_${Math.random().toString(36).slice(2, 8)}`,
     email: `fake${Math.random().toString(36).slice(2)}@example.invalid`, // RFC 2606 reserved TLD
-    role: ['admin', 'user', 'moderator'][Math.floor(Math.random() * 3)], // codeql-suppress js/insecure-randomness - fake honeypot data
+    role: ['admin', 'user', 'moderator'][Math.floor(Math.random() * 3)],
     created: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
   }),
+  // lgtm[js/insecure-randomness]
   api_keys: () => ({
-    key: `sk-fake-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`, // codeql-suppress js/insecure-randomness - fake honeypot data
+    key: `sk-fake-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`,
     created: new Date().toISOString(),
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
   }),
