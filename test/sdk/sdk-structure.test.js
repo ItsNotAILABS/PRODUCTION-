@@ -84,19 +84,28 @@ describe('Extensions index', () => {
 });
 
 describe('Protocols index', () => {
-  it('should export 11 protocols', () => {
+  function getProtocolExportTargets(content) {
+    return [...content.matchAll(/export\s*\{[^}]+\}\s*from\s+'(\.\/[^']+)'/g)].map((m) => m[1]);
+  }
+
+  it('should export protocol modules', () => {
     const indexPath = path.join(SDK_ROOT, '..', 'protocols', 'index.js');
     assert.ok(fs.existsSync(indexPath));
     const content = fs.readFileSync(indexPath, 'utf8');
-    const exports = content.match(/export\s*\{/g);
-    assert.ok(exports, 'No exports found in protocols/index.js');
+    const targets = getProtocolExportTargets(content);
+    assert.ok(targets.length > 0, 'No protocol export targets found in protocols/index.js');
+    assert.ok(targets.length >= 11, `Expected at least 11 protocol exports, found ${targets.length}`);
   });
 
-  it('should reference all 11 protocol files', () => {
+  it('should reference existing protocol files', () => {
     const indexPath = path.join(SDK_ROOT, '..', 'protocols', 'index.js');
     const content = fs.readFileSync(indexPath, 'utf8');
-    const fromMatches = content.match(/from\s+'\.\/[^']+'/g);
-    assert.ok(fromMatches);
-    assert.equal(fromMatches.length, 11, `Expected 11 protocol imports, found ${fromMatches.length}`);
+    const targets = getProtocolExportTargets(content);
+    assert.ok(targets.length > 0, 'No protocol export targets found in protocols/index.js');
+
+    for (const target of targets) {
+      const protocolPath = path.join(SDK_ROOT, '..', 'protocols', target.replace('./', ''));
+      assert.ok(fs.existsSync(protocolPath), `Missing exported protocol file: ${target}`);
+    }
   });
 });
