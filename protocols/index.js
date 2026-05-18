@@ -135,3 +135,9 @@ export { AgentWorkspaceProtocol, HANDOFF_STATES, WORKSPACE_VISIBILITY } from './
 
 // PROTO-229: Centerfold Convergence — linear + exponential + perpendicular folding to center output
 export { CenterfoldConvergenceProtocol, CENTERFOLD_STATES } from './centerfold-convergence-protocol.js';
+
+// PROTO-230: Vein of Intelligence — unified interface to cognitive Durable Objects
+export { VeinOfIntelligenceProtocol, FRACTURES, ACCESS_TIERS } from './vein-of-intelligence-protocol.js';
+
+// PROTO-231: Cognitive Architecture — unified AGI infrastructure specification
+export { CognitiveArchitectureProtocol, LAYERS, DURABLE_OBJECTS, DATA_FLOWS, AI_PROVIDERS } from './cognitive-architecture-protocol.js';
