@@ -123,6 +123,11 @@ export class NovaBinding {
    */
   async connect() {
     try {
+      // Clear any existing heartbeat interval to prevent leaks
+      if (this.heartbeatInterval) {
+        clearInterval(this.heartbeatInterval);
+      }
+      
       // Start heartbeat
       this.heartbeatInterval = setInterval(() => this._heartbeat(), HEARTBEAT);
       
@@ -143,12 +148,14 @@ export class NovaBinding {
       }
       
       // Even without response, consider connected for local operations
+      // This allows offline-first behavior where local operations work
       this.connected = true;
+      this._emit('connected', { bindingId: this.id, offline: true });
       return true;
     } catch (error) {
       this.stats.errors++;
       this._emit('error', { error: error.message });
-      // Soft fail - allow local operations
+      // Soft fail - allow local operations in offline mode
       this.connected = true;
       return true;
     }

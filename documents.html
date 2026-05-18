@@ -690,33 +690,62 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Download all functions
+// Download all functions with progress tracking
 async function downloadAllPapers() {
-  for (const doc of documents.papers) {
-    await downloadPDF(doc.id, doc.path, doc.title);
-    await sleep(500);
-  }
+  await downloadAllWithProgress(documents.papers, 'papers');
 }
 
 async function downloadAllProtocols() {
-  for (const doc of documents.protocols) {
-    await downloadPDF(doc.id, doc.path, doc.title);
-    await sleep(500);
-  }
+  await downloadAllWithProgress(documents.protocols, 'protocols');
 }
 
 async function downloadAllCharters() {
-  for (const doc of documents.charters) {
-    await downloadPDF(doc.id, doc.path, doc.title);
-    await sleep(500);
-  }
+  await downloadAllWithProgress(documents.charters, 'charters');
 }
 
 async function downloadAllDocs() {
-  for (const doc of documents.docs) {
-    await downloadPDF(doc.id, doc.path, doc.title);
+  await downloadAllWithProgress(documents.docs, 'docs');
+}
+
+async function downloadAllWithProgress(docs, category) {
+  const total = docs.length;
+  let completed = 0;
+  let failed = [];
+  
+  // Show progress indicator
+  const progressId = `progress-${category}`;
+  const existingProgress = document.getElementById(progressId);
+  if (existingProgress) existingProgress.remove();
+  
+  const progressEl = document.createElement('div');
+  progressEl.id = progressId;
+  progressEl.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 24px; z-index: 1000; color: var(--text);';
+  progressEl.innerHTML = `<strong>Downloading ${category}...</strong><br><span id="${progressId}-status">0 / ${total}</span>`;
+  document.body.appendChild(progressEl);
+  
+  for (const doc of docs) {
+    try {
+      await downloadPDF(doc.id, doc.path, doc.title);
+      completed++;
+    } catch (error) {
+      failed.push(doc.title);
+      completed++;
+    }
+    document.getElementById(`${progressId}-status`).textContent = `${completed} / ${total}`;
     await sleep(500);
   }
+  
+  // Show completion status
+  if (failed.length > 0) {
+    progressEl.innerHTML = `<strong>Download complete</strong><br>✓ ${total - failed.length} succeeded<br>✗ ${failed.length} failed`;
+    progressEl.style.borderColor = '#ef4444';
+  } else {
+    progressEl.innerHTML = `<strong>Download complete</strong><br>✓ All ${total} documents downloaded`;
+    progressEl.style.borderColor = '#00d4aa';
+  }
+  
+  // Auto-remove after 5 seconds
+  setTimeout(() => progressEl.remove(), 5000);
 }
 
 function sleep(ms) {

@@ -235,6 +235,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "🌟 Nova-deploy-bot: deployment report updated"
+            git commit -m "🌟 Nova-deploy-bot: deployment report updated [skip ci]"
             git push
           fi

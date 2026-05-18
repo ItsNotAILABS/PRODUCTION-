@@ -370,8 +370,20 @@ JarvisEngine.prototype._initNovaBinding = function () {
         payload: payload || {}
       };
 
+      // Get the appropriate endpoint based on message type
+      var endpoint = NOVA_ENDPOINTS.SOVEREIGN + '/api/workers/status';
+      if (type === MESSAGE_TYPES.QUERY) {
+        endpoint = NOVA_ENDPOINTS.KNOWLEDGE + '/api/knowledge/query';
+      } else if (type === MESSAGE_TYPES.DOC_REQUEST) {
+        endpoint = NOVA_ENDPOINTS.PAGES + '/api/documents';
+      } else if (type === MESSAGE_TYPES.HEARTBEAT) {
+        endpoint = NOVA_ENDPOINTS.SOVEREIGN + '/api/hebbian/ping';
+      } else if (type === MESSAGE_TYPES.BIND_REQUEST) {
+        endpoint = NOVA_ENDPOINTS.GATE + '/api/auth/geometric-key';
+      }
+
       // Try to reach Nova endpoints
-      return fetch(NOVA_ENDPOINTS.SOVEREIGN + '/api/workers/status', {
+      return fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(message)
@@ -438,14 +450,24 @@ JarvisEngine.prototype._initNovaBinding = function () {
         lastHeartbeat: this.lastHeartbeat,
         stats: this.stats
       };
+    },
+
+    // Disconnect and cleanup
+    disconnect: function () {
+      if (this.heartbeatIntervalId) {
+        clearInterval(this.heartbeatIntervalId);
+        this.heartbeatIntervalId = null;
+      }
+      this.connected = false;
+      console.log('[NOVA BINDING] Disconnected — ID:', this.id);
     }
   };
 
   // Connect on init
   binding.connect();
 
-  // Setup heartbeat sync
-  setInterval(function () {
+  // Setup heartbeat sync and store interval ID for cleanup
+  binding.heartbeatIntervalId = setInterval(function () {
     binding.lastHeartbeat = Date.now();
     binding.phase = binding.calculatePhase();
     
