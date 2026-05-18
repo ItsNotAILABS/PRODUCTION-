@@ -292,9 +292,187 @@ function JarvisEngine() {
   // ── Phantom workflow state ───────────────────────────────
   this.workflowState = { active: false, steps: [], stepIndex: 0, name: '' };
 
+  // ── Nova AI Binding ─────────────────────────────────────
+  this.novaBinding = this._initNovaBinding();
+
   this._startHeartbeat();
-  console.log('[JARVIS v3.1] Engine initialized — NeuroCore online, Memory Temple active, PHI=' + PHI + ' HEARTBEAT=' + HEARTBEAT + 'ms');
+  console.log('[JARVIS v3.1] Engine initialized — NeuroCore online, Memory Temple active, Nova Binding ready, PHI=' + PHI + ' HEARTBEAT=' + HEARTBEAT + 'ms');
 }
+
+/* ----------------------------------------------------------
+ *  Nova AI Binding — connects Jarvis to Nova AI deployments
+ * ---------------------------------------------------------- */
+
+JarvisEngine.prototype._initNovaBinding = function () {
+  var self = this;
+  
+  var NOVA_ENDPOINTS = {
+    SOVEREIGN: 'https://nova.organism.earth',
+    GATE: 'https://gate.organism.earth',
+    KNOWLEDGE: 'https://knowledge.organism.earth',
+    PAGES: 'https://itsnotailabs.com',
+    DOCUMENTS: 'https://itsnotailabs.com/documents.html'
+  };
+
+  var MESSAGE_TYPES = {
+    BIND_REQUEST: 'nova:bind:request',
+    BIND_RESPONSE: 'nova:bind:response',
+    HEARTBEAT: 'nova:heartbeat',
+    HEARTBEAT_ACK: 'nova:heartbeat:ack',
+    QUERY: 'nova:query',
+    QUERY_RESPONSE: 'nova:query:response',
+    DOC_REQUEST: 'nova:doc:request',
+    DOC_RESPONSE: 'nova:doc:response',
+    DEPLOY_NOTIFY: 'nova:deploy:notify'
+  };
+
+  var binding = {
+    id: 'nova-bind-jarvis-' + Math.floor(Date.now() * PHI).toString(36),
+    connected: false,
+    phase: 0,
+    lastHeartbeat: 0,
+    endpoints: NOVA_ENDPOINTS,
+    messageTypes: MESSAGE_TYPES,
+    stats: {
+      messagesSent: 0,
+      messagesReceived: 0,
+      errors: 0,
+      latencyMs: 0
+    },
+    documentCache: {},
+
+    // Calculate current phase in heartbeat cycle
+    calculatePhase: function () {
+      var now = Date.now();
+      var cyclePosition = (now % HEARTBEAT) / HEARTBEAT;
+      return cyclePosition * 2 * Math.PI;
+    },
+
+    // Connect to Nova AI
+    connect: function () {
+      this.connected = true;
+      this.phase = this.calculatePhase();
+      console.log('[NOVA BINDING] Connected — ID:', this.id);
+      return this;
+    },
+
+    // Send message to Nova AI
+    sendMessage: function (type, payload) {
+      var self = this;
+      self.stats.messagesSent++;
+      var startTime = Date.now();
+      
+      var message = {
+        type: type,
+        bindingId: self.id,
+        phase: self.calculatePhase(),
+        timestamp: Date.now(),
+        payload: payload || {}
+      };
+
+      // Try to reach Nova endpoints
+      return fetch(NOVA_ENDPOINTS.SOVEREIGN + '/api/workers/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(message)
+      }).then(function (response) {
+        self.stats.latencyMs = Date.now() - startTime;
+        self.stats.messagesReceived++;
+        return response.json();
+      }).catch(function (error) {
+        self.stats.errors++;
+        // Return cached/local response on failure
+        return { success: false, fallback: true, error: error.message };
+      });
+    },
+
+    // Query Nova AI knowledge base
+    query: function (queryText, options) {
+      options = options || {};
+      return this.sendMessage(MESSAGE_TYPES.QUERY, {
+        query: queryText,
+        depth: options.depth || 'medium',
+        context: options.context || []
+      });
+    },
+
+    // Request document from Nova AI
+    requestDocument: function (docId, format) {
+      format = format || 'pdf';
+      var cacheKey = docId + '-' + format;
+      var cached = this.documentCache[cacheKey];
+      
+      if (cached && Date.now() - cached.timestamp < 300000) {
+        return Promise.resolve(cached.data);
+      }
+
+      var self = this;
+      return this.sendMessage(MESSAGE_TYPES.DOC_REQUEST, {
+        docId: docId,
+        format: format
+      }).then(function (response) {
+        if (response && response.data) {
+          self.documentCache[cacheKey] = {
+            data: response.data,
+            timestamp: Date.now()
+          };
+        }
+        return response;
+      });
+    },
+
+    // Get deployment status
+    getDeploymentStatus: function () {
+      return this.sendMessage(MESSAGE_TYPES.DEPLOY_NOTIFY, {
+        event: 'status_request',
+        source: 'jarvis-extension'
+      });
+    },
+
+    // Get binding stats
+    getStats: function () {
+      return {
+        id: this.id,
+        connected: this.connected,
+        phase: this.phase,
+        lastHeartbeat: this.lastHeartbeat,
+        stats: this.stats
+      };
+    }
+  };
+
+  // Connect on init
+  binding.connect();
+
+  // Setup heartbeat sync
+  setInterval(function () {
+    binding.lastHeartbeat = Date.now();
+    binding.phase = binding.calculatePhase();
+    
+    // Periodic ping to Nova
+    if (binding.connected) {
+      binding.sendMessage(MESSAGE_TYPES.HEARTBEAT, {
+        neuroVitals: self.neuro ? self.neuro.getVitals() : null
+      }).catch(function () {});
+    }
+  }, HEARTBEAT);
+
+  return binding;
+};
+
+JarvisEngine.prototype.getNovaBindingStatus = function () {
+  return this.novaBinding ? this.novaBinding.getStats() : null;
+};
+
+JarvisEngine.prototype.queryNova = function (queryText, options) {
+  if (!this.novaBinding) return Promise.resolve({ success: false, error: 'No binding' });
+  return this.novaBinding.query(queryText, options);
+};
+
+JarvisEngine.prototype.requestNovaDocument = function (docId, format) {
+  if (!this.novaBinding) return Promise.resolve({ success: false, error: 'No binding' });
+  return this.novaBinding.requestDocument(docId, format);
+};
 
 /* ----------------------------------------------------------
  *  Heartbeat

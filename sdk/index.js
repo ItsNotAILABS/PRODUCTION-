@@ -310,5 +310,25 @@ export {
   createDefaultAIWorkspaces,
 } from './agent-workspace-sdk/src/index.js';
 
+// Nova Bindings SDK (@organism/nova-bindings)
+export {
+  // Constants
+  NOVA_ENDPOINTS,
+  DEPLOYMENT_TARGETS,
+  MESSAGE_TYPES,
+  // Classes
+  NovaBinding,
+  JarvisNovaBinding,
+  DeploymentNovaBinding,
+  WorkerNovaBinding,
+  NovaBindingManager,
+  // Singleton Manager
+  novaBindings,
+  // Factory Functions
+  createJarvisBinding,
+  createDeploymentBinding,
+  createWorkerBinding,
+} from './nova-bindings/src/index.js';
+
 // Default export is the bootstrap function
 export { default } from './runtime/bootstrap.js';
