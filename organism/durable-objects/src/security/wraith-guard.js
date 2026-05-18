@@ -216,12 +216,12 @@ export class WraithGuard {
       flags.push('large_payload');
     }
     
-    // Injection patterns
+    // Injection patterns (simplified to avoid ReDoS)
     const injectionPatterns = [
-      /\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION)\b.*\b(FROM|INTO|WHERE)\b/i,
-      /<script\b[^>]*>.*<\/script>/i,
-      /\$\{.*\}/,
-      /\{\{.*\}\}/,
+      /\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION)\b/i,  // SQL keywords
+      /<script\b[^>]*>[\s\S]*?<\/script\s*>/i,          // Script tags (handles whitespace)
+      /\$\{[^}]{0,100}\}/,                              // Template literals (bounded)
+      /\{\{[^}]{0,100}\}\}/,                            // Mustache templates (bounded)
     ];
     if (payload) {
       for (const pattern of injectionPatterns) {

@@ -328,7 +328,9 @@ export default {
       }, corsHeaders, 404);
       
     } catch (err) {
-      return jsonResponse({ error: err.message, stack: err.stack }, corsHeaders, 500);
+      // Log full error internally but don't expose stack traces to clients
+      console.error('Request handler error:', err);
+      return jsonResponse({ error: err.message }, corsHeaders, 500);
     }
   },
 };
