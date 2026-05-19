@@ -148,7 +148,7 @@ export class CloudGladeBiomeEngine {
       cycleCount: 0,
       threatsDetected: 0,
       threatsBlocked: 0,
-      playbacksExecuted: 0,
+      playbooksExecuted: 0,
       keyRotations: 0,
       routesCreated: 0,
       decoysGenerated: 0,
@@ -294,7 +294,7 @@ export class CloudGladeBiomeEngine {
       response.actions.push({ action, result });
     }
 
-    this.metrics.playbacksExecuted++;
+    this.metrics.playbooksExecuted++;
     return response;
   }
 
@@ -423,8 +423,8 @@ export class CloudGladeBiomeEngine {
     this.lastCycle = Date.now();
     
     // Advance season
-    const seasonDelta = 0.001 * PHI_INV; // Slow seasonal progression
-    this.advanceSeason(seasonDelta);
+    const seasonProgressionRate = 0.001 * PHI_INV; // Slow seasonal progression
+    this.advanceSeason(seasonProgressionRate);
     
     // Natural health recovery
     if (this.activeThreats.length === 0 && this.threatLevel < 0.2) {

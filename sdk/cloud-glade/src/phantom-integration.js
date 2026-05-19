@@ -239,7 +239,7 @@ export class PhantomEncryptionWeave {
 
 export class PhantomKeyRotation {
   constructor(options = {}) {
-    this.rotationIntervalMs = options.interval || HEARTBEAT * PHI * 1000; // ~1.4 sec base
+    this.rotationIntervalMs = options.interval || HEARTBEAT * PHI * 1000; // ~1412 sec base
     this.currentKey = this._generateKey();
     this.previousKeys = [];
     this.rotationCount = 0;
