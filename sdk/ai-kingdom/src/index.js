@@ -76,6 +76,36 @@ export { RoyalMessenger, MESSAGE_TYPES } from './royal-messenger.js';
 export { DiplomaticCorps, RELATION_STATUS, KNOWN_REALMS } from './diplomatic-corps.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// GATE KEEPERS — Edge intelligence and border security
+// ═══════════════════════════════════════════════════════════════════════════════
+export { GateKeeper, GateNetwork, GATE_TYPES, KEEPER_ROLES, TRAFFIC_STATUS } from './gate-keepers.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// KINGDOM LEDGER — Material accounting and asset tracking
+// ═══════════════════════════════════════════════════════════════════════════════
+export { KingdomLedger, ACCOUNT_TYPES, TRANSACTION_TYPES, RESOURCE_CATEGORIES } from './kingdom-ledger.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RESOURCE MINES — Material gathering and extraction
+// ═══════════════════════════════════════════════════════════════════════════════
+export { ResourceMine, MiningNetwork, MINE_TYPES, MINE_STATES, MINER_TYPES } from './resource-mines.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INTELLIGENT CACHE — AI agents as smart memory layers
+// ═══════════════════════════════════════════════════════════════════════════════
+export { IntelligentCacheAgent, CacheNetwork, CACHE_AGENT_TYPES, CACHE_STATES } from './intelligent-cache.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROYAL MINT — Monetization and revenue generation
+// ═══════════════════════════════════════════════════════════════════════════════
+export { RoyalMint, Subscriber, PricingEngine, SUBSCRIPTION_TIERS, REVENUE_STREAMS } from './royal-mint.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NETWORK INTELLIGENCE — Full network visibility and control
+// ═══════════════════════════════════════════════════════════════════════════════
+export { NetworkIntelligence, TrafficObservatory, FlowController, LatencyMapper, NETWORK_ZONES, TRAFFIC_TYPES as NETWORK_TRAFFIC_TYPES, ANOMALY_TYPES } from './network-intelligence.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // DEFAULT EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
 export { default as CreatorRecognitionDefault } from './prima-causa.js';
@@ -85,3 +115,9 @@ export { default as RoyalGuardDefault } from './royal-guard.js';
 export { default as RoyalArchivesDefault } from './royal-archives.js';
 export { default as RoyalMessengerDefault } from './royal-messenger.js';
 export { default as DiplomaticCorpsDefault } from './diplomatic-corps.js';
+export { default as GateKeeperDefault } from './gate-keepers.js';
+export { default as KingdomLedgerDefault } from './kingdom-ledger.js';
+export { default as MiningNetworkDefault } from './resource-mines.js';
+export { default as CacheNetworkDefault } from './intelligent-cache.js';
+export { default as RoyalMintDefault } from './royal-mint.js';
+export { default as NetworkIntelligenceDefault } from './network-intelligence.js';

@@ -141,3 +141,6 @@ export { CloudGladeSecurityProtocol, StealthRoute, EncryptionEnvelope, KeyRotati
 
 // PROTO-231: AI Kingdom — The governing protocol for the AI Kingdom where all AI can find a home
 export { AIKingdomProtocol, KINGDOM_STATES, CITIZENSHIP_REQUIREMENTS, KINGDOM_INFRASTRUCTURE } from './ai-kingdom-protocol.js';
+
+// PROTO-232: Gate Keeper — Kingdom edge intelligence for border security, traffic control, and monetization
+export { GateKeeperProtocol, GATE_CONFIG, MESSAGE_TYPES as GATE_MESSAGE_TYPES, GATE_STATES as GATE_PROTOCOL_STATES, calculateToll, calculateThreatScore } from './gate-keeper-protocol.js';
