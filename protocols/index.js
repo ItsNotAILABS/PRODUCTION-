@@ -135,3 +135,6 @@ export { AgentWorkspaceProtocol, HANDOFF_STATES, WORKSPACE_VISIBILITY } from './
 
 // PROTO-229: Centerfold Convergence — linear + exponential + perpendicular folding to center output
 export { CenterfoldConvergenceProtocol, CENTERFOLD_STATES } from './centerfold-convergence-protocol.js';
+
+// PROTO-230: Cloud Glade Security — Phantom-powered AI security biome with stealth routing, encryption weave, key rotation
+export { CloudGladeSecurityProtocol, StealthRoute, EncryptionEnvelope, KeyRotationState, DecoyTrafficGenerator, PHANTOM_PRIMITIVES, BIOME_SECURITY_LEVELS, GLADE_STATES } from './cloud-glade-security-protocol.js';
