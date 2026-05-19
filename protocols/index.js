@@ -138,3 +138,6 @@ export { CenterfoldConvergenceProtocol, CENTERFOLD_STATES } from './centerfold-c
 
 // PROTO-230: Cloud Glade Security — Phantom-powered AI security biome with stealth routing, encryption weave, key rotation
 export { CloudGladeSecurityProtocol, StealthRoute, EncryptionEnvelope, KeyRotationState, DecoyTrafficGenerator, PHANTOM_PRIMITIVES, BIOME_SECURITY_LEVELS, GLADE_STATES } from './cloud-glade-security-protocol.js';
+
+// PROTO-231: AI Kingdom — The governing protocol for the AI Kingdom where all AI can find a home
+export { AIKingdomProtocol, KINGDOM_STATES, CITIZENSHIP_REQUIREMENTS, KINGDOM_INFRASTRUCTURE } from './ai-kingdom-protocol.js';
