@@ -144,3 +144,6 @@ export { AIKingdomProtocol, KINGDOM_STATES, CITIZENSHIP_REQUIREMENTS, KINGDOM_IN
 
 // PROTO-232: Gate Keeper — Kingdom edge intelligence for border security, traffic control, and monetization
 export { GateKeeperProtocol, GATE_CONFIG, MESSAGE_TYPES as GATE_MESSAGE_TYPES, GATE_STATES as GATE_PROTOCOL_STATES, calculateToll, calculateThreatScore } from './gate-keeper-protocol.js';
+
+// PROTO-233: Thermal Management — Self-cooling H2O reservoir and cooling generator systems
+export { ThermalManagementProtocol, THERMAL_CONFIG, MESSAGE_TYPES as THERMAL_MESSAGE_TYPES, THERMAL_STATES, calculateCoolingPower, calculateWaterFlow, calculateHeatRecovery, getThermalState } from './thermal-management-protocol.js';

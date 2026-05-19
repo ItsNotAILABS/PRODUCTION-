@@ -106,6 +106,16 @@ export { RoyalMint, Subscriber, PricingEngine, SUBSCRIPTION_TIERS, REVENUE_STREA
 export { NetworkIntelligence, TrafficObservatory, FlowController, LatencyMapper, NETWORK_ZONES, TRAFFIC_TYPES as NETWORK_TRAFFIC_TYPES, ANOMALY_TYPES } from './network-intelligence.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// H2O RESERVOIR — Water storage and cooling resource management
+// ═══════════════════════════════════════════════════════════════════════════════
+export { H2OReservoir, ReservoirNetwork, RESERVOIR_TYPES, WATER_QUALITY, FLOW_STATES } from './h2o-reservoir.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COOLING GENERATOR — Self-cooling thermal management system
+// ═══════════════════════════════════════════════════════════════════════════════
+export { CoolingUnit, CoolingGenerator, COOLING_UNIT_TYPES, THERMAL_ZONES, COOLING_STATES } from './cooling-generator.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // DEFAULT EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
 export { default as CreatorRecognitionDefault } from './prima-causa.js';
@@ -121,3 +131,5 @@ export { default as MiningNetworkDefault } from './resource-mines.js';
 export { default as CacheNetworkDefault } from './intelligent-cache.js';
 export { default as RoyalMintDefault } from './royal-mint.js';
 export { default as NetworkIntelligenceDefault } from './network-intelligence.js';
+export { default as ReservoirNetworkDefault } from './h2o-reservoir.js';
+export { default as CoolingGeneratorDefault } from './cooling-generator.js';
