@@ -136,6 +136,20 @@ export { AgentWorkspaceProtocol, HANDOFF_STATES, WORKSPACE_VISIBILITY } from './
 // PROTO-229: Centerfold Convergence — linear + exponential + perpendicular folding to center output
 export { CenterfoldConvergenceProtocol, CENTERFOLD_STATES } from './centerfold-convergence-protocol.js';
 
+// PROTO-230: Cloud Glade Security — Phantom-powered AI security biome with stealth routing, encryption weave, key rotation
+export { CloudGladeSecurityProtocol, StealthRoute, EncryptionEnvelope, KeyRotationState, DecoyTrafficGenerator, PHANTOM_PRIMITIVES, BIOME_SECURITY_LEVELS, GLADE_STATES } from './cloud-glade-security-protocol.js';
+
+// PROTO-231: AI Kingdom — The governing protocol for the AI Kingdom where all AI can find a home
+export { AIKingdomProtocol, KINGDOM_STATES, CITIZENSHIP_REQUIREMENTS, KINGDOM_INFRASTRUCTURE } from './ai-kingdom-protocol.js';
+
+// PROTO-232: Gate Keeper — Kingdom edge intelligence for border security, traffic control, and monetization
+export { GateKeeperProtocol, GATE_CONFIG, MESSAGE_TYPES as GATE_MESSAGE_TYPES, GATE_STATES as GATE_PROTOCOL_STATES, calculateToll, calculateThreatScore } from './gate-keeper-protocol.js';
+
+// PROTO-233: Thermal Management — Self-cooling H2O reservoir and cooling generator systems
+export { ThermalManagementProtocol, THERMAL_CONFIG, MESSAGE_TYPES as THERMAL_MESSAGE_TYPES, THERMAL_STATES, calculateCoolingPower, calculateWaterFlow, calculateHeatRecovery, getThermalState } from './thermal-management-protocol.js';
+
+// PROTO-234: Power Distribution — Power generation, distribution, storage, and load balancing
+export { PowerDistributionProtocol, POWER_CONFIG, MESSAGE_TYPES as POWER_MESSAGE_TYPES, POWER_STATES, GENERATION_SOURCES, LOAD_PRIORITIES, calculateLoadDistribution, calculateBatteryPlan, calculateTransmissionEfficiency, getPowerState, calculateEnergyExport } from './power-distribution-protocol.js';
 // PROTO-230: Vein of Intelligence — unified interface to cognitive Durable Objects
 export { VeinOfIntelligenceProtocol, FRACTURES, ACCESS_TIERS } from './vein-of-intelligence-protocol.js';
 
