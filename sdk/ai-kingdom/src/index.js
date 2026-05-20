@@ -141,6 +141,31 @@ export { TemporalEngine, TemporalNetwork, TEMPORAL_STATES, TIME_SCALES, SCHEDULE
 export { ConsciousnessBridge, ConsciousnessCollective, CONSCIOUSNESS_STATES, AWARENESS_TYPES, CONTEXT_CHANNELS } from './consciousness-bridge.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// WISDOM DISTILLERY — Knowledge extraction and compression
+// ═══════════════════════════════════════════════════════════════════════════════
+export { WisdomDistillery, DistilleryNetwork, DISTILLERY_STATES, KNOWLEDGE_TYPES, COMPRESSION_LEVELS } from './wisdom-distillery.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADAPTIVE OPTIMIZER — Self-tuning optimization engine
+// ═══════════════════════════════════════════════════════════════════════════════
+export { AdaptiveOptimizer, OptimizerEnsemble, OPTIMIZER_STATES, STRATEGIES, CONVERGENCE_CRITERIA } from './adaptive-optimizer.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SWARM INTELLIGENCE — Multi-agent coordination system
+// ═══════════════════════════════════════════════════════════════════════════════
+export { SwarmIntelligence, SwarmNetwork, SwarmAgent, SWARM_STATES, AGENT_ROLES, COMMUNICATION_TYPES } from './swarm-intelligence.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MEMORY PALACE — Hierarchical memory management
+// ═══════════════════════════════════════════════════════════════════════════════
+export { MemoryPalace, PalaceNetwork, Chamber, Memory, MEMORY_TYPES, PALACE_STATES, RETRIEVAL_STRATEGIES } from './memory-palace.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EVOLUTION CHAMBER — Genetic algorithm model evolution
+// ═══════════════════════════════════════════════════════════════════════════════
+export { EvolutionChamber, EvolutionNetwork, Genome, EVOLUTION_STATES, SELECTION_METHODS, CROSSOVER_TYPES, MUTATION_TYPES } from './evolution-chamber.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // DEFAULT EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
 export { default as CreatorRecognitionDefault } from './prima-causa.js';
@@ -163,3 +188,8 @@ export { default as QuantumEntanglementDefault } from './quantum-entanglement.js
 export { default as NeuralForgeDefault } from './neural-forge.js';
 export { default as TemporalEngineDefault } from './temporal-engine.js';
 export { default as ConsciousnessBridgeDefault } from './consciousness-bridge.js';
+export { default as WisdomDistilleryDefault } from './wisdom-distillery.js';
+export { default as AdaptiveOptimizerDefault } from './adaptive-optimizer.js';
+export { default as SwarmIntelligenceDefault } from './swarm-intelligence.js';
+export { default as MemoryPalaceDefault } from './memory-palace.js';
+export { default as EvolutionChamberDefault } from './evolution-chamber.js';

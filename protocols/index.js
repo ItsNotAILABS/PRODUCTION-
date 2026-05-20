@@ -163,6 +163,21 @@ export { TemporalEngineProtocol, TEMPORAL_CONFIG, MESSAGE_TYPES as TEMPORAL_MESS
 // PROTO-238: Consciousness Bridge — Inter-AI awareness, shared context, and collective reasoning
 export { ConsciousnessBridgeProtocol, CONSCIOUSNESS_CONFIG, MESSAGE_TYPES as CONSCIOUSNESS_MESSAGE_TYPES, CONSCIOUSNESS_STATES as CONSCIOUSNESS_PROTOCOL_STATES, AWARENESS_TYPES, CONTEXT_CHANNELS } from './consciousness-bridge-protocol.js';
 
+// PROTO-239: Wisdom Distillery — Knowledge extraction, compression, and transfer
+export { WisdomDistilleryProtocol, DISTILLERY_CONFIG, MESSAGE_TYPES as DISTILLERY_MESSAGE_TYPES, DISTILLERY_STATES, KNOWLEDGE_TYPES as DISTILLERY_KNOWLEDGE_TYPES, COMPRESSION_LEVELS } from './wisdom-distillery-protocol.js';
+
+// PROTO-240: Adaptive Optimizer — Self-tuning optimization with dynamic strategy selection
+export { AdaptiveOptimizerProtocol, OPTIMIZER_CONFIG, MESSAGE_TYPES as OPTIMIZER_MESSAGE_TYPES, OPTIMIZER_STATES, STRATEGIES as OPTIMIZER_STRATEGIES } from './adaptive-optimizer-protocol.js';
+
+// PROTO-241: Swarm Intelligence — Multi-agent coordination through emergent behavior
+export { SwarmIntelligenceProtocol, SWARM_CONFIG, MESSAGE_TYPES as SWARM_MESSAGE_TYPES, SWARM_STATES, AGENT_ROLES, COMMUNICATION_TYPES } from './swarm-intelligence-protocol.js';
+
+// PROTO-242: Memory Palace — Hierarchical memory organization and retrieval
+export { MemoryPalaceProtocol, MEMORY_CONFIG, MESSAGE_TYPES as MEMORY_MESSAGE_TYPES, PALACE_STATES, MEMORY_TYPES, RETRIEVAL_STRATEGIES } from './memory-palace-protocol.js';
+
+// PROTO-243: Evolution Chamber — Genetic algorithm-based model evolution
+export { EvolutionChamberProtocol, EVOLUTION_CONFIG, MESSAGE_TYPES as EVOLUTION_MESSAGE_TYPES, EVOLUTION_STATES, SELECTION_METHODS, CROSSOVER_TYPES, MUTATION_TYPES } from './evolution-chamber-protocol.js';
+
 // PROTO-230: Vein of Intelligence — unified interface to cognitive Durable Objects
 export { VeinOfIntelligenceProtocol, FRACTURES, ACCESS_TIERS } from './vein-of-intelligence-protocol.js';
 
