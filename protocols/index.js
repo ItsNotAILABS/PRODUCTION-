@@ -150,3 +150,8 @@ export { ThermalManagementProtocol, THERMAL_CONFIG, MESSAGE_TYPES as THERMAL_MES
 
 // PROTO-234: Power Distribution — Power generation, distribution, storage, and load balancing
 export { PowerDistributionProtocol, POWER_CONFIG, MESSAGE_TYPES as POWER_MESSAGE_TYPES, POWER_STATES, GENERATION_SOURCES, LOAD_PRIORITIES, calculateLoadDistribution, calculateBatteryPlan, calculateTransmissionEfficiency, getPowerState, calculateEnergyExport } from './power-distribution-protocol.js';
+// PROTO-230: Vein of Intelligence — unified interface to cognitive Durable Objects
+export { VeinOfIntelligenceProtocol, FRACTURES, ACCESS_TIERS } from './vein-of-intelligence-protocol.js';
+
+// PROTO-231: Cognitive Architecture — unified AGI infrastructure specification
+export { CognitiveArchitectureProtocol, LAYERS, DURABLE_OBJECTS, DATA_FLOWS, AI_PROVIDERS } from './cognitive-architecture-protocol.js';
