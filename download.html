@@ -3,96 +3,394 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🧬 Sovereign Organism — Download Extensions</title>
+  <title>🧬 Sovereign Organism — Download Extensions | AI-Powered Cache</title>
+  <meta name="description" content="27 AI browser extensions with intelligent caching. Download for Chrome, Edge, and Brave browsers.">
+  
+  <!-- Preload fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#0d1117;--surface:#161b22;--border:#30363d;
-      --text:#e6edf3;--muted:#8b949e;
-      --purple:#6c63ff;--red:#e94560;--green:#00e676;--amber:#ffb300;--cyan:#00bcd4;
+      --bg:#030712;--bg-secondary:#0a0f1e;--surface:#111827;--border:rgba(255,255,255,0.08);
+      --text:#f8fafc;--muted:#94a3b8;--dim:#64748b;
+      --purple:#a855f7;--teal:#00ffcc;--gold:#d4af37;--pink:#ec4899;--blue:#3b82f6;
+      --green:#22c55e;--amber:#f59e0b;--red:#ef4444;
       --heartbeat:873ms;
     }
-    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;line-height:1.6}
+    body{
+      background:var(--bg);
+      color:var(--text);
+      font-family:'Inter',system-ui,-apple-system,sans-serif;
+      line-height:1.6;
+      min-height:100vh;
+      overflow-x:hidden;
+    }
 
-    .shell{max-width:1200px;margin:0 auto;padding:1.5rem}
+    /* Animated Background */
+    body::before {
+      content:'';
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
+        radial-gradient(ellipse at 80% 80%, rgba(0, 255, 204, 0.08) 0%, transparent 40%),
+        radial-gradient(ellipse at 50% 50%, rgba(212, 175, 55, 0.03) 0%, transparent 60%);
+      pointer-events:none;
+      z-index:0;
+    }
 
-    /* hero */
-    .hero{text-align:center;padding:48px 20px 32px;
-      background:linear-gradient(135deg,#161b22 0%,#0d1117 50%,#1a1040 100%);
-      border-bottom:1px solid var(--border)}
-    .hero h1{font-size:2.2em;
-      background:linear-gradient(135deg,#6c63ff,#e94560,#00e676);
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
-    .hero p{color:var(--muted);max-width:700px;margin:0 auto 16px;font-size:1.05em}
+    /* Neural grid */
+    .neural-grid {
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+      background-image:
+        linear-gradient(rgba(0, 255, 204, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 204, 0.02) 1px, transparent 1px);
+      background-size:50px 50px;
+      animation:grid-scroll 20s linear infinite;
+      pointer-events:none;
+      z-index:0;
+    }
+    @keyframes grid-scroll {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(50px); }
+    }
 
-    /* status bar */
-    .status-bar{display:flex;align-items:center;justify-content:center;gap:24px;padding:16px;
-      background:var(--surface);border:1px solid var(--border);border-radius:12px;margin:24px auto;max-width:800px}
-    .status-item{display:flex;align-items:center;gap:6px;font-size:.9em}
+    .shell{max-width:1400px;margin:0 auto;padding:1.5rem;position:relative;z-index:1}
+
+    /* Enhanced Hero */
+    .hero{
+      text-align:center;
+      padding:80px 20px 60px;
+      position:relative;
+      background:linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg) 100%);
+      border-bottom:1px solid var(--border);
+      overflow:hidden;
+    }
+    .hero::before {
+      content:'';
+      position:absolute;
+      top:0;left:0;right:0;
+      height:3px;
+      background:linear-gradient(90deg, var(--teal), var(--purple), var(--gold), var(--teal));
+      background-size:200% 100%;
+      animation:gradient-flow 3s linear infinite;
+    }
+    @keyframes gradient-flow {
+      0% { background-position:0% 50%; }
+      100% { background-position:200% 50%; }
+    }
+    
+    .hero-badge {
+      display:inline-flex;
+      align-items:center;
+      gap:0.5rem;
+      padding:0.4rem 1rem;
+      background:rgba(0, 255, 204, 0.1);
+      border:1px solid rgba(0, 255, 204, 0.3);
+      border-radius:999px;
+      font-size:0.75rem;
+      font-weight:600;
+      color:var(--teal);
+      text-transform:uppercase;
+      letter-spacing:0.1em;
+      margin-bottom:1.5rem;
+    }
+    .hero-badge .pulse {
+      width:8px;height:8px;
+      background:var(--teal);
+      border-radius:50%;
+      animation:pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50% { opacity:0.5; transform:scale(1.3); }
+    }
+    
+    .hero h1{
+      font-family:'Orbitron',monospace;
+      font-size:clamp(2rem, 5vw, 3.5rem);
+      font-weight:800;
+      margin-bottom:1rem;
+      line-height:1.2;
+    }
+    .hero h1 .gradient-text {
+      background:linear-gradient(135deg, var(--text) 0%, var(--gold) 30%, var(--teal) 60%, var(--purple) 100%);
+      background-size:200% 200%;
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      background-clip:text;
+      animation:gradient-shift 5s ease infinite;
+    }
+    @keyframes gradient-shift {
+      0% { background-position:0% 50%; }
+      50% { background-position:100% 50%; }
+      100% { background-position:0% 50%; }
+    }
+    .hero p{color:var(--muted);max-width:800px;margin:0 auto 1.5rem;font-size:1.1rem}
+    .hero p strong { color:var(--teal); }
+
+    /* Navigation Links */
+    .nav-links {
+      display:flex;
+      justify-content:center;
+      gap:1rem;
+      flex-wrap:wrap;
+      margin-top:2rem;
+    }
+    .nav-links a {
+      padding:0.5rem 1rem;
+      background:rgba(255,255,255,0.05);
+      border:1px solid var(--border);
+      border-radius:8px;
+      color:var(--muted);
+      text-decoration:none;
+      font-size:0.9rem;
+      font-weight:500;
+      transition:all 0.3s ease;
+    }
+    .nav-links a:hover {
+      border-color:var(--teal);
+      color:var(--teal);
+      background:rgba(0, 255, 204, 0.1);
+    }
+    .nav-links a.primary {
+      background:linear-gradient(135deg, var(--gold), var(--amber));
+      color:var(--bg);
+      border-color:transparent;
+      font-weight:700;
+    }
+    .nav-links a.primary:hover {
+      transform:translateY(-2px);
+      box-shadow:0 10px 30px rgba(212, 175, 55, 0.3);
+    }
+
+    /* Enhanced Status Bar */
+    .status-bar{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:2rem;
+      padding:1.25rem 2rem;
+      background:rgba(17, 24, 39, 0.8);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      border:1px solid var(--border);
+      border-radius:16px;
+      margin:2rem auto;
+      max-width:900px;
+      position:relative;
+      z-index:1;
+    }
+    .status-item{display:flex;align-items:center;gap:0.5rem;font-size:0.9rem}
     .status-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
     .status-dot.building{background:var(--amber);animation:pulse var(--heartbeat) infinite}
-    .status-dot.ready{background:var(--green)}
+    .status-dot.ready{background:var(--green);box-shadow:0 0 10px var(--green)}
     .status-dot.error{background:var(--red)}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-    #beat-counter{font-variant-numeric:tabular-nums;color:var(--purple);font-weight:700}
+    #beat-counter{font-family:'Orbitron',monospace;color:var(--purple);font-weight:700}
 
-    /* download-all */
-    .dl-all{text-align:center;margin:24px auto;max-width:600px}
-    .dl-all a,.dl-all button{display:inline-block;padding:16px 40px;
-      background:linear-gradient(135deg,var(--amber),#f0883e);
-      color:#0d1117;text-decoration:none;border:none;border-radius:10px;cursor:pointer;
-      font-weight:800;font-size:1.2em;transition:transform .15s,box-shadow .15s}
-    .dl-all a:hover,.dl-all button:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(255,179,0,.4)}
+    /* AI Cache Status Widget */
+    .cache-status {
+      display:flex;
+      align-items:center;
+      gap:0.75rem;
+      padding:0.75rem 1.25rem;
+      background:rgba(0, 255, 204, 0.1);
+      border:1px solid rgba(0, 255, 204, 0.2);
+      border-radius:12px;
+    }
+    .cache-status .icon { font-size:1.25rem; }
+    .cache-status .label { font-size:0.75rem; color:var(--dim); text-transform:uppercase; letter-spacing:0.05em; }
+    .cache-status .value { font-family:'Orbitron',monospace; font-weight:700; color:var(--teal); }
+
+    /* Enhanced download-all */
+    .dl-all{text-align:center;margin:2rem auto;max-width:700px;position:relative;z-index:1}
+    .dl-all a,.dl-all button{
+      display:inline-flex;
+      align-items:center;
+      gap:0.75rem;
+      padding:1.25rem 2.5rem;
+      background:linear-gradient(135deg,var(--gold),#f0883e);
+      color:var(--bg);
+      text-decoration:none;
+      border:none;
+      border-radius:16px;
+      cursor:pointer;
+      font-weight:800;
+      font-size:1.2rem;
+      transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position:relative;
+      overflow:hidden;
+    }
+    .dl-all a::before {
+      content:'';
+      position:absolute;
+      top:0;left:-100%;
+      width:100%;height:100%;
+      background:linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition:left 0.5s;
+    }
+    .dl-all a:hover::before { left:100%; }
+    .dl-all a:hover{transform:translateY(-3px);box-shadow:0 15px 40px rgba(212,175,55,.4)}
     .dl-all a.disabled{opacity:.5;pointer-events:none}
-    .dl-all .sub{margin-top:8px;color:var(--muted);font-size:.85em}
+    .dl-all .sub{margin-top:1rem;color:var(--dim);font-size:0.9rem}
 
-    /* grid */
-    .ext-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin:32px auto;max-width:1200px;padding:0 20px}
-    .ext-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;
-      display:flex;flex-direction:column;gap:8px;transition:border-color .2s,transform .15s}
-    .ext-card:hover{border-color:var(--purple);transform:translateY(-2px)}
-    .ext-card .row{display:flex;align-items:center;gap:10px}
-    .ext-card .icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;
-      font-size:1em;font-weight:700;color:#fff;flex-shrink:0}
-    .ext-card h3{font-size:.95em;margin:0}
-    .ext-card .eid{color:var(--muted);font-size:.7em}
-    .ext-card .desc{color:var(--muted);font-size:.8em;flex:1}
-    .ext-card .dl-btn{display:block;text-align:center;padding:10px;
-      background:linear-gradient(135deg,#238636,#2ea043);
-      color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:.9em;cursor:pointer;border:none;width:100%}
-    .ext-card .dl-btn:hover{opacity:.9}
+    /* Enhanced grid */
+    .ext-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+      gap:1.25rem;
+      margin:3rem auto;
+      max-width:1400px;
+      padding:0 1.5rem;
+      position:relative;
+      z-index:1;
+    }
+    .ext-card{
+      background:rgba(17, 24, 39, 0.7);
+      backdrop-filter:blur(10px);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:1.5rem;
+      display:flex;
+      flex-direction:column;
+      gap:0.75rem;
+      transition:all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position:relative;
+      overflow:hidden;
+    }
+    .ext-card::before {
+      content:'';
+      position:absolute;
+      top:0;left:0;right:0;
+      height:3px;
+      background:linear-gradient(90deg, var(--teal), var(--purple));
+      transform:scaleX(0);
+      transform-origin:left;
+      transition:transform 0.4s ease;
+    }
+    .ext-card:hover::before { transform:scaleX(1); }
+    .ext-card:hover{
+      border-color:var(--purple);
+      transform:translateY(-5px);
+      box-shadow:0 20px 40px rgba(0,0,0,0.3), 0 0 60px rgba(168, 85, 247, 0.1);
+    }
+    .ext-card .row{display:flex;align-items:center;gap:12px}
+    .ext-card .icon{
+      width:44px;height:44px;
+      border-radius:12px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.25rem;font-weight:700;color:#fff;flex-shrink:0;
+      background:linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(0, 255, 204, 0.1));
+    }
+    .ext-card h3{font-size:1rem;margin:0;font-weight:700}
+    .ext-card .eid{color:var(--dim);font-size:0.7rem;font-family:'JetBrains Mono',monospace}
+    .ext-card .desc{color:var(--muted);font-size:0.85rem;flex:1;line-height:1.6}
+    .ext-card .dl-btn{
+      display:block;
+      text-align:center;
+      padding:0.875rem;
+      background:linear-gradient(135deg, var(--green), #2ea043);
+      color:#fff;
+      text-decoration:none;
+      border-radius:10px;
+      font-weight:700;
+      font-size:0.9rem;
+      cursor:pointer;
+      border:none;
+      width:100%;
+      transition:all 0.3s ease;
+    }
+    .ext-card .dl-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(34, 197, 94, 0.3)}
     .ext-card .dl-btn.building{background:var(--border);color:var(--muted);cursor:wait}
-    .ext-card .dl-btn.ready{background:linear-gradient(135deg,#238636,#2ea043)}
+    .ext-card .dl-btn.ready{background:linear-gradient(135deg, var(--green), #2ea043)}
 
     /* engine tags */
-    .ext-card .engines{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
-    .ext-card .engine-tag{font-size:.65em;padding:2px 7px;border-radius:4px;background:#1a1e2a;border:1px solid var(--border);color:var(--cyan);font-weight:600;white-space:nowrap}
-    .ext-card .ring-label{font-size:.65em;color:var(--amber);font-weight:600;margin-top:2px;display:block}
+    .ext-card .engines{display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.25rem}
+    .ext-card .engine-tag{
+      font-size:0.65rem;
+      padding:0.2rem 0.5rem;
+      border-radius:6px;
+      background:rgba(0, 255, 204, 0.1);
+      border:1px solid rgba(0, 255, 204, 0.2);
+      color:var(--teal);
+      font-weight:600;
+      white-space:nowrap;
+    }
+    .ext-card .ring-label{font-size:0.65rem;color:var(--amber);font-weight:600;margin-top:0.25rem;display:block}
 
     /* cli section */
-    .cli-section{max-width:700px;margin:32px auto;padding:0 20px;text-align:center}
-    .cli-section h2{color:var(--cyan);font-size:1.3em;margin-bottom:8px}
-    .cli-section .code-block{background:#161b22;border:1px solid var(--border);border-radius:10px;
-      padding:16px 20px;text-align:left;margin:12px 0;font-family:'Cascadia Code','Fira Code',monospace}
-    .cli-section .code-block code{color:#79c0ff;font-size:1em}
+    .cli-section{
+      max-width:800px;
+      margin:3rem auto;
+      padding:0 1.5rem;
+      text-align:center;
+      position:relative;
+      z-index:1;
+    }
+    .cli-section h2{
+      font-family:'Orbitron',monospace;
+      color:var(--teal);
+      font-size:1.5rem;
+      margin-bottom:0.75rem;
+    }
+    .cli-section .code-block{
+      background:rgba(0, 0, 0, 0.5);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:1.25rem 1.5rem;
+      text-align:left;
+      margin:1rem 0;
+      font-family:'JetBrains Mono','Fira Code',monospace;
+      overflow-x:auto;
+    }
+    .cli-section .code-block code{color:var(--teal);font-size:0.95rem}
 
-    /* footer */
-    footer{text-align:center;padding:32px 20px;color:#484f58;font-size:.85em;border-top:1px solid #21262d;margin-top:40px}
+    /* Enhanced footer */
+    footer{
+      text-align:center;
+      padding:3rem 1.5rem;
+      color:var(--dim);
+      font-size:0.85rem;
+      border-top:1px solid var(--border);
+      margin-top:4rem;
+      background:var(--bg-secondary);
+      position:relative;
+      z-index:1;
+    }
+    footer a { color:var(--teal); }
 
-    @media(max-width:600px){.hero h1{font-size:1.5em}.ext-grid{grid-template-columns:1fr}}
+    @media(max-width:768px){
+      .hero h1{font-size:1.8rem}
+      .ext-grid{grid-template-columns:1fr}
+      .status-bar{flex-direction:column;gap:1rem}
+      .nav-links{gap:0.5rem}
+    }
   </style>
 </head>
 <body>
 
+<!-- Neural Grid Background -->
+<div class="neural-grid"></div>
+
 <section class="hero">
-  <h1>🧬 Sovereign Organism Extensions</h1>
-  <p>27 AI extensions for Chrome, Edge, and Brave — each powered by named engines and models. Every link is a real download. Click → get the .zip. The Register AI Web Worker upgrades to native blob builds when running on your device.</p>
-  <p style="margin-top:10px;font-size:.9em;color:var(--muted)">
-    <a href="./index.html" style="color:#d4af37;font-weight:600">← ItsNotAILABS Research Lab</a> ·
-    <a href="./research/portal.html" style="color:var(--cyan)">Research Portal</a> ·
-    <a href="./tools.html" style="color:var(--cyan)">AI Tools</a> ·
-    <a href="./research/papers-hub.html" style="color:var(--cyan)">Papers</a>
-  </p>
+  <div class="hero-badge">
+    <span class="pulse"></span>
+    Intelligent Cache Enabled
+  </div>
+  <h1><span class="gradient-text">🧬 Sovereign Organism Extensions</span></h1>
+  <p>27 AI extensions for Chrome, Edge, and Brave — each powered by named engines and models with <strong>intelligent cache technology</strong>. Every link is a real download. Click → get the .zip. The Register AI Web Worker upgrades to native blob builds when running on your device.</p>
+  
+  <div class="nav-links">
+    <a href="./index.html" class="primary">← ItsNotAILABS Research Lab</a>
+    <a href="./research/portal.html">Research Portal</a>
+    <a href="./tools.html">AI Tools</a>
+    <a href="./research/papers-hub.html">Papers</a>
+    <a href="#ai-cache">AI Cache</a>
+  </div>
 </section>
 
 <div class="status-bar" id="status-bar">
@@ -145,10 +443,46 @@ node potential-succotash/organism-cli</code>
   <p style="color:var(--muted);font-size:.9em;margin-top:8px">Register AI auto-detects Chrome → loads all 27 extensions directly from source. No zip needed.</p>
 </section>
 
+<!-- AI Intelligent Cache Section -->
+<section id="ai-cache" class="cli-section" style="max-width:1000px;margin-top:4rem">
+  <h2 style="margin-bottom:1.5rem">🧠 Intelligent Cache Technology</h2>
+  <p style="color:var(--muted);margin-bottom:2rem">
+    Every extension is powered by our <strong style="color:var(--teal)">AI Intelligent Cache</strong> — smart memory agents that learn your patterns, predict what you'll need next, and self-heal corrupted data.
+  </p>
+  
+  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem;margin-bottom:2rem">
+    <div style="background:rgba(0,255,204,0.1);border:1px solid rgba(0,255,204,0.2);border-radius:12px;padding:1.25rem;text-align:center">
+      <div style="font-size:2rem;margin-bottom:0.5rem">🛡️</div>
+      <div style="font-family:'Orbitron',monospace;font-size:1.25rem;font-weight:700;color:var(--teal)">Memory Sentinel</div>
+      <div style="font-size:0.8rem;color:var(--dim);margin-top:0.25rem">Pattern Recognition</div>
+    </div>
+    <div style="background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.2);border-radius:12px;padding:1.25rem;text-align:center">
+      <div style="font-size:2rem;margin-bottom:0.5rem">📖</div>
+      <div style="font-family:'Orbitron',monospace;font-size:1.25rem;font-weight:700;color:var(--gold)">Knowledge Keeper</div>
+      <div style="font-size:0.8rem;color:var(--dim);margin-top:0.25rem">Wisdom Storage</div>
+    </div>
+    <div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:1.25rem;text-align:center">
+      <div style="font-size:2rem;margin-bottom:0.5rem">🔮</div>
+      <div style="font-family:'Orbitron',monospace;font-size:1.25rem;font-weight:700;color:var(--purple)">Prediction Cache</div>
+      <div style="font-size:0.8rem;color:var(--dim);margin-top:0.25rem">Predictive Caching</div>
+    </div>
+    <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:1.25rem;text-align:center">
+      <div style="font-size:2rem;margin-bottom:0.5rem">💊</div>
+      <div style="font-family:'Orbitron',monospace;font-size:1.25rem;font-weight:700;color:var(--green)">Healing Cache</div>
+      <div style="font-size:0.8rem;color:var(--dim);margin-top:0.25rem">Self-Repair</div>
+    </div>
+  </div>
+  
+  <a href="./index.html#ai-cache" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.75rem 1.5rem;background:linear-gradient(135deg, var(--purple), var(--pink));color:#fff;text-decoration:none;border-radius:10px;font-weight:700;transition:all 0.3s ease">
+    Explore Full AI Cache Dashboard →
+  </a>
+</section>
+
 <footer>
-  <p>Sovereign Organism — All extensions run 24/7 with 873ms heartbeat keepalive.</p>
+  <p style="font-size:1.1rem;color:var(--text);margin-bottom:0.5rem"><strong>Sovereign Organism</strong> — All extensions run 24/7 with 873ms heartbeat keepalive.</p>
   <p>Register AI is autonomous. Downloads work instantly. Web Worker upgrades to native blob builds on your device.</p>
-  <p style="margin-top:4px">As above, so below.</p>
+  <p style="margin-top:1rem;color:var(--teal)">Powered by <strong>AI Intelligent Cache</strong> · φ = 1.618</p>
+  <p style="margin-top:0.5rem;font-style:italic;color:var(--dim)">As above, so below.</p>
 </footer>
 
 <script>
