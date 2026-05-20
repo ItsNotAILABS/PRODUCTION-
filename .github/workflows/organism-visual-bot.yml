@@ -99,5 +99,15 @@ jobs:
             echo "No visual changes to commit"
           else
             git commit -m "📸 Visual-bot: screenshots & recordings updated — $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git push
+            for attempt in 1 2 3; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "Push failed after ${attempt} attempts"
+                exit 1
+              fi
+              sleep 2
+            done
           fi
