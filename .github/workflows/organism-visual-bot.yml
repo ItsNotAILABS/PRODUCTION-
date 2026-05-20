@@ -99,7 +99,7 @@ jobs:
             echo "No visual changes to commit"
           else
             git commit -m "📸 Visual-bot: screenshots & recordings updated — $(date -u '+%Y-%m-%d %H:%M UTC')"
-            # Exponential backoff between retries: 2s, 4s, 8s
+            # Fixed delay between retries
             retry_delay_seconds=2
             for attempt in 1 2 3; do
               git fetch origin main
@@ -110,7 +110,6 @@ jobs:
                   exit 1
                 fi
                 sleep "$retry_delay_seconds"
-                retry_delay_seconds=$((retry_delay_seconds * 2))
                 continue
               fi
               if git push origin HEAD:main; then
@@ -121,6 +120,5 @@ jobs:
                 exit 1
               fi
               sleep "$retry_delay_seconds"
-              retry_delay_seconds=$((retry_delay_seconds * 2))
             done
           fi
