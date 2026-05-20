@@ -3,38 +3,78 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Documents Portal — Nova AI | ItsNotAILABS</title>
-<meta name="description" content="Download research papers, protocol documentation, and technical specifications as PDFs. Complete document library from MedinaSITech / ItsNotAILABS.">
-<meta name="keywords" content="AI documents, research papers, protocols, PDF download, MedinaSITech">
+<title>Documents Portal — Intelligent AI Cache | ItsNotAILABS</title>
+<meta name="description" content="Download research papers, protocol documentation, and technical specifications. Complete document library from MedinaSITech / ItsNotAILABS with AI Intelligent Cache.">
+<meta name="keywords" content="AI documents, research papers, protocols, PDF download, MedinaSITech, intelligent cache">
 <link rel="canonical" href="https://itsnotailabs.com/documents.html">
+
+<!-- Preload fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 :root {
-  --bg: #070914;
-  --bg2: #0f1324;
-  --card: #151a2e;
-  --border: #242c4a;
+  --bg: #030712;
+  --bg2: #0a0f1e;
+  --card: rgba(17, 24, 39, 0.7);
+  --border: rgba(255, 255, 255, 0.08);
   --gold: #d4af37;
   --gold-dim: #b8962c;
-  --teal: #00d4aa;
-  --purple: #8b5cf6;
+  --teal: #00ffcc;
+  --purple: #a855f7;
   --blue: #3b82f6;
+  --pink: #ec4899;
   --red: #ef4444;
-  --text: #e8eaf3;
-  --dim: #9aa0b5;
+  --green: #22c55e;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --dim: #64748b;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-  background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
   color: var(--text);
   line-height: 1.7;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
-a { color: var(--teal); text-decoration: none; }
+/* Animated Background */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(0, 255, 204, 0.05) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Cyber grid */
+.cyber-grid {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    linear-gradient(rgba(212, 175, 55, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(212, 175, 55, 0.02) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: grid-float 20s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+@keyframes grid-float {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(50px); }
+}
+
+a { color: var(--teal); text-decoration: none; transition: all 0.3s ease; }
 a:hover { color: var(--gold); }
 
 /* Navigation */
@@ -44,79 +84,119 @@ nav {
   left: 0;
   right: 0;
   z-index: 1000;
-  background: rgba(7, 9, 20, 0.95);
-  backdrop-filter: blur(12px);
+  background: rgba(3, 7, 18, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
-  padding: 1rem 1.5rem;
+  padding: 0.875rem 1.5rem;
+}
+nav::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gold), var(--purple), var(--teal));
 }
 nav .container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 .nav-brand {
-  font-size: 1.2rem;
+  font-family: 'Orbitron', monospace;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--gold);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
-.nav-brand span { color: var(--text); font-weight: 400; }
-.nav-links { display: flex; gap: 1.5rem; list-style: none; }
-.nav-links a { color: var(--dim); font-size: 0.9rem; transition: color 0.2s; }
-.nav-links a:hover { color: var(--teal); }
+.nav-brand span { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+.nav-links { display: flex; gap: 1rem; list-style: none; }
+.nav-links a { 
+  color: var(--muted); 
+  font-size: 0.9rem; 
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  transition: all 0.3s ease; 
+}
+.nav-links a:hover { 
+  color: var(--teal);
+  background: rgba(0, 255, 204, 0.1);
+}
 
 /* Hero */
 .hero {
-  padding: 7rem 1.5rem 3rem;
+  padding: 8rem 1.5rem 4rem;
   text-align: center;
   background:
-    radial-gradient(ellipse at 30% 20%, rgba(212,175,55,0.12) 0%, transparent 40%),
-    radial-gradient(ellipse at 70% 80%, rgba(139,92,246,0.08) 0%, transparent 35%),
+    radial-gradient(ellipse at 30% 20%, rgba(212, 175, 55, 0.12) 0%, transparent 40%),
+    radial-gradient(ellipse at 70% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 35%),
     linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
   border-bottom: 1px solid var(--border);
+  position: relative;
+  z-index: 1;
 }
 .hero .badge {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.3rem 1rem;
-  border: 1px solid rgba(0, 212, 170, 0.4);
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.15), rgba(0, 255, 204, 0.15), rgba(168, 85, 247, 0.15));
+  background-size: 200% 100%;
+  animation: badge-glow 4s linear infinite;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
-  color: var(--teal);
+  color: var(--text);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  font-size: 0.75rem;
-  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
 }
-.hero .badge::before { content: "🌟"; }
+@keyframes badge-glow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.hero .badge::before { content: "🧠"; margin-right: 0.25rem; }
 .hero h1 {
+  font-family: 'Orbitron', monospace;
   font-size: clamp(2.2rem, 5vw, 3.5rem);
-  margin-bottom: 0.8rem;
-  background: linear-gradient(135deg, var(--gold) 0%, var(--teal) 50%, var(--purple) 100%);
+  font-weight: 800;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--text) 0%, var(--gold) 30%, var(--teal) 60%, var(--purple) 100%);
+  background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  animation: gradient-shift 5s ease infinite;
+}
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 .hero p {
-  max-width: 700px;
+  max-width: 750px;
   margin: 0 auto;
-  color: var(--dim);
+  color: var(--muted);
   font-size: 1.1rem;
+  line-height: 1.8;
 }
+.hero p strong { color: var(--teal); }
 
 /* Stats */
 .stats {
   display: flex;
   justify-content: center;
   gap: 3rem;
-  padding: 1.5rem;
+  padding: 2rem;
   margin: 2rem auto;
-  max-width: 800px;
+  max-width: 900px;
   background: var(--card);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 12px;
   flex-wrap: wrap;

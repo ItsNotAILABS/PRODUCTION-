@@ -3,51 +3,138 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Organism AI — 26 AI Browser Extensions, 1-Click Install</title>
-<meta name="description" content="21 AI Chrome extensions + 5 Windows extensions. Install all 26 in one click. No server. No signup. Your browser becomes an AI powerhouse.">
+<title>Organism AI — 27 AI Browser Extensions with Intelligent Cache</title>
+<meta name="description" content="27 AI browser extensions with intelligent cache technology. Install all in one click. No server. No signup. Your browser becomes an AI powerhouse.">
+
+<!-- Preload fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
 <style>
   :root {
-    --bg: #0a0a1a;
-    --card: #12122a;
-    --border: #2a2a4a;
-    --accent: #6c63ff;
-    --accent2: #00d4aa;
-    --text: #e0e0e0;
-    --dim: #888;
+    --bg: #030712;
+    --bg-secondary: #0a0f1e;
+    --card: rgba(17, 24, 39, 0.7);
+    --border: rgba(255, 255, 255, 0.08);
+    --accent: #a855f7;
+    --accent2: #00ffcc;
+    --gold: #d4af37;
+    --pink: #ec4899;
+    --blue: #3b82f6;
+    --green: #22c55e;
+    --text: #f8fafc;
+    --dim: #64748b;
+    --muted: #94a3b8;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    line-height: 1.6;
+    line-height: 1.7;
+    overflow-x: hidden;
   }
-  a { color: var(--accent2); text-decoration: none; }
-  a:hover { text-decoration: underline; }
+  
+  /* Animated Background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(0, 255, 204, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(212, 175, 55, 0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  /* Cyber grid */
+  .cyber-grid {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image:
+      linear-gradient(rgba(0, 255, 204, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 255, 204, 0.02) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: grid-float 25s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  @keyframes grid-float {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(60px); }
+  }
+  
+  a { color: var(--accent2); text-decoration: none; transition: all 0.3s ease; }
+  a:hover { color: var(--gold); }
 
   /* ── Hero ──────────────────────────────────────────── */
   .hero {
     text-align: center;
-    padding: 5rem 1.5rem 3rem;
-    max-width: 800px;
+    padding: 6rem 1.5rem 4rem;
+    max-width: 900px;
     margin: 0 auto;
+    position: relative;
+    z-index: 1;
   }
+  
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    background: linear-gradient(90deg, rgba(0,255,204,0.15), rgba(168,85,247,0.15), rgba(212,175,55,0.15));
+    background-size: 200% 100%;
+    animation: badge-glow 4s linear infinite;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 2rem;
+  }
+  @keyframes badge-glow {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  .hero-badge .icon { font-size: 1.25rem; }
+  
   .hero h1 {
-    font-size: 2.8rem;
-    margin-bottom: 1rem;
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(2.2rem, 5vw, 3.5rem);
+    margin-bottom: 1.5rem;
     line-height: 1.2;
+    font-weight: 800;
+  }
+  .hero h1 .gradient-text {
+    background: linear-gradient(135deg, var(--text) 0%, var(--gold) 30%, var(--accent2) 60%, var(--accent) 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradient-shift 5s ease infinite;
+  }
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
   .hero h1 .accent { color: var(--accent); }
   .hero h1 .accent2 { color: var(--accent2); }
   .hero .subtitle {
     font-size: 1.15rem;
-    color: var(--dim);
+    color: var(--muted);
     margin-bottom: 2.5rem;
-    max-width: 600px;
+    max-width: 700px;
     margin-left: auto;
     margin-right: auto;
+    line-height: 1.8;
   }
+  .hero .subtitle strong { color: var(--accent2); }
   .hero-buttons {
     display: flex;
     gap: 1rem;
@@ -56,27 +143,49 @@
     margin-bottom: 1.5rem;
   }
   .btn {
-    display: inline-block;
-    padding: 0.9rem 2rem;
-    border-radius: 8px;
-    font-size: 1.05rem;
-    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 700;
     text-decoration: none;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: none;
     cursor: pointer;
+    position: relative;
+    overflow: hidden;
   }
-  .btn:hover { text-decoration: none; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: #5a52e0; }
-  .btn-secondary { background: var(--accent2); color: #000; }
-  .btn-secondary:hover { background: #00eabb; }
+  .btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+  }
+  .btn:hover::before { left: 100%; }
+  .btn:hover { text-decoration: none; transform: translateY(-3px); }
+  .btn-primary { 
+    background: linear-gradient(135deg, var(--gold), #f0883e);
+    color: var(--bg);
+    box-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
+  }
+  .btn-primary:hover { box-shadow: 0 10px 40px rgba(212, 175, 55, 0.4); }
+  .btn-secondary { 
+    background: linear-gradient(135deg, var(--accent2), #00d4aa);
+    color: var(--bg);
+    box-shadow: 0 4px 20px rgba(0, 255, 204, 0.2);
+  }
+  .btn-secondary:hover { box-shadow: 0 10px 40px rgba(0, 255, 204, 0.3); }
   .btn-outline {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.05);
     color: var(--text);
     border: 1px solid var(--border);
+    backdrop-filter: blur(10px);
   }
-  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); background: rgba(168, 85, 247, 0.1); }
 
   .hero-note {
     font-size: 0.85rem;
@@ -88,86 +197,150 @@
     display: flex;
     justify-content: center;
     gap: 3rem;
-    padding: 2rem 1rem;
+    padding: 2.5rem 1.5rem;
+    background: rgba(17, 24, 39, 0.5);
+    backdrop-filter: blur(20px);
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
     flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
   }
   .stat { text-align: center; }
-  .stat .num { font-size: 2rem; font-weight: bold; color: var(--accent2); }
-  .stat .label { font-size: 0.85rem; color: var(--dim); }
+  .stat .num { 
+    font-family: 'Orbitron', monospace;
+    font-size: 2.5rem; 
+    font-weight: 800; 
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .stat .label { font-size: 0.85rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
 
   /* ── Section ──────────────────────────────────────── */
   .section {
-    max-width: 1000px;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 3rem 1.5rem;
+    padding: 4rem 1.5rem;
+    position: relative;
+    z-index: 1;
   }
   .section h2 {
-    font-size: 1.6rem;
+    font-family: 'Orbitron', monospace;
+    font-size: 1.75rem;
     margin-bottom: 1.5rem;
-    color: var(--accent);
+    color: var(--text);
     text-align: center;
+    font-weight: 700;
   }
+  .section h2 .highlight { color: var(--accent2); }
   .section p.desc {
     text-align: center;
-    color: var(--dim);
-    max-width: 650px;
-    margin: -0.5rem auto 2rem;
+    color: var(--muted);
+    max-width: 700px;
+    margin: -0.5rem auto 2.5rem;
+    line-height: 1.8;
   }
 
   /* ── Feature grid ─────────────────────────────────── */
   .features {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.2rem;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
   }
   .feature {
     background: var(--card);
+    backdrop-filter: blur(10px);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1.5rem;
-    transition: border-color 0.2s;
+    border-radius: 16px;
+    padding: 2rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
   }
-  .feature:hover { border-color: var(--accent); }
-  .feature .icon { font-size: 1.6rem; margin-bottom: 0.6rem; }
-  .feature h3 { font-size: 1rem; margin-bottom: 0.4rem; }
-  .feature p { font-size: 0.85rem; color: var(--dim); }
+  .feature::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+  .feature:hover::before { transform: scaleX(1); }
+  .feature:hover { 
+    border-color: var(--accent);
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 60px rgba(168, 85, 247, 0.1);
+  }
+  .feature .icon { 
+    font-size: 2rem; 
+    margin-bottom: 1rem;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(0, 255, 204, 0.1));
+    border-radius: 12px;
+  }
+  .feature h3 { font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 700; }
+  .feature p { font-size: 0.9rem; color: var(--muted); line-height: 1.7; }
 
   /* ── Extension showcase ───────────────────────────── */
   .ext-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 0.8rem;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
   }
   .ext-card {
     background: var(--card);
+    backdrop-filter: blur(10px);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1rem;
-    transition: border-color 0.2s;
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
   }
-  .ext-card:hover { border-color: var(--accent); }
-  .ext-card .name { font-weight: bold; font-size: 0.95rem; margin-bottom: 0.3rem; }
+  .ext-card::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 60px; height: 60px;
+    background: radial-gradient(circle at top right, rgba(0, 255, 204, 0.1), transparent);
+    pointer-events: none;
+  }
+  .ext-card:hover { 
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+  }
+  .ext-card .name { font-weight: 700; font-size: 1rem; margin-bottom: 0.5rem; }
   .ext-card .engines { font-size: 0.75rem; color: var(--dim); }
   .ext-card .engines span {
     display: inline-block;
-    background: #1a1a3a;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 0.05rem 0.35rem;
-    margin: 0.1rem 0.15rem 0.1rem 0;
+    background: rgba(0, 255, 204, 0.1);
+    border: 1px solid rgba(0, 255, 204, 0.2);
+    border-radius: 6px;
+    padding: 0.15rem 0.5rem;
+    margin: 0.15rem 0.2rem 0.15rem 0;
+    color: var(--accent2);
+    font-weight: 500;
   }
-  .ext-card .ring { font-size: 0.7rem; color: var(--accent); margin-top: 0.4rem; }
+  .ext-card .ring { font-size: 0.75rem; color: var(--gold); margin-top: 0.5rem; font-weight: 600; }
 
   /* ── Install steps ────────────────────────────────── */
   .install-methods {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1.5rem;
   }
   .method {
     background: var(--card);
+    backdrop-filter: blur(10px);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 1.5rem;
@@ -561,31 +734,39 @@
 </head>
 <body>
 
+<!-- Cyber Grid Background -->
+<div class="cyber-grid"></div>
+
 <!-- ═══════════════════ HERO ═══════════════════ -->
 <div class="hero">
-  <h1>🧬 <span class="accent">Organism AI</span><br>
-  <span class="accent2">26</span> AI Extensions. <span class="accent2">1</span> Click.</h1>
+  <div class="hero-badge">
+    <span class="icon">🧠</span>
+    Intelligent Cache Powered
+  </div>
+  <h1><span class="gradient-text">🧬 Organism AI</span><br>
+  <span class="accent2">27</span> AI Extensions. <span class="accent2">1</span> Click.</h1>
   <p class="subtitle">
-    Turn your browser into an AI powerhouse. 21 Chrome extensions + 5 Windows extensions — 
+    Turn your browser into an AI powerhouse. 27 AI extensions with <strong>intelligent cache technology</strong> — 
     all installable in a single click. No server. No signup. No API keys.
     Sovereign intelligence with 15 permanent Web Workers, mathematical reasoning, and chain-of-thought AI.
   </p>
   <div class="hero-buttons">
-    <a class="btn btn-primary" href="dist/extensions/all-extensions.zip" download>📦 Download All 26</a>
+    <a class="btn btn-primary" href="dist/extensions/all-extensions.zip" download>📦 Download All 27</a>
     <a class="btn btn-secondary" href="download.html">🔽 Pick Individual Extensions</a>
     <a class="btn btn-outline" href="https://github.com/FreddyCreates/potential-succotash">⭐ GitHub</a>
   </div>
   <p class="hero-note">
     Works on Chrome, Edge &amp; Brave · Manifest V3 · Zero dependencies · 100% local<br>
     <a href="./index.html" style="color: #d4af37;">← Back to ItsNotAILABS Research Lab</a> ·
-    <a href="./research/portal.html" style="color: #00d4aa;">Research Portal</a> ·
-    <a href="./research/papers-hub.html" style="color: #00d4aa;">Papers Hub</a>
+    <a href="./index.html#ai-cache" style="color: #00ffcc;">AI Cache Dashboard</a> ·
+    <a href="./research/portal.html" style="color: #00ffcc;">Research Portal</a> ·
+    <a href="./research/papers-hub.html" style="color: #00ffcc;">Papers Hub</a>
   </p>
 </div>
 
 <!-- ═══════════════════ MASTER PORTAL ═══════════════════ -->
 <div class="section">
-  <h2>Master GitHub Pages Portal</h2>
+  <h2>Master GitHub Pages <span class="highlight">Portal</span></h2>
   <p class="desc">
     This page is now the master surface that links all public sections together: downloads, research, docs, and PowerShell operations.
     Use one master URL, then branch to focused sub-pages when needed.
@@ -606,8 +787,8 @@
       <div class="icon">🪟</div>
       <h3>PowerShell Operations</h3>
       <p>
-        Install extensions:<br><code>powershell -ExecutionPolicy Bypass -File install-extensions.ps1</code><br><br>
-        Install Animus AI:<br><code>Invoke-WebRequest -Uri "https://github.com/FreddyCreates/potential-succotash/raw/main/install-jarvis-edge.bat" -OutFile install-jarvis.bat; .\install-jarvis.bat</code>
+        Install extensions:<br><code style="color: var(--accent2);">powershell -ExecutionPolicy Bypass -File install-extensions.ps1</code><br><br>
+        Install Animus AI:<br><code style="color: var(--accent2);">Invoke-WebRequest -Uri "https://github.com/FreddyCreates/potential-succotash/raw/main/install-jarvis-edge.bat" -OutFile install-jarvis.bat; .\install-jarvis.bat</code>
       </p>
     </div>
     <div class="feature">
@@ -624,7 +805,7 @@
 
 <!-- ═══════════════════ STATS ═══════════════════ -->
 <div class="stats">
-  <div class="stat"><div class="num">26</div><div class="label">AI Extensions</div></div>
+  <div class="stat"><div class="num">27</div><div class="label">AI Extensions</div></div>
   <div class="stat"><div class="num">40+</div><div class="label">AI Engines Wired</div></div>
   <div class="stat"><div class="num">15</div><div class="label">Web Workers</div></div>
   <div class="stat"><div class="num">4</div><div class="label">AI Divisions</div></div>
