@@ -176,6 +176,32 @@
       padding: 0.5rem;
     }
     
+    /* Mobile Menu Styles */
+    @media (max-width: 768px) {
+      .nav-links.mobile-open {
+        display: flex !important;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: rgba(3, 7, 18, 0.98);
+        backdrop-filter: blur(20px);
+        padding: 1rem;
+        border-bottom: 1px solid var(--border);
+        gap: 0.5rem;
+      }
+      .nav-links.mobile-open li {
+        width: 100%;
+      }
+      .nav-links.mobile-open a {
+        display: block;
+        width: 100%;
+        text-align: center;
+        padding: 0.75rem 1rem;
+      }
+    }
+    
     /* Progress Bar */
     .scroll-progress {
       position: fixed;
@@ -1504,7 +1530,7 @@
       <div class="orbit-ring"><div class="orbit-dot" style="top: 0; left: 50%;"></div></div>
       <div class="orbit-ring"><div class="orbit-dot" style="bottom: 0; right: 0;"></div></div>
       <div class="orbit-ring"><div class="orbit-dot" style="top: 50%; left: 0;"></div></div>
-      <video autoplay muted loop playsinline poster="">
+      <video autoplay muted loop playsinline poster="" aria-label="ItsNotAILABS animated logo - DNA helix symbolizing AI research">
         <source src="./assets/logo-animation.mp4" type="video/mp4">
       </video>
       <div class="logo-fallback">🧬</div>
@@ -1639,11 +1665,12 @@
     </div>
     <div class="video-showcase fade-in">
       <div class="video-container">
-        <video poster="./assets/video-poster.jpg" id="introVideo">
+        <video poster="./assets/video-poster.jpg" id="introVideo" controls aria-label="Introduction to the Organism AI platform">
           <source src="./assets/organism-intro.mp4" type="video/mp4">
+          <track kind="captions" src="./assets/organism-intro-captions.vtt" srclang="en" label="English">
         </video>
         <div class="video-overlay" id="videoOverlay">
-          <div class="play-button" onclick="playVideo()">▶</div>
+          <div class="play-button" onclick="playVideo()" role="button" aria-label="Play introduction video" tabindex="0" onkeydown="if(event.key==='Enter')playVideo()">▶</div>
         </div>
       </div>
     </div>
@@ -2048,8 +2075,20 @@
 
 <!-- JavaScript for Advanced Interactions -->
 <script>
-// Scroll Progress Bar
-window.addEventListener('scroll', () => {
+// Throttle function for scroll performance
+function throttle(func, limit) {
+  let inThrottle;
+  return function(...args) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  };
+}
+
+// Scroll Progress Bar (throttled for performance)
+const handleScroll = throttle(() => {
   const scrollProgress = document.getElementById('scrollProgress');
   const scrollTop = document.documentElement.scrollTop;
   const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
@@ -2063,7 +2102,19 @@ window.addEventListener('scroll', () => {
   } else {
     nav.classList.remove('scrolled');
   }
-});
+}, 16);
+
+window.addEventListener('scroll', handleScroll);
+
+// Mobile Menu Toggle
+const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+const navLinks = document.querySelector('.nav-links');
+if (mobileMenuBtn && navLinks) {
+  mobileMenuBtn.addEventListener('click', () => {
+    navLinks.classList.toggle('mobile-open');
+    mobileMenuBtn.setAttribute('aria-expanded', navLinks.classList.contains('mobile-open'));
+  });
+}
 
 // Intersection Observer for fade-in animations
 const observerOptions = {
@@ -2086,7 +2137,7 @@ function animateCounters() {
   const counters = document.querySelectorAll('.stat-value[data-count]');
   
   counters.forEach(counter => {
-    const target = parseInt(counter.getAttribute('data-count'));
+    const target = parseInt(counter.getAttribute('data-count'), 10);
     const duration = 2000;
     const step = target / (duration / 16);
     let current = 0;
@@ -2115,13 +2166,21 @@ function animateCounters() {
 
 animateCounters();
 
-// Video Play Function
+// Video Play Function with error handling
 function playVideo() {
   const video = document.getElementById('introVideo');
   const overlay = document.getElementById('videoOverlay');
   if (video) {
-    video.play();
-    overlay.style.display = 'none';
+    video.play()
+      .then(() => {
+        overlay.style.display = 'none';
+      })
+      .catch((error) => {
+        console.warn('Video playback failed:', error.message);
+        // Still hide overlay and show native controls
+        overlay.style.display = 'none';
+        video.controls = true;
+      });
   }
 }
 
@@ -2227,7 +2286,8 @@ if (protocolCanvas) {
       this.vx = (Math.random() - 0.5) * 0.5;
       this.vy = (Math.random() - 0.5) * 0.5;
       this.radius = Math.random() * 4 + 2;
-      this.color = ['#d4af37', '#00ffcc', '#a855f7', '#3b82f6'][Math.floor(Math.random() * 4)];
+      const colors = ['#d4af37', '#00ffcc', '#a855f7', '#3b82f6'];
+      this.color = colors[Math.floor(Math.random() * colors.length)];
     }
     
     update() {
@@ -2289,9 +2349,10 @@ if (protocolCanvas) {
 // Smooth scroll for anchor links
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
   anchor.addEventListener('click', function(e) {
-    e.preventDefault();
-    const target = document.querySelector(this.getAttribute('href'));
+    const href = this.getAttribute('href');
+    const target = document.querySelector(href);
     if (target) {
+      e.preventDefault();
       target.scrollIntoView({ behavior: 'smooth' });
     }
   });

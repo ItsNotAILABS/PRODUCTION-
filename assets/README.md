@@ -41,11 +41,14 @@ The page is designed to work gracefully without these video files:
 
 ```bash
 # Convert and compress logo animation
-ffmpeg -i input.mov -vcodec h264 -acodec aac -b:v 500k -s 400x400 logo-animation.mp4
+ffmpeg -i input.mov -c:v libx264 -c:a aac -b:v 500k -s 400x400 logo-animation.mp4
 
 # Convert intro video with good quality
-ffmpeg -i input.mov -vcodec h264 -acodec aac -b:v 2000k organism-intro.mp4
+ffmpeg -i input.mov -c:v libx264 -c:a aac -b:v 2000k organism-intro.mp4
 
 # Create poster image from video
 ffmpeg -i organism-intro.mp4 -ss 00:00:02 -vframes 1 video-poster.jpg
+
+# Create WebVTT captions file (organism-intro-captions.vtt)
+# This should be created manually or with a captioning service
 ```
