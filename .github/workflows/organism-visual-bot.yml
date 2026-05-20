@@ -99,5 +99,26 @@ jobs:
             echo "No visual changes to commit"
           else
             git commit -m "📸 Visual-bot: screenshots & recordings updated — $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git push
+            # Fixed delay between retries
+            retry_delay_seconds=2
+            for attempt in 1 2 3; do
+              git fetch origin main
+              if ! git rebase origin/main; then
+                git rebase --abort || true
+                if [ "$attempt" -eq 3 ]; then
+                  echo "Unable to rebase onto latest origin/main"
+                  exit 1
+                fi
+                sleep "$retry_delay_seconds"
+                continue
+              fi
+              if git push origin HEAD:main; then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "Push failed after 3 attempts"
+                exit 1
+              fi
+              sleep "$retry_delay_seconds"
+            done
           fi
