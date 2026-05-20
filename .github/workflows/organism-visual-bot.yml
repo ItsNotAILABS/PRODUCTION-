@@ -108,6 +108,7 @@ jobs:
                   exit 1
                 fi
                 sleep "$retry_delay_seconds"
+                retry_delay_seconds=$((retry_delay_seconds * 2))
                 continue
               fi
               if git push origin HEAD:main; then
@@ -118,5 +119,6 @@ jobs:
                 exit 1
               fi
               sleep "$retry_delay_seconds"
+              retry_delay_seconds=$((retry_delay_seconds * 2))
             done
           fi
