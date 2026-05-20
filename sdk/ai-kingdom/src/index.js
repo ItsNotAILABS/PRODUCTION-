@@ -116,6 +116,11 @@ export { H2OReservoir, ReservoirNetwork, RESERVOIR_TYPES, WATER_QUALITY, FLOW_ST
 export { CoolingUnit, CoolingGenerator, COOLING_UNIT_TYPES, THERMAL_ZONES, COOLING_STATES } from './cooling-generator.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// POWER GRID — Power generation, distribution, and storage
+// ═══════════════════════════════════════════════════════════════════════════════
+export { PowerGrid, PowerGenerator, BatteryCluster, PowerSector } from './power-grid.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // DEFAULT EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
 export { default as CreatorRecognitionDefault } from './prima-causa.js';
@@ -133,3 +138,4 @@ export { default as RoyalMintDefault } from './royal-mint.js';
 export { default as NetworkIntelligenceDefault } from './network-intelligence.js';
 export { default as ReservoirNetworkDefault } from './h2o-reservoir.js';
 export { default as CoolingGeneratorDefault } from './cooling-generator.js';
+export { default as PowerGridDefault } from './power-grid.js';

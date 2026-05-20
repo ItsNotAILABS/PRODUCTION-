@@ -147,3 +147,6 @@ export { GateKeeperProtocol, GATE_CONFIG, MESSAGE_TYPES as GATE_MESSAGE_TYPES, G
 
 // PROTO-233: Thermal Management — Self-cooling H2O reservoir and cooling generator systems
 export { ThermalManagementProtocol, THERMAL_CONFIG, MESSAGE_TYPES as THERMAL_MESSAGE_TYPES, THERMAL_STATES, calculateCoolingPower, calculateWaterFlow, calculateHeatRecovery, getThermalState } from './thermal-management-protocol.js';
+
+// PROTO-234: Power Distribution — Power generation, distribution, storage, and load balancing
+export { PowerDistributionProtocol, POWER_CONFIG, MESSAGE_TYPES as POWER_MESSAGE_TYPES, POWER_STATES, GENERATION_SOURCES, LOAD_PRIORITIES, calculateLoadDistribution, calculateBatteryPlan, calculateTransmissionEfficiency, getPowerState, calculateEnergyExport } from './power-distribution-protocol.js';
