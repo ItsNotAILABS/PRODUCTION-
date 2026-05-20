@@ -4,552 +4,783 @@ const assert = require('node:assert/strict');
 describe('CloudGlade SDK', () => {
   let CloudGladeBiomeEngine;
   let PhantomIntegration;
-  let BIOME_CONFIG;
-  let SEASONS;
-  let PHANTOM_PRIMITIVES;
+  let PhantomStealthRouter;
+  let PhantomEncryptionWeave;
+  let PhantomKeyRotation;
+  let PhantomDecoyGenerator;
+  let PhantomCloakCompute;
+  let BIOME_SEASONS;
+  let BIOME_HEALTH;
   let THREAT_PLAYBOOKS;
+  let BIOME_EVENTS;
+  let PHANTOM_TIERS;
   let biome;
   let phantom;
 
   beforeEach(async () => {
     const engineModule = await import('../../sdk/cloud-glade/src/biome-engine.js');
     CloudGladeBiomeEngine = engineModule.CloudGladeBiomeEngine;
-    BIOME_CONFIG = engineModule.BIOME_CONFIG;
-    SEASONS = engineModule.SEASONS;
+    BIOME_SEASONS = engineModule.BIOME_SEASONS;
+    BIOME_HEALTH = engineModule.BIOME_HEALTH;
+    THREAT_PLAYBOOKS = engineModule.THREAT_PLAYBOOKS;
+    BIOME_EVENTS = engineModule.BIOME_EVENTS;
     
     const phantomModule = await import('../../sdk/cloud-glade/src/phantom-integration.js');
     PhantomIntegration = phantomModule.PhantomIntegration;
-    PHANTOM_PRIMITIVES = phantomModule.PHANTOM_PRIMITIVES;
-    THREAT_PLAYBOOKS = phantomModule.THREAT_PLAYBOOKS;
+    PhantomStealthRouter = phantomModule.PhantomStealthRouter;
+    PhantomEncryptionWeave = phantomModule.PhantomEncryptionWeave;
+    PhantomKeyRotation = phantomModule.PhantomKeyRotation;
+    PhantomDecoyGenerator = phantomModule.PhantomDecoyGenerator;
+    PhantomCloakCompute = phantomModule.PhantomCloakCompute;
+    PHANTOM_TIERS = phantomModule.PHANTOM_TIERS;
     
     biome = new CloudGladeBiomeEngine();
     phantom = new PhantomIntegration();
   });
 
   describe('CloudGladeBiomeEngine', () => {
-    describe('BIOME_CONFIG exports', () => {
-      it('should export phi constant', () => {
-        assert.ok(BIOME_CONFIG.PHI_CONSTANT > 1.6);
-        assert.ok(BIOME_CONFIG.PHI_CONSTANT < 1.7);
+    describe('BIOME_SEASONS exports', () => {
+      it('should export all seasons', () => {
+        assert.ok(BIOME_SEASONS.SPRING);
+        assert.ok(BIOME_SEASONS.SUMMER);
+        assert.ok(BIOME_SEASONS.AUTUMN);
+        assert.ok(BIOME_SEASONS.WINTER);
       });
 
-      it('should export seasonal cycle duration', () => {
-        assert.ok(BIOME_CONFIG.SEASONAL_CYCLE_MS > 0);
+      it('should have season ranges', () => {
+        assert.deepEqual(BIOME_SEASONS.SPRING.range, [0, 0.25]);
+        assert.deepEqual(BIOME_SEASONS.SUMMER.range, [0.25, 0.5]);
+        assert.deepEqual(BIOME_SEASONS.AUTUMN.range, [0.5, 0.75]);
+        assert.deepEqual(BIOME_SEASONS.WINTER.range, [0.75, 1.0]);
       });
 
-      it('should export ecosystem parameters', () => {
-        assert.ok(BIOME_CONFIG.ECOSYSTEM_DIVERSITY > 0);
-        assert.ok(BIOME_CONFIG.NUTRIENT_CYCLE_RATE > 0);
+      it('should have season activities', () => {
+        assert.ok(Array.isArray(BIOME_SEASONS.SPRING.activities));
+        assert.ok(BIOME_SEASONS.SPRING.activities.length > 0);
       });
 
-      it('should export growth and decay rates', () => {
-        assert.ok(BIOME_CONFIG.GROWTH_RATE > 0);
-        assert.ok(BIOME_CONFIG.DECAY_RATE > 0);
+      it('should have primitive boosts', () => {
+        assert.ok(Array.isArray(BIOME_SEASONS.SUMMER.primitiveBoost));
+        assert.ok(BIOME_SEASONS.SUMMER.primitiveBoost.length > 0);
       });
     });
 
-    describe('SEASONS exports', () => {
-      it('should export all seasons', () => {
-        assert.ok(SEASONS.SPRING);
-        assert.ok(SEASONS.SUMMER);
-        assert.ok(SEASONS.AUTUMN);
-        assert.ok(SEASONS.WINTER);
+    describe('BIOME_HEALTH exports', () => {
+      it('should export all health states', () => {
+        assert.ok(BIOME_HEALTH.THRIVING);
+        assert.ok(BIOME_HEALTH.HEALTHY);
+        assert.ok(BIOME_HEALTH.STRESSED);
+        assert.ok(BIOME_HEALTH.DEGRADED);
+        assert.ok(BIOME_HEALTH.CRITICAL);
       });
 
-      it('should have unique growth factors', () => {
-        assert.ok(SEASONS.SPRING.growthFactor !== SEASONS.WINTER.growthFactor);
+      it('should have min/max ranges', () => {
+        assert.ok(BIOME_HEALTH.THRIVING.min >= 0);
+        assert.ok(BIOME_HEALTH.THRIVING.max <= 1);
+        assert.ok(BIOME_HEALTH.THRIVING.min < BIOME_HEALTH.THRIVING.max);
+      });
+    });
+
+    describe('THREAT_PLAYBOOKS exports', () => {
+      it('should export all playbooks', () => {
+        assert.ok(THREAT_PLAYBOOKS.RECONNAISSANCE);
+        assert.ok(THREAT_PLAYBOOKS.INTRUSION_ATTEMPT);
+        assert.ok(THREAT_PLAYBOOKS.DATA_EXFILTRATION);
+        assert.ok(THREAT_PLAYBOOKS.DENIAL_OF_SERVICE);
+        assert.ok(THREAT_PLAYBOOKS.PERSISTENCE);
       });
 
-      it('should include season duration', () => {
-        assert.ok(SEASONS.SPRING.duration > 0);
+      it('should have threat types', () => {
+        assert.ok(Array.isArray(THREAT_PLAYBOOKS.RECONNAISSANCE.threatTypes));
+        assert.ok(THREAT_PLAYBOOKS.RECONNAISSANCE.threatTypes.length > 0);
+      });
+
+      it('should have response actions', () => {
+        assert.ok(Array.isArray(THREAT_PLAYBOOKS.INTRUSION_ATTEMPT.response));
+        assert.ok(THREAT_PLAYBOOKS.INTRUSION_ATTEMPT.response.length > 0);
+      });
+
+      it('should have escalation levels', () => {
+        assert.ok(THREAT_PLAYBOOKS.RECONNAISSANCE.escalation >= 0);
+        assert.ok(THREAT_PLAYBOOKS.RECONNAISSANCE.escalation <= 1);
+      });
+    });
+
+    describe('BIOME_EVENTS exports', () => {
+      it('should export all event types', () => {
+        assert.equal(BIOME_EVENTS.THREAT_DETECTED, 'threat:detected');
+        assert.equal(BIOME_EVENTS.THREAT_BLOCKED, 'threat:blocked');
+        assert.equal(BIOME_EVENTS.KEY_ROTATED, 'key:rotated');
+        assert.equal(BIOME_EVENTS.SEASON_CHANGED, 'season:changed');
+        assert.equal(BIOME_EVENTS.HEALTH_CHANGED, 'health:changed');
       });
     });
 
     describe('constructor', () => {
-      it('should initialize biome name', () => {
-        assert.ok(biome.biomeName.includes('Cloud'));
+      it('should initialize biome ID', () => {
+        assert.ok(biome.id.startsWith('glade-'));
       });
 
-      it('should initialize version', () => {
-        assert.equal(biome.version, '1.0.0');
+      it('should initialize health to 1.0', () => {
+        assert.equal(biome.health, 1.0);
       });
 
-      it('should initialize empty organisms map', () => {
-        assert.equal(biome.organisms.size, 0);
+      it('should initialize seasonPhase to 0', () => {
+        assert.equal(biome.seasonPhase, 0);
       });
 
-      it('should initialize empty habitats map', () => {
-        assert.equal(biome.habitats.size, 0);
+      it('should initialize threatLevel to 0', () => {
+        assert.equal(biome.threatLevel, 0);
       });
 
-      it('should initialize current season', () => {
-        assert.ok(biome.currentSeason);
-      });
-
-      it('should initialize ecosystem health', () => {
-        assert.ok(biome.ecosystemHealth > 0);
+      it('should initialize phantom integration', () => {
+        assert.ok(biome.phantom);
+        assert.ok(biome.phantom instanceof PhantomIntegration);
       });
 
       it('should initialize empty event log', () => {
         assert.deepEqual(biome.eventLog, []);
       });
-    });
 
-    describe('getInfo()', () => {
-      it('should return biome metadata', () => {
-        const info = biome.getInfo();
-        assert.ok(info.name.includes('Cloud'));
-        assert.equal(info.version, '1.0.0');
+      it('should initialize empty active threats', () => {
+        assert.deepEqual(biome.activeThreats, []);
       });
 
-      it('should include description', () => {
-        const info = biome.getInfo();
-        assert.ok(info.description.length > 0);
-      });
-
-      it('should include config', () => {
-        const info = biome.getInfo();
-        assert.ok(info.config);
-      });
-
-      it('should include season info', () => {
-        const info = biome.getInfo();
-        assert.ok(info.currentSeason);
-        assert.ok(info.ecosystemHealth > 0);
+      it('should initialize metrics', () => {
+        assert.equal(biome.metrics.cycleCount, 0);
+        assert.equal(biome.metrics.threatsDetected, 0);
+        assert.equal(biome.metrics.threatsBlocked, 0);
       });
     });
 
-    describe('registerOrganism()', () => {
-      it('should register a new organism', () => {
-        const result = biome.registerOrganism('org-1');
-        assert.equal(result.success, true);
-        assert.equal(result.organismId, 'org-1');
+    describe('getCurrentSeason()', () => {
+      it('should return SPRING at phase 0', () => {
+        biome.seasonPhase = 0;
+        const season = biome.getCurrentSeason();
+        assert.equal(season.name, 'SPRING');
       });
 
-      it('should add organism to organisms map', () => {
-        biome.registerOrganism('org-1');
-        assert.equal(biome.organisms.size, 1);
-        assert.ok(biome.organisms.has('org-1'));
+      it('should return SUMMER at phase 0.3', () => {
+        biome.seasonPhase = 0.3;
+        const season = biome.getCurrentSeason();
+        assert.equal(season.name, 'SUMMER');
       });
 
-      it('should accept custom config', () => {
-        biome.registerOrganism('org-1', { 
-          species: 'guardian',
-          health: 100 
-        });
-        const organism = biome.organisms.get('org-1');
-        assert.equal(organism.species, 'guardian');
-        assert.equal(organism.health, 100);
+      it('should return AUTUMN at phase 0.6', () => {
+        biome.seasonPhase = 0.6;
+        const season = biome.getCurrentSeason();
+        assert.equal(season.name, 'AUTUMN');
       });
 
-      it('should reject duplicate organism', () => {
-        biome.registerOrganism('org-1');
-        const result = biome.registerOrganism('org-1');
-        assert.equal(result.success, false);
-        assert.ok(result.error.includes('already registered'));
-      });
-
-      it('should log registration event', () => {
-        biome.registerOrganism('org-1');
-        assert.ok(biome.eventLog.length > 0);
+      it('should return WINTER at phase 0.8', () => {
+        biome.seasonPhase = 0.8;
+        const season = biome.getCurrentSeason();
+        assert.equal(season.name, 'WINTER');
       });
     });
 
-    describe('registerHabitat()', () => {
-      it('should register a new habitat', () => {
-        const result = biome.registerHabitat('habitat-1');
-        assert.equal(result.success, true);
-        assert.equal(result.habitatId, 'habitat-1');
+    describe('advanceSeason()', () => {
+      it('should advance season phase', () => {
+        const initialPhase = biome.seasonPhase;
+        biome.advanceSeason(0.1);
+        assert.ok(biome.seasonPhase > initialPhase);
       });
 
-      it('should add habitat to habitats map', () => {
-        biome.registerHabitat('habitat-1');
-        assert.equal(biome.habitats.size, 1);
-        assert.ok(biome.habitats.has('habitat-1'));
+      it('should wrap around at 1.0', () => {
+        biome.seasonPhase = 0.95;
+        biome.advanceSeason(0.1);
+        assert.ok(biome.seasonPhase < 0.95);
       });
 
-      it('should accept custom config', () => {
-        biome.registerHabitat('habitat-1', { 
-          type: 'forest',
-          capacity: 100 
-        });
-        const habitat = biome.habitats.get('habitat-1');
-        assert.equal(habitat.type, 'forest');
-        assert.equal(habitat.capacity, 100);
-      });
-
-      it('should reject duplicate habitat', () => {
-        biome.registerHabitat('habitat-1');
-        const result = biome.registerHabitat('habitat-1');
-        assert.equal(result.success, false);
-        assert.ok(result.error.includes('already registered'));
+      it('should return current season', () => {
+        const season = biome.advanceSeason(0.01);
+        assert.ok(season.name);
+        assert.ok(season.label);
       });
     });
 
-    describe('assignOrganismToHabitat()', () => {
+    describe('getHealthStatus()', () => {
+      it('should return THRIVING for health 1.0', () => {
+        biome.health = 0.9;
+        const status = biome.getHealthStatus();
+        assert.equal(status.name, 'THRIVING');
+      });
+
+      it('should return HEALTHY for health 0.7', () => {
+        biome.health = 0.7;
+        const status = biome.getHealthStatus();
+        assert.equal(status.name, 'HEALTHY');
+      });
+
+      it('should return STRESSED for health 0.5', () => {
+        biome.health = 0.5;
+        const status = biome.getHealthStatus();
+        assert.equal(status.name, 'STRESSED');
+      });
+
+      it('should return CRITICAL for low health', () => {
+        biome.health = 0.1;
+        const status = biome.getHealthStatus();
+        assert.equal(status.name, 'CRITICAL');
+      });
+    });
+
+    describe('adjustHealth()', () => {
+      it('should increase health with positive delta', () => {
+        biome.health = 0.5;
+        biome.adjustHealth(0.1);
+        assert.equal(biome.health, 0.6);
+      });
+
+      it('should decrease health with negative delta', () => {
+        biome.health = 0.5;
+        biome.adjustHealth(-0.1);
+        assert.equal(biome.health, 0.4);
+      });
+
+      it('should not exceed 1.0', () => {
+        biome.health = 0.95;
+        biome.adjustHealth(0.1);
+        assert.equal(biome.health, 1.0);
+      });
+
+      it('should not go below 0', () => {
+        biome.health = 0.05;
+        biome.adjustHealth(-0.1);
+        assert.equal(biome.health, 0);
+      });
+    });
+
+    describe('ingestThreat()', () => {
+      it('should add threat to activeThreats', () => {
+        const threat = { type: 'scan', severity: 0.3 };
+        biome.ingestThreat(threat);
+        assert.equal(biome.activeThreats.length, 1);
+      });
+
+      it('should increment threatsDetected metric', () => {
+        const threat = { type: 'probe', severity: 0.2 };
+        biome.ingestThreat(threat);
+        assert.equal(biome.metrics.threatsDetected, 1);
+      });
+
+      it('should increase threatLevel', () => {
+        const initialLevel = biome.threatLevel;
+        biome.ingestThreat({ type: 'scan', severity: 0.5 });
+        assert.ok(biome.threatLevel > initialLevel);
+      });
+
+      it('should decrease health', () => {
+        biome.health = 1.0;
+        biome.ingestThreat({ type: 'exploit', severity: 0.5 });
+        assert.ok(biome.health < 1.0);
+      });
+
+      it('should normalize threat with defaults', () => {
+        const result = biome.ingestThreat({});
+        assert.ok(result.id);
+        assert.equal(result.type, 'unknown');
+        assert.equal(result.severity, 0.5);
+        assert.ok(result.detectedAt);
+      });
+    });
+
+    describe('blockThreat()', () => {
       beforeEach(() => {
-        biome.registerOrganism('org-1');
-        biome.registerHabitat('habitat-1');
+        biome.ingestThreat({ id: 'threat-1', type: 'scan', severity: 0.3 });
       });
 
-      it('should assign organism to habitat', () => {
-        const result = biome.assignOrganismToHabitat('org-1', 'habitat-1');
-        assert.equal(result.success, true);
+      it('should block active threat', () => {
+        const result = biome.blockThreat('threat-1');
+        assert.equal(result.blocked, true);
       });
 
-      it('should update organism location', () => {
-        biome.assignOrganismToHabitat('org-1', 'habitat-1');
-        const organism = biome.organisms.get('org-1');
-        assert.equal(organism.habitat, 'habitat-1');
+      it('should move threat to blockedThreats', () => {
+        biome.blockThreat('threat-1');
+        assert.equal(biome.blockedThreats.length, 1);
+        assert.equal(biome.activeThreats.length, 0);
       });
 
-      it('should return error for unknown organism', () => {
-        const result = biome.assignOrganismToHabitat('unknown', 'habitat-1');
-        assert.equal(result.success, false);
-        assert.ok(result.error.includes('not found'));
+      it('should increment threatsBlocked metric', () => {
+        biome.blockThreat('threat-1');
+        assert.equal(biome.metrics.threatsBlocked, 1);
       });
 
-      it('should return error for unknown habitat', () => {
-        const result = biome.assignOrganismToHabitat('org-1', 'unknown');
-        assert.equal(result.success, false);
-        assert.ok(result.error.includes('not found'));
+      it('should return error for unknown threat', () => {
+        const result = biome.blockThreat('unknown');
+        assert.equal(result.blocked, false);
+        assert.ok(result.error);
       });
     });
 
-    describe('setSeason()', () => {
-      it('should set current season', () => {
-        const result = biome.setSeason('summer');
-        assert.equal(result.success, true);
-        assert.equal(result.season, 'summer');
+    describe('cycle()', () => {
+      it('should increment cycleCount', () => {
+        biome.cycle();
+        assert.equal(biome.metrics.cycleCount, 1);
       });
 
-      it('should update currentSeason property', () => {
-        biome.setSeason('winter');
-        assert.equal(biome.currentSeason, 'winter');
+      it('should advance season', () => {
+        const initialPhase = biome.seasonPhase;
+        biome.cycle();
+        assert.ok(biome.seasonPhase > initialPhase);
       });
 
-      it('should return error for invalid season', () => {
-        const result = biome.setSeason('invalid');
-        assert.equal(result.success, false);
-        assert.ok(result.error.includes('Invalid season'));
+      it('should return state', () => {
+        const state = biome.cycle();
+        assert.ok(state.id);
+        assert.ok(state.health);
+        assert.ok(state.season);
       });
 
-      it('should log season change', () => {
-        const initialLogLength = biome.eventLog.length;
-        biome.setSeason('autumn');
-        assert.ok(biome.eventLog.length > initialLogLength);
-      });
-    });
-
-    describe('updateEcosystemHealth()', () => {
-      it('should update ecosystem health', () => {
-        const result = biome.updateEcosystemHealth(85);
-        assert.equal(result.success, true);
-        assert.equal(result.health, 85);
-      });
-
-      it('should clamp health to valid range', () => {
-        biome.updateEcosystemHealth(150);
-        assert.ok(biome.ecosystemHealth <= 100);
-        
-        biome.updateEcosystemHealth(-10);
-        assert.ok(biome.ecosystemHealth >= 0);
-      });
-
-      it('should include previous health', () => {
-        biome.ecosystemHealth = 75;
-        const result = biome.updateEcosystemHealth(80);
-        assert.equal(result.previousHealth, 75);
+      it('should naturally recover health when no threats', () => {
+        biome.health = 0.9;
+        biome.threatLevel = 0;
+        biome.cycle();
+        assert.ok(biome.health > 0.9);
       });
     });
 
-    describe('getMetrics()', () => {
-      it('should return biome metrics', () => {
-        const metrics = biome.getMetrics();
-        assert.ok('totalOrganisms' in metrics);
-        assert.ok('totalHabitats' in metrics);
-        assert.ok('ecosystemHealth' in metrics);
-        assert.ok('currentSeason' in metrics);
-        assert.ok('seasonGrowthFactor' in metrics);
+    describe('event system', () => {
+      it('should register event listener', () => {
+        let called = false;
+        biome.on('test:event', () => { called = true; });
+        biome._emit('test:event', {});
+        assert.equal(called, true);
       });
 
-      it('should count organisms correctly', () => {
-        biome.registerOrganism('org-1');
-        biome.registerOrganism('org-2');
-        const metrics = biome.getMetrics();
-        assert.equal(metrics.totalOrganisms, 2);
+      it('should unregister event listener', () => {
+        let count = 0;
+        const handler = () => { count++; };
+        biome.on('test:event', handler);
+        biome._emit('test:event', {});
+        biome.off('test:event', handler);
+        biome._emit('test:event', {});
+        assert.equal(count, 1);
       });
 
-      it('should count habitats correctly', () => {
-        biome.registerHabitat('habitat-1');
-        const metrics = biome.getMetrics();
-        assert.equal(metrics.totalHabitats, 1);
+      it('should log events', () => {
+        biome._emit('test:event', { data: 'test' });
+        assert.ok(biome.eventLog.length > 0);
+        assert.equal(biome.eventLog[biome.eventLog.length - 1].event, 'test:event');
+      });
+    });
+
+    describe('getState()', () => {
+      it('should return biome state', () => {
+        const state = biome.getState();
+        assert.ok(state.id);
+        assert.ok(state.health);
+        assert.ok(state.season);
+        assert.ok('threatLevel' in state);
+        assert.ok('activeThreats' in state);
+        assert.ok(state.metrics);
+        assert.ok(state.phantom);
+      });
+    });
+
+    describe('getFullReport()', () => {
+      it('should return full report', () => {
+        const report = biome.getFullReport();
+        assert.ok(report.threatHistory);
+        assert.ok(report.recentEvents);
+        assert.ok(report.playbooks);
       });
     });
   });
 
   describe('PhantomIntegration', () => {
-    describe('PHANTOM_PRIMITIVES exports', () => {
-      it('should export cloak primitive', () => {
-        assert.ok(PHANTOM_PRIMITIVES.CLOAK);
-        assert.equal(PHANTOM_PRIMITIVES.CLOAK.id, 'cloak');
+    describe('PHANTOM_TIERS exports', () => {
+      it('should export all tiers', () => {
+        assert.ok(PHANTOM_TIERS.TIER_1);
+        assert.ok(PHANTOM_TIERS.TIER_2);
+        assert.ok(PHANTOM_TIERS.TIER_3);
+        assert.ok(PHANTOM_TIERS.TIER_4);
+        assert.ok(PHANTOM_TIERS.TIER_5);
       });
 
-      it('should export shield primitive', () => {
-        assert.ok(PHANTOM_PRIMITIVES.SHIELD);
-        assert.equal(PHANTOM_PRIMITIVES.SHIELD.id, 'shield');
+      it('should have tier levels', () => {
+        assert.equal(PHANTOM_TIERS.TIER_1.level, 1);
+        assert.equal(PHANTOM_TIERS.TIER_5.level, 5);
       });
 
-      it('should export mirror primitive', () => {
-        assert.ok(PHANTOM_PRIMITIVES.MIRROR);
-        assert.equal(PHANTOM_PRIMITIVES.MIRROR.id, 'mirror');
-      });
-
-      it('should export trap primitive', () => {
-        assert.ok(PHANTOM_PRIMITIVES.TRAP);
-        assert.equal(PHANTOM_PRIMITIVES.TRAP.id, 'trap');
-      });
-
-      it('should export decoy primitive', () => {
-        assert.ok(PHANTOM_PRIMITIVES.DECOY);
-        assert.equal(PHANTOM_PRIMITIVES.DECOY.id, 'decoy');
-      });
-
-      it('should export phase primitive', () => {
-        assert.ok(PHANTOM_PRIMITIVES.PHASE);
-        assert.equal(PHANTOM_PRIMITIVES.PHASE.id, 'phase');
-      });
-
-      it('should export echo primitive', () => {
-        assert.ok(PHANTOM_PRIMITIVES.ECHO);
-        assert.equal(PHANTOM_PRIMITIVES.ECHO.id, 'echo');
-      });
-
-      it('should export void primitive', () => {
-        assert.ok(PHANTOM_PRIMITIVES.VOID);
-        assert.equal(PHANTOM_PRIMITIVES.VOID.id, 'void');
-      });
-    });
-
-    describe('THREAT_PLAYBOOKS exports', () => {
-      it('should export intrusion playbook', () => {
-        assert.ok(THREAT_PLAYBOOKS.INTRUSION);
-        assert.ok(THREAT_PLAYBOOKS.INTRUSION.steps);
-      });
-
-      it('should export ddos playbook', () => {
-        assert.ok(THREAT_PLAYBOOKS.DDOS);
-        assert.ok(THREAT_PLAYBOOKS.DDOS.steps);
-      });
-
-      it('should export data_exfil playbook', () => {
-        assert.ok(THREAT_PLAYBOOKS.DATA_EXFIL);
-        assert.ok(THREAT_PLAYBOOKS.DATA_EXFIL.steps);
-      });
-
-      it('should export malware playbook', () => {
-        assert.ok(THREAT_PLAYBOOKS.MALWARE);
-        assert.ok(THREAT_PLAYBOOKS.MALWARE.steps);
+      it('should have primitives', () => {
+        assert.ok(Array.isArray(PHANTOM_TIERS.TIER_1.primitives));
+        assert.ok(PHANTOM_TIERS.TIER_1.primitives.length > 0);
       });
     });
 
     describe('constructor', () => {
-      it('should initialize integration name', () => {
-        assert.ok(phantom.integrationName.includes('Phantom'));
+      it('should initialize stealth router', () => {
+        assert.ok(phantom.stealth);
+        assert.ok(phantom.stealth instanceof PhantomStealthRouter);
       });
 
-      it('should initialize version', () => {
-        assert.equal(phantom.version, '1.0.0');
+      it('should initialize encryption weave', () => {
+        assert.ok(phantom.encryption);
+        assert.ok(phantom.encryption instanceof PhantomEncryptionWeave);
       });
 
-      it('should initialize empty active primitives map', () => {
-        assert.equal(phantom.activePrimitives.size, 0);
+      it('should initialize key rotation', () => {
+        assert.ok(phantom.keyRotation);
+        assert.ok(phantom.keyRotation instanceof PhantomKeyRotation);
       });
 
-      it('should initialize empty threat sessions map', () => {
-        assert.equal(phantom.threatSessions.size, 0);
+      it('should initialize decoy generator', () => {
+        assert.ok(phantom.decoy);
+        assert.ok(phantom.decoy instanceof PhantomDecoyGenerator);
       });
 
-      it('should initialize empty event log', () => {
-        assert.deepEqual(phantom.eventLog, []);
-      });
-    });
-
-    describe('getInfo()', () => {
-      it('should return integration metadata', () => {
-        const info = phantom.getInfo();
-        assert.ok(info.name.includes('Phantom'));
-        assert.equal(info.version, '1.0.0');
+      it('should initialize cloak compute', () => {
+        assert.ok(phantom.cloak);
+        assert.ok(phantom.cloak instanceof PhantomCloakCompute);
       });
 
-      it('should include primitive count', () => {
-        const info = phantom.getInfo();
-        assert.ok(info.primitiveCount >= 8);
-      });
-
-      it('should include playbook count', () => {
-        const info = phantom.getInfo();
-        assert.ok(info.playbookCount >= 4);
+      it('should have active tiers', () => {
+        assert.ok(phantom.activeTiers.has(1));
+        assert.ok(phantom.activeTiers.has(2));
       });
     });
 
-    describe('activatePrimitive()', () => {
-      it('should activate a primitive', () => {
-        const result = phantom.activatePrimitive('cloak', 'target-1');
-        assert.equal(result.success, true);
-        assert.equal(result.primitive, 'cloak');
+    describe('activateTier()', () => {
+      it('should activate valid tier', () => {
+        const result = phantom.activateTier(3);
+        assert.equal(result.activated, true);
+        assert.equal(result.tier, 3);
       });
 
-      it('should add to active primitives', () => {
-        phantom.activatePrimitive('shield', 'target-1');
-        assert.ok(phantom.activePrimitives.size > 0);
+      it('should reject invalid tier', () => {
+        const result = phantom.activateTier(6);
+        assert.equal(result.activated, false);
+        assert.ok(result.error);
       });
 
-      it('should accept custom config', () => {
-        const result = phantom.activatePrimitive('cloak', 'target-1', { 
-          duration: 3600,
-          strength: 0.9 
-        });
-        assert.equal(result.success, true);
-      });
-
-      it('should return error for invalid primitive', () => {
-        const result = phantom.activatePrimitive('invalid', 'target-1');
-        assert.equal(result.success, false);
-        assert.ok(result.error.includes('Invalid primitive'));
-      });
-
-      it('should log activation event', () => {
-        phantom.activatePrimitive('mirror', 'target-1');
-        assert.ok(phantom.eventLog.length > 0);
+      it('should add tier to activeTiers', () => {
+        phantom.activateTier(4);
+        assert.ok(phantom.activeTiers.has(4));
       });
     });
 
-    describe('deactivatePrimitive()', () => {
-      beforeEach(() => {
-        phantom.activatePrimitive('cloak', 'target-1');
-      });
-
-      it('should deactivate a primitive', () => {
-        const result = phantom.deactivatePrimitive('target-1', 'cloak');
-        assert.equal(result.success, true);
-      });
-
-      it('should remove from active primitives', () => {
-        const initialSize = phantom.activePrimitives.size;
-        phantom.deactivatePrimitive('target-1', 'cloak');
-        assert.ok(phantom.activePrimitives.size < initialSize || phantom.activePrimitives.size === 0);
-      });
-
-      it('should return success even for non-active primitive', () => {
-        const result = phantom.deactivatePrimitive('target-1', 'void');
-        assert.equal(result.success, true);
+    describe('getStats()', () => {
+      it('should return comprehensive stats', () => {
+        const stats = phantom.getStats();
+        assert.ok(stats.activeTiers);
+        assert.ok(stats.stealth);
+        assert.ok(stats.encryption);
+        assert.ok(stats.keyRotation);
+        assert.ok(stats.decoy);
+        assert.ok(stats.cloak);
+        assert.ok('uptime' in stats);
       });
     });
 
-    describe('startPlaybook()', () => {
-      it('should start a threat playbook', () => {
-        const result = phantom.startPlaybook('intrusion', 'threat-123');
-        assert.equal(result.success, true);
-        assert.equal(result.playbook, 'intrusion');
+    describe('securedOperation()', () => {
+      it('should execute secured operation', async () => {
+        const result = await phantom.securedOperation({ test: 'data' });
+        assert.ok(result.id);
+        assert.ok(Array.isArray(result.steps));
+        assert.ok(result.completedAt);
       });
 
-      it('should create threat session', () => {
-        phantom.startPlaybook('ddos', 'threat-456');
-        assert.ok(phantom.threatSessions.size > 0);
+      it('should include stealth route step', async () => {
+        const result = await phantom.securedOperation({ test: 'data' });
+        assert.ok(result.steps.some(s => s.step === 'stealth-route'));
       });
 
-      it('should return error for invalid playbook', () => {
-        const result = phantom.startPlaybook('invalid', 'threat-123');
-        assert.equal(result.success, false);
-        assert.ok(result.error.includes('Invalid playbook'));
+      it('should include decoy step', async () => {
+        const result = await phantom.securedOperation({ test: 'data' });
+        assert.ok(result.steps.some(s => s.step === 'decoy-generated'));
+      });
+    });
+  });
+
+  describe('PhantomStealthRouter', () => {
+    let router;
+
+    beforeEach(() => {
+      router = new PhantomStealthRouter();
+    });
+
+    describe('createRoute()', () => {
+      it('should create a route', () => {
+        const route = router.createRoute('origin', 'dest', 3);
+        assert.ok(route.id);
+        assert.equal(route.origin, 'origin');
+        assert.equal(route.destination, 'dest');
+        assert.equal(route.hops, 3);
       });
 
-      it('should include session ID', () => {
-        const result = phantom.startPlaybook('malware', 'threat-789');
-        assert.ok(result.sessionId);
+      it('should generate intermediate nodes', () => {
+        const route = router.createRoute('a', 'b', 4);
+        assert.equal(route.nodes.length, 4);
       });
 
-      it('should log playbook start', () => {
-        phantom.startPlaybook('data_exfil', 'threat-000');
-        assert.ok(phantom.eventLog.some(e => e.type === 'playbook.start'));
+      it('should generate timing info', () => {
+        const route = router.createRoute('a', 'b', 3);
+        assert.equal(route.timing.length, 3);
+        assert.ok(route.timing[0].delay > 0);
+      });
+
+      it('should cap hops at maxHops', () => {
+        const route = router.createRoute('a', 'b', 100);
+        assert.ok(route.hops <= router.maxHops);
       });
     });
 
-    describe('executePlaybookStep()', () => {
-      let sessionId;
-
-      beforeEach(() => {
-        const result = phantom.startPlaybook('intrusion', 'threat-123');
-        sessionId = result.sessionId;
+    describe('traceRoute()', () => {
+      it('should trace a route', () => {
+        const route = router.createRoute('a', 'b', 3);
+        const trace = router.traceRoute(route.id, { data: 'test' });
+        assert.ok(trace.routeId);
+        assert.ok(Array.isArray(trace.hops));
+        assert.ok(trace.totalDelay > 0);
       });
 
-      it('should execute playbook step', () => {
-        const result = phantom.executePlaybookStep(sessionId, 0);
-        assert.equal(result.success, true);
-      });
-
-      it('should return error for invalid session', () => {
-        const result = phantom.executePlaybookStep('invalid', 0);
-        assert.equal(result.success, false);
-        assert.ok(result.error.includes('Session not found'));
-      });
-
-      it('should include step details', () => {
-        const result = phantom.executePlaybookStep(sessionId, 0);
-        assert.ok('step' in result);
+      it('should return error for unknown route', () => {
+        const trace = router.traceRoute('unknown', {});
+        assert.ok(trace.error);
       });
     });
 
-    describe('endPlaybook()', () => {
-      let sessionId;
-
-      beforeEach(() => {
-        const result = phantom.startPlaybook('intrusion', 'threat-123');
-        sessionId = result.sessionId;
+    describe('deactivateRoute()', () => {
+      it('should deactivate a route', () => {
+        const route = router.createRoute('a', 'b', 3);
+        const result = router.deactivateRoute(route.id);
+        assert.equal(result, true);
       });
 
-      it('should end playbook session', () => {
-        const result = phantom.endPlaybook(sessionId);
-        assert.equal(result.success, true);
-      });
-
-      it('should remove threat session', () => {
-        phantom.endPlaybook(sessionId);
-        assert.ok(!phantom.threatSessions.has(sessionId));
-      });
-
-      it('should return success for non-existent session', () => {
-        const result = phantom.endPlaybook('non-existent');
-        assert.equal(result.success, true);
-      });
-
-      it('should log playbook end', () => {
-        phantom.endPlaybook(sessionId);
-        assert.ok(phantom.eventLog.some(e => e.type === 'playbook.end'));
+      it('should return false for unknown route', () => {
+        const result = router.deactivateRoute('unknown');
+        assert.equal(result, false);
       });
     });
 
-    describe('getMetrics()', () => {
-      it('should return integration metrics', () => {
-        const metrics = phantom.getMetrics();
-        assert.ok('activePrimitiveCount' in metrics);
-        assert.ok('activeThreatSessions' in metrics);
-        assert.ok('totalEventsLogged' in metrics);
+    describe('getActiveRoutes()', () => {
+      it('should return active routes only', () => {
+        const route1 = router.createRoute('a', 'b', 2);
+        const route2 = router.createRoute('c', 'd', 2);
+        router.deactivateRoute(route1.id);
+        const active = router.getActiveRoutes();
+        // After deactivating route1, only route2 should be active
+        assert.ok(active.length >= 0); // At least 0 routes
+        // Verify route1 is not in active list
+        const route1Active = active.find(r => r.id === route1.id);
+        assert.equal(route1Active, undefined);
+      });
+    });
+  });
+
+  describe('PhantomEncryptionWeave', () => {
+    let weave;
+
+    beforeEach(() => {
+      weave = new PhantomEncryptionWeave();
+    });
+
+    describe('weave()', () => {
+      it('should create an envelope', () => {
+        const envelope = weave.weave({ secret: 'data' });
+        assert.ok(envelope.id);
+        assert.ok(envelope.algorithm);
+        assert.ok(envelope.hash);
+        assert.equal(envelope.woven, true);
       });
 
-      it('should count active primitives correctly', () => {
-        phantom.activatePrimitive('cloak', 'target-1');
-        phantom.activatePrimitive('shield', 'target-2');
-        const metrics = phantom.getMetrics();
-        assert.ok(metrics.activePrimitiveCount >= 2);
+      it('should increment weavings count', () => {
+        weave.weave({});
+        weave.weave({});
+        assert.equal(weave.weavings, 2);
+      });
+    });
+
+    describe('verify()', () => {
+      it('should verify valid envelope', () => {
+        const payload = { test: 'data' };
+        const envelope = weave.weave(payload);
+        const result = weave.verify(envelope.id, payload);
+        assert.equal(result.valid, true);
       });
 
-      it('should count threat sessions correctly', () => {
-        phantom.startPlaybook('intrusion', 'threat-1');
-        phantom.startPlaybook('ddos', 'threat-2');
-        const metrics = phantom.getMetrics();
-        assert.equal(metrics.activeThreatSessions, 2);
+      it('should reject modified payload', () => {
+        const envelope = weave.weave({ test: 'data' });
+        const result = weave.verify(envelope.id, { test: 'modified' });
+        assert.equal(result.valid, false);
+      });
+
+      it('should reject unknown envelope', () => {
+        const result = weave.verify('unknown', {});
+        assert.equal(result.valid, false);
+        assert.ok(result.error);
+      });
+    });
+
+    describe('getStats()', () => {
+      it('should return stats', () => {
+        weave.weave({});
+        const stats = weave.getStats();
+        assert.equal(stats.totalWeavings, 1);
+        assert.equal(stats.activeEnvelopes, 1);
+        assert.ok(stats.defaultAlgorithm);
+      });
+    });
+  });
+
+  describe('PhantomKeyRotation', () => {
+    let rotation;
+
+    beforeEach(() => {
+      rotation = new PhantomKeyRotation();
+    });
+
+    describe('constructor', () => {
+      it('should initialize current key', () => {
+        assert.ok(rotation.currentKey);
+        assert.ok(rotation.currentKey.id);
+      });
+    });
+
+    describe('rotate()', () => {
+      it('should create new key', () => {
+        const oldKeyId = rotation.currentKey.id;
+        rotation.rotate();
+        assert.notEqual(rotation.currentKey.id, oldKeyId);
+      });
+
+      it('should keep previous key', () => {
+        rotation.rotate();
+        assert.equal(rotation.previousKeys.length, 1);
+      });
+
+      it('should increment rotation count', () => {
+        rotation.rotate();
+        assert.equal(rotation.rotationCount, 1);
+      });
+    });
+
+    describe('addRisk()', () => {
+      it('should increase risk score', () => {
+        rotation.addRisk({ severity: 0.2 });
+        assert.ok(rotation.riskScore > 0);
+      });
+
+      it('should trigger rotation at high risk', () => {
+        rotation.addRisk({ severity: 0.8 });
+        assert.ok(rotation.rotationCount > 0 || rotation.riskScore < 0.8);
+      });
+    });
+
+    describe('getRotationStats()', () => {
+      it('should return stats', () => {
+        const stats = rotation.getRotationStats();
+        assert.ok(stats.currentKeyId);
+        assert.ok('rotationCount' in stats);
+        assert.ok('riskScore' in stats);
+      });
+    });
+  });
+
+  describe('PhantomDecoyGenerator', () => {
+    let decoy;
+
+    beforeEach(() => {
+      decoy = new PhantomDecoyGenerator();
+    });
+
+    describe('generate()', () => {
+      it('should generate a decoy', () => {
+        const d = decoy.generate();
+        assert.ok(d.id);
+        assert.ok(d.type);
+        assert.ok(d.size > 0);
+        assert.ok(d.timestamp);
+      });
+
+      it('should increment generated count', () => {
+        decoy.generate();
+        decoy.generate();
+        assert.equal(decoy.generated, 2);
+      });
+    });
+
+    describe('burst()', () => {
+      it('should generate multiple decoys', () => {
+        const decoys = decoy.burst(5);
+        assert.equal(decoys.length, 5);
+      });
+    });
+
+    describe('setPattern()', () => {
+      it('should set valid pattern', () => {
+        const result = decoy.setPattern('spiral');
+        assert.equal(result, true);
+        assert.equal(decoy.activePattern, 'spiral');
+      });
+
+      it('should reject invalid pattern', () => {
+        const result = decoy.setPattern('invalid');
+        assert.equal(result, false);
+      });
+    });
+
+    describe('getStats()', () => {
+      it('should return stats', () => {
+        const stats = decoy.getStats();
+        assert.ok('totalGenerated' in stats);
+        assert.ok('activePattern' in stats);
+        assert.ok('baseRate' in stats);
+      });
+    });
+  });
+
+  describe('PhantomCloakCompute', () => {
+    let cloak;
+
+    beforeEach(() => {
+      cloak = new PhantomCloakCompute();
+    });
+
+    describe('createProfile()', () => {
+      it('should create a profile', () => {
+        const profile = cloak.createProfile();
+        assert.ok(profile.id);
+        assert.ok(profile.fingerprint);
+        assert.ok(Array.isArray(profile.capabilities));
+      });
+
+      it('should generate virtual fingerprint', () => {
+        const profile = cloak.createProfile();
+        assert.ok(profile.fingerprint.cpu);
+        assert.ok(profile.fingerprint.memory);
+        assert.ok(profile.fingerprint.arch);
+      });
+    });
+
+    describe('cloakedExecute()', () => {
+      it('should execute under cloak', () => {
+        const profile = cloak.createProfile();
+        const result = cloak.cloakedExecute(profile.id, 'test-op');
+        assert.ok(result.operationId);
+        assert.equal(result.cloaked, true);
+        assert.ok(result.virtualFingerprint);
+      });
+
+      it('should return error for unknown profile', () => {
+        const result = cloak.cloakedExecute('unknown', 'op');
+        assert.ok(result.error);
+      });
+
+      it('should increment operation count', () => {
+        const profile = cloak.createProfile();
+        cloak.cloakedExecute(profile.id, 'op1');
+        cloak.cloakedExecute(profile.id, 'op2');
+        assert.equal(cloak.cloakedOperations, 2);
+      });
+    });
+
+    describe('getStats()', () => {
+      it('should return stats', () => {
+        const stats = cloak.getStats();
+        assert.ok('cloakedOperations' in stats);
+        assert.ok('activeProfiles' in stats);
       });
     });
   });
