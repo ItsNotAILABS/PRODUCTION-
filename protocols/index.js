@@ -150,6 +150,19 @@ export { ThermalManagementProtocol, THERMAL_CONFIG, MESSAGE_TYPES as THERMAL_MES
 
 // PROTO-234: Power Distribution — Power generation, distribution, storage, and load balancing
 export { PowerDistributionProtocol, POWER_CONFIG, MESSAGE_TYPES as POWER_MESSAGE_TYPES, POWER_STATES, GENERATION_SOURCES, LOAD_PRIORITIES, calculateLoadDistribution, calculateBatteryPlan, calculateTransmissionEfficiency, getPowerState, calculateEnergyExport } from './power-distribution-protocol.js';
+
+// PROTO-235: Quantum Entanglement — Cross-AI state synchronization and coordination
+export { QuantumEntanglementProtocol, ENTANGLEMENT_CONFIG, MESSAGE_TYPES as ENTANGLEMENT_MESSAGE_TYPES, ENTANGLEMENT_STATES as ENTANGLEMENT_PROTOCOL_STATES } from './quantum-entanglement-protocol.js';
+
+// PROTO-236: Neural Forge — Distributed AI training, fine-tuning, and knowledge transfer
+export { NeuralForgeProtocol, FORGE_CONFIG, MESSAGE_TYPES as FORGE_MESSAGE_TYPES, FORGE_STATES as FORGE_PROTOCOL_STATES, TRAINING_MODES } from './neural-forge-protocol.js';
+
+// PROTO-237: Temporal Engine — Time-aware scheduling, forecasting, and temporal reasoning
+export { TemporalEngineProtocol, TEMPORAL_CONFIG, MESSAGE_TYPES as TEMPORAL_MESSAGE_TYPES, TEMPORAL_STATES as TEMPORAL_PROTOCOL_STATES, SCHEDULE_PRIORITIES, TIME_SCALES } from './temporal-engine-protocol.js';
+
+// PROTO-238: Consciousness Bridge — Inter-AI awareness, shared context, and collective reasoning
+export { ConsciousnessBridgeProtocol, CONSCIOUSNESS_CONFIG, MESSAGE_TYPES as CONSCIOUSNESS_MESSAGE_TYPES, CONSCIOUSNESS_STATES as CONSCIOUSNESS_PROTOCOL_STATES, AWARENESS_TYPES, CONTEXT_CHANNELS } from './consciousness-bridge-protocol.js';
+
 // PROTO-230: Vein of Intelligence — unified interface to cognitive Durable Objects
 export { VeinOfIntelligenceProtocol, FRACTURES, ACCESS_TIERS } from './vein-of-intelligence-protocol.js';
 

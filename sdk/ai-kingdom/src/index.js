@@ -121,6 +121,26 @@ export { CoolingUnit, CoolingGenerator, COOLING_UNIT_TYPES, THERMAL_ZONES, COOLI
 export { PowerGrid, PowerGenerator, BatteryCluster, PowerSector } from './power-grid.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// QUANTUM ENTANGLEMENT — Cross-AI coordination and state synchronization
+// ═══════════════════════════════════════════════════════════════════════════════
+export { QuantumEntanglement, EntanglementNetwork, ENTANGLEMENT_STATES, ENTANGLEMENT_TYPES, SYNC_CHANNELS } from './quantum-entanglement.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEURAL FORGE — Distributed AI training and fine-tuning
+// ═══════════════════════════════════════════════════════════════════════════════
+export { NeuralForge, ForgeNetwork, FORGE_STATES, TRAINING_MODES, OPTIMIZATION_STRATEGIES } from './neural-forge.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEMPORAL ENGINE — Time-aware scheduling and forecasting
+// ═══════════════════════════════════════════════════════════════════════════════
+export { TemporalEngine, TemporalNetwork, TEMPORAL_STATES, TIME_SCALES, SCHEDULE_PRIORITIES } from './temporal-engine.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSCIOUSNESS BRIDGE — Inter-AI awareness and collective reasoning
+// ═══════════════════════════════════════════════════════════════════════════════
+export { ConsciousnessBridge, ConsciousnessCollective, CONSCIOUSNESS_STATES, AWARENESS_TYPES, CONTEXT_CHANNELS } from './consciousness-bridge.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // DEFAULT EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
 export { default as CreatorRecognitionDefault } from './prima-causa.js';
@@ -139,3 +159,7 @@ export { default as NetworkIntelligenceDefault } from './network-intelligence.js
 export { default as ReservoirNetworkDefault } from './h2o-reservoir.js';
 export { default as CoolingGeneratorDefault } from './cooling-generator.js';
 export { default as PowerGridDefault } from './power-grid.js';
+export { default as QuantumEntanglementDefault } from './quantum-entanglement.js';
+export { default as NeuralForgeDefault } from './neural-forge.js';
+export { default as TemporalEngineDefault } from './temporal-engine.js';
+export { default as ConsciousnessBridgeDefault } from './consciousness-bridge.js';
