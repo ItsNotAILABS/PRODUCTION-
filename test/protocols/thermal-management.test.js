@@ -320,31 +320,31 @@ describe('ThermalManagementProtocol', () => {
     it('should return previous and current state', () => {
       const result = protocol.updateTemperature('zone-1', 50);
       assert.ok('previousState' in result);
-      assert.ok('currentState' in result);
+      assert.ok('state' in result);
     });
   });
 
   describe('getMetrics()', () => {
     it('should return protocol metrics', () => {
       const metrics = protocol.getMetrics();
-      assert.ok('zones' in metrics);
+      assert.ok('totalZones' in metrics);
       assert.ok('messageCount' in metrics);
       assert.ok('historyLength' in metrics);
-      assert.ok('alertCount' in metrics);
+      assert.ok('alerts' in metrics);
     });
 
     it('should count zones correctly', () => {
       protocol.registerZone('zone-1');
       protocol.registerZone('zone-2');
       const metrics = protocol.getMetrics();
-      assert.equal(metrics.zones, 2);
+      assert.equal(metrics.totalZones, 2);
     });
 
     it('should include temperature statistics', () => {
       protocol.registerZone('zone-1');
       protocol.updateTemperature('zone-1', 30);
       const metrics = protocol.getMetrics();
-      assert.ok('avgTemp' in metrics || 'averageTemp' in metrics);
+      assert.ok('averageTemp' in metrics);
     });
   });
 
