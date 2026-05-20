@@ -99,9 +99,9 @@ jobs:
             echo "No visual changes to commit"
           else
             git commit -m "📸 Visual-bot: screenshots & recordings updated — $(date -u '+%Y-%m-%d %H:%M UTC')"
+            # Exponential backoff between retries: 2s, 4s, 8s
             retry_delay_seconds=2
             for attempt in 1 2 3; do
-              git rebase --abort || true
               git fetch origin main
               if ! git rebase origin/main; then
                 git rebase --abort || true
