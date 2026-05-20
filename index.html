@@ -3339,7 +3339,7 @@ if (neuralCanvas) {
 // Prediction Wave Visualization
 const predictionCanvas = document.getElementById('predictionCanvas');
 if (predictionCanvas) {
-  const pCtx2 = predictionCanvas.getContext('2d');
+  const predictionCtx = predictionCanvas.getContext('2d');
   
   function resizePredictionCanvas() {
     predictionCanvas.width = predictionCanvas.parentElement.offsetWidth;
@@ -3351,8 +3351,8 @@ if (predictionCanvas) {
   let time = 0;
   
   function animatePrediction() {
-    pCtx2.fillStyle = 'rgba(0, 0, 0, 0.1)';
-    pCtx2.fillRect(0, 0, predictionCanvas.width, predictionCanvas.height);
+    predictionCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    predictionCtx.fillRect(0, 0, predictionCanvas.width, predictionCanvas.height);
     
     // Draw multiple waves representing prediction patterns
     const waves = [
@@ -3362,9 +3362,9 @@ if (predictionCanvas) {
     ];
     
     waves.forEach((wave, index) => {
-      pCtx2.strokeStyle = `rgba(${wave.color}, 0.6)`;
-      pCtx2.lineWidth = 2;
-      pCtx2.beginPath();
+      predictionCtx.strokeStyle = `rgba(${wave.color}, 0.6)`;
+      predictionCtx.lineWidth = 2;
+      predictionCtx.beginPath();
       
       const baseY = predictionCanvas.height / 2 + (index - 1) * 15;
       
@@ -3374,18 +3374,18 @@ if (predictionCanvas) {
           Math.sin(x * wave.frequency * 2 + time * wave.speed * 1.5) * (wave.amplitude * 0.3);
         
         if (x === 0) {
-          pCtx2.moveTo(x, y);
+          predictionCtx.moveTo(x, y);
         } else {
-          pCtx2.lineTo(x, y);
+          predictionCtx.lineTo(x, y);
         }
       }
       
-      pCtx2.stroke();
+      predictionCtx.stroke();
       
       // Add glow effect
-      pCtx2.strokeStyle = `rgba(${wave.color}, 0.2)`;
-      pCtx2.lineWidth = 6;
-      pCtx2.stroke();
+      predictionCtx.strokeStyle = `rgba(${wave.color}, 0.2)`;
+      predictionCtx.lineWidth = 6;
+      predictionCtx.stroke();
     });
     
     // Draw prediction confidence bars
@@ -3398,8 +3398,8 @@ if (predictionCanvas) {
       const height = 20 + Math.sin(time * 0.05 + i * 0.5) * 15;
       const hue = 170 + i * 10;
       
-      pCtx2.fillStyle = `hsla(${hue}, 100%, 70%, 0.6)`;
-      pCtx2.fillRect(x, predictionCanvas.height - height - 10, barWidth, height);
+      predictionCtx.fillStyle = `hsla(${hue}, 100%, 70%, 0.6)`;
+      predictionCtx.fillRect(x, predictionCanvas.height - height - 10, barWidth, height);
     }
     
     time++;
@@ -3410,15 +3410,17 @@ if (predictionCanvas) {
 }
 
 // AI Cache Metrics Simulation
+// Uses φ (phi) for golden-ratio weighted calculations
 function animateCacheMetrics() {
   const PHI = 1.618033988749895;
   
-  // Simulate cache agent stats
+  // Simulate cache agent stats with φ-weighted variance
   function updateMetric(elementId, baseValue, variance, isPercent = false) {
     const element = document.getElementById(elementId);
     if (element) {
-      const variation = (Math.random() - 0.5) * variance;
-      let value = baseValue + variation;
+      // Apply φ-weighted random variation for more natural-looking fluctuations
+      const phiVariation = (Math.random() - 0.5) * variance * (1 / PHI);
+      let value = baseValue + phiVariation;
       if (isPercent) {
         value = Math.min(100, Math.max(0, value));
         element.textContent = Math.round(value) + '%';
