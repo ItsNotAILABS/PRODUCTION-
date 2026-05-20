@@ -116,7 +116,7 @@ jobs:
                 break
               fi
               if [ "$attempt" -eq 3 ]; then
-                echo "Push failed after ${attempt} attempts"
+                echo "Push failed after 3 attempts"
                 exit 1
               fi
               sleep "$retry_delay_seconds"
