@@ -26,6 +26,9 @@ const PROTOCOL_NAME = 'Power Distribution Protocol';
 
 export const POWER_CONFIG = {
   
+  // φ constant
+  PHI_CONSTANT: PHI,
+  
   // Voltage standards (Volts)
   HIGH_VOLTAGE: 400,
   MEDIUM_VOLTAGE: 230,
@@ -68,35 +71,36 @@ export const POWER_CONFIG = {
 export const MESSAGE_TYPES = {
   
   // Power Generation
-  GENERATION_ONLINE: 'power.generation.online',
-  GENERATION_OFFLINE: 'power.generation.offline',
-  GENERATION_OUTPUT: 'power.generation.output',
-  GENERATION_FAULT: 'power.generation.fault',
+  GENERATION_ONLINE: 'generation.online',
+  GENERATION_OFFLINE: 'generation.offline',
+  GENERATION_OUTPUT: 'generation.output',
+  GENERATION_FAULT: 'generation.fault',
   
   // Distribution
-  LOAD_REQUEST: 'power.load.request',
-  LOAD_GRANTED: 'power.load.granted',
-  LOAD_DENIED: 'power.load.denied',
-  LOAD_SHED: 'power.load.shed',
-  LOAD_RESTORE: 'power.load.restore',
+  LOAD_REQUEST: 'load.request',
+  LOAD_ALLOCATE: 'load.allocate',
+  LOAD_DENIED: 'load.denied',
+  LOAD_SHED: 'load.shed',
+  LOAD_RESTORE: 'load.restore',
   
   // Storage
-  BATTERY_CHARGE: 'power.battery.charge',
-  BATTERY_DISCHARGE: 'power.battery.discharge',
-  BATTERY_LOW: 'power.battery.low',
-  BATTERY_FULL: 'power.battery.full',
+  BATTERY_CHARGE: 'battery.charge',
+  BATTERY_DISCHARGE: 'battery.discharge',
+  BATTERY_IDLE: 'battery.idle',
+  BATTERY_LOW: 'battery.low',
+  BATTERY_FULL: 'battery.full',
   
   // Grid Events
-  GRID_STABLE: 'power.grid.stable',
-  GRID_UNSTABLE: 'power.grid.unstable',
-  GRID_BLACKOUT: 'power.grid.blackout',
-  GRID_RECOVERY: 'power.grid.recovery',
-  SECTOR_ISOLATED: 'power.sector.isolated',
+  GRID_STABLE: 'grid.stable',
+  GRID_UNSTABLE: 'grid.unstable',
+  GRID_BLACKOUT: 'grid.blackout',
+  GRID_RECOVERY: 'grid.recovery',
+  SECTOR_ISOLATED: 'sector.isolated',
   
   // Monetization
-  ENERGY_EXPORT: 'power.energy.export',
-  ENERGY_IMPORT: 'power.energy.import',
-  PRICE_UPDATE: 'power.price.update',
+  ENERGY_EXPORT: 'energy.export',
+  ENERGY_IMPORT: 'energy.import',
+  PRICE_UPDATE: 'price.update',
   
 };
 
@@ -132,35 +136,50 @@ export const GENERATION_SOURCES = {
     name: 'Solar Array',
     variability: 'high',
     carbonIntensity: 0,
+    phi: PHI,
     priority: 1,
+  },
+  WIND: {
+    id: 'wind',
+    name: 'Wind Turbine',
+    variability: 'high',
+    carbonIntensity: 0,
+    priority: 2,
   },
   THERMAL_RECOVERY: {
     id: 'thermal_recovery',
     name: 'Thermal Recovery',
     variability: 'medium',
     carbonIntensity: 0,
-    priority: 2,
+    priority: 3,
   },
   KINETIC: {
     id: 'kinetic',
     name: 'Kinetic Harvesting',
     variability: 'medium',
     carbonIntensity: 0,
-    priority: 3,
+    priority: 4,
   },
   BATTERY: {
     id: 'battery',
     name: 'Battery Storage',
     variability: 'none',
     carbonIntensity: 0,
-    priority: 4,
+    priority: 5,
   },
   EXTERNAL_GRID: {
-    id: 'external_grid',
+    id: 'grid',
     name: 'External Grid Import',
     variability: 'low',
     carbonIntensity: 0.4,
-    priority: 5,
+    priority: 6,
+  },
+  BACKUP_GENERATOR: {
+    id: 'backup',
+    name: 'Backup Generator',
+    variability: 'low',
+    carbonIntensity: 0.6,
+    priority: 7,
   },
 };
 
@@ -170,31 +189,31 @@ export const GENERATION_SOURCES = {
 
 export const LOAD_PRIORITIES = {
   CRITICAL: {
-    level: 0,
+    level: 1,
     name: 'Critical',
     shedable: false,
     description: 'Life safety, core computation, security systems',
   },
   HIGH: {
-    level: 1,
+    level: 2,
     name: 'High',
     shedable: false,
     description: 'Primary AI operations, data integrity, cooling',
   },
   MEDIUM: {
-    level: 2,
+    level: 3,
     name: 'Medium',
     shedable: true,
     description: 'Standard operations, networking, storage',
   },
   LOW: {
-    level: 3,
+    level: 4,
     name: 'Low',
     shedable: true,
     description: 'Non-essential services, background tasks',
   },
   DEFERRABLE: {
-    level: 4,
+    level: 5,
     name: 'Deferrable',
     shedable: true,
     description: 'Batch processing, maintenance, optional features',
