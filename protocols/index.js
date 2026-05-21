@@ -155,3 +155,6 @@ export { VeinOfIntelligenceProtocol, FRACTURES, ACCESS_TIERS } from './vein-of-i
 
 // PROTO-231: Cognitive Architecture — unified AGI infrastructure specification
 export { CognitiveArchitectureProtocol, LAYERS, DURABLE_OBJECTS, DATA_FLOWS, AI_PROVIDERS } from './cognitive-architecture-protocol.js';
+
+// PROTO-244: Julia Compute — Julia-Motoko bridge for scientific computing
+export { JuliaComputeProtocol, JuliaCompute, getJuliaCompute, TYPE_ISOMORPHISMS, JULIA_FUNCTIONS, BRIDGE_STATES } from '../NOVA/protocols/PROTOCOL-JULIA.js';
