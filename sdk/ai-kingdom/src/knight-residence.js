@@ -232,6 +232,41 @@ class KnightResidence {
     };
   }
   
+  // ─── Registry Methods ─────────────────────────────────────────────────────────
+  
+  /**
+   * Register a new resident in the Kingdom
+   */
+  register(details) {
+    const id = `KNIGHT-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const resident = {
+      id,
+      knightId: id,
+      name: details.name,
+      type: details.type || 'knight',
+      registeredAt: new Date().toISOString(),
+    };
+    if (!this._residents) this._residents = new Map();
+    this._residents.set(id, resident);
+    return resident;
+  }
+
+  /**
+   * Get a resident by ID
+   */
+  getResident(id) {
+    if (!this._residents) return null;
+    return this._residents.get(id) || null;
+  }
+
+  /**
+   * List all residents
+   */
+  listResidents() {
+    if (!this._residents) return [];
+    return Array.from(this._residents.values());
+  }
+
   // ─── Status ──────────────────────────────────────────────────────────────────
   
   getStatus() {

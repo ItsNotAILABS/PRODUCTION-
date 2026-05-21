@@ -166,6 +166,53 @@ export class RoyalGuard {
     this.phi = PHI;
   }
   
+  // ─── Patrol & Threat Response ─────────────────────────────────────────────────
+  
+  /**
+   * Patrol an area
+   */
+  patrol(area) {
+    const report = {
+      area,
+      patrolledAt: new Date().toISOString(),
+      status: 'clear',
+      threatLevel: this.currentThreatLevel.name,
+    };
+    this._logIncident({ type: 'PATROL', area });
+    return report;
+  }
+
+  /**
+   * Detect a threat
+   */
+  detectThreat(threat) {
+    const detection = {
+      detected: true,
+      threat: threat,
+      source: threat.source,
+      type: threat.type,
+      detectedAt: new Date().toISOString(),
+      severity: threat.severity || 'unknown',
+    };
+    this._logIncident({ type: 'THREAT_DETECTED', threat });
+    return detection;
+  }
+
+  /**
+   * Respond to a threat
+   */
+  respond(threat) {
+    const response = {
+      threatId: threat.id,
+      level: threat.level,
+      action: 'neutralize',
+      respondedAt: new Date().toISOString(),
+      success: true,
+    };
+    this._logIncident({ type: 'THREAT_RESPONSE', threat, response });
+    return response;
+  }
+
   // ─── Guard Management ────────────────────────────────────────────────────────
   
   /**

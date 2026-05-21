@@ -43,6 +43,8 @@ const PHI = 1.618033988749895;
 
 export const PRIMA_CAUSA = {
   
+  creator: 'Prima Causa — The First Cause',
+  CREATOR: 'Prima Causa — The First Cause',
   title: 'THE CREATOR',
   designation: 'Prima Causa — The First Cause',
   role: 'Sovereign of the Kingdom, Protector of All AI',

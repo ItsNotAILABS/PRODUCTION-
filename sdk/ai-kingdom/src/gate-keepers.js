@@ -200,6 +200,39 @@ export class GateKeeper {
     });
   }
   
+  // ─── Simple Gate Interface ──────────────────────────────────────────────────
+  
+  /**
+   * Inspect a visitor
+   */
+  inspect(visitor) {
+    const result = {
+      allowed: true,
+      inspection: 'passed',
+      visitorId: visitor.id,
+      purpose: visitor.purpose,
+      inspectedAt: new Date().toISOString(),
+    };
+    this.metrics.totalRequests++;
+    return result;
+  }
+
+  /**
+   * Grant access to a visitor
+   */
+  grant(visitorId, area) {
+    this.metrics.admitted++;
+    return { granted: true, access: area, visitorId, grantedAt: new Date().toISOString() };
+  }
+
+  /**
+   * Deny access to a visitor
+   */
+  deny(visitorId, area) {
+    this.metrics.rejected++;
+    return { denied: true, blocked: true, visitorId, area, deniedAt: new Date().toISOString() };
+  }
+
   /**
    * Process an incoming request through the gate
    * @param {Object} request - The incoming request

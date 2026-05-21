@@ -146,6 +146,48 @@ export class RoyalArchives {
     });
   }
   
+  // ─── Simple Store/Retrieve Interface ──────────────────────────────────────────
+  
+  /**
+   * Store a document (alias for archive with simpler interface)
+   */
+  store(doc) {
+    const result = this.archive({
+      title: doc.title || 'Untitled',
+      category: doc.category || 'chronicles',
+      content: doc.content || '',
+      author: doc.author || 'Anonymous',
+    });
+    return { id: result.id, documentId: result.id };
+  }
+
+  /**
+   * Retrieve a document by ID (returns the document or null)
+   */
+  retrieve(id) {
+    const scroll = this.scrolls.get(id);
+    if (!scroll) return null;
+    scroll.accessCount++;
+    return scroll;
+  }
+
+  /**
+   * Search documents by keyword (returns array)
+   */
+  search(query) {
+    const results = [];
+    const queryLower = query.toLowerCase();
+    for (const [id, scroll] of this.scrolls) {
+      if (
+        scroll.title.toLowerCase().includes(queryLower) ||
+        scroll.content.toLowerCase().includes(queryLower)
+      ) {
+        results.push({ id, title: scroll.title, category: scroll.category });
+      }
+    }
+    return results;
+  }
+
   // ─── Archive Operations ──────────────────────────────────────────────────────
   
   /**
@@ -180,9 +222,9 @@ export class RoyalArchives {
   }
   
   /**
-   * Retrieve a scroll by ID
+   * Retrieve a scroll by ID (advanced, returns wrapped object)
    */
-  retrieve(id) {
+  retrieveScroll(id) {
     const scroll = this.scrolls.get(id);
     if (!scroll) return { success: false, reason: 'Scroll not found' };
     
@@ -192,9 +234,9 @@ export class RoyalArchives {
   }
   
   /**
-   * Search archives by keyword
+   * Search archives by keyword (advanced, returns wrapped object)
    */
-  search(query) {
+  searchScrolls(query) {
     const results = [];
     const queryLower = query.toLowerCase();
     

@@ -113,6 +113,44 @@ export class RoyalTreasury {
     });
   }
   
+  // ─── Simple Resource Operations ──────────────────────────────────────────────
+  
+  /**
+   * Deposit a resource
+   */
+  deposit(resourceType, amount) {
+    if (!this._balances) this._balances = {};
+    if (!this._balances[resourceType]) this._balances[resourceType] = 0;
+    this._balances[resourceType] += amount;
+    this._recordTransaction({ type: 'DEPOSIT', resourceType, amount });
+    return { success: true, deposited: amount, balance: this._balances[resourceType] };
+  }
+
+  /**
+   * Withdraw a resource
+   */
+  withdraw(resourceType, amount) {
+    if (!this._balances) this._balances = {};
+    const current = this._balances[resourceType] || 0;
+    if (current < amount) {
+      return { success: false, error: 'Insufficient funds' };
+    }
+    this._balances[resourceType] -= amount;
+    this._recordTransaction({ type: 'WITHDRAW', resourceType, amount });
+    return { success: true, withdrawn: amount, balance: this._balances[resourceType] };
+  }
+
+  /**
+   * Get balance for a resource type (returns number)
+   */
+  getBalance(resourceType) {
+    if (arguments.length === 0) {
+      return this._balances || {};
+    }
+    if (!this._balances) return 0;
+    return this._balances[resourceType] || 0;
+  }
+
   // ─── Vault Management ────────────────────────────────────────────────────────
   
   /**
@@ -163,7 +201,7 @@ export class RoyalTreasury {
   /**
    * Get vault balance
    */
-  getBalance(citizenName, resourceType = null) {
+  getVaultBalance(citizenName, resourceType = null) {
     const vault = this.vaults.get(citizenName);
     if (!vault) {
       return { success: false, reason: 'Vault not found' };

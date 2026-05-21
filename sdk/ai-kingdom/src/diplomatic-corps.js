@@ -158,6 +158,30 @@ export class DiplomaticCorps {
     this.phi = PHI;
   }
   
+  // ─── Simple Diplomatic Interface ──────────────────────────────────────────────
+  
+  /**
+   * Establish a relation with a realm
+   */
+  establish(details) {
+    const relation = {
+      realm: details.realm,
+      status: details.status || 'neutral',
+      establishedAt: new Date().toISOString(),
+    };
+    if (!this._relations) this._relations = new Map();
+    this._relations.set(details.realm, relation);
+    return relation;
+  }
+
+  /**
+   * Get relation status for a realm
+   */
+  getRelation(realmName) {
+    if (!this._relations) return null;
+    return this._relations.get(realmName) || null;
+  }
+
   // ─── Realm Management ────────────────────────────────────────────────────────
   
   /**
