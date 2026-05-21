@@ -490,6 +490,23 @@ export class GateKeeperProtocol {
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/**
+ * Calculate toll amount for a request (simplified interface)
+ * @param {Object} request - Request details
+ * @returns {Object} - Toll amount result
+ */
+export function calculateTollAmount(request) {
+  const baseRate = GATE_CONFIG.TOLL_BASE_RATE;
+  const payloadSize = request.size || 100;
+  const complexityFactor = 1 + Math.log(payloadSize / 100) * (PHI - 1);
+  const amount = baseRate * complexityFactor * GATE_CONFIG.TOLL_PHI_MULTIPLIER;
+  return {
+    amount: Math.max(0, Math.round(amount * 10000) / 10000),
+    currency: 'KINGDOM_GOLD',
+    timestamp: Date.now(),
+  };
+}
+
 export {
   PROTOCOL_ID,
   PROTOCOL_NAME,
