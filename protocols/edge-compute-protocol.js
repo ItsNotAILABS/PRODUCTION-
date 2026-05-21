@@ -25,6 +25,8 @@ const PHI     = 1.618033988749895;
 const PHI_INV = 1 / PHI;
 const HEARTBEAT = 873;
 
+let _workerSeq = 0;
+
 const WORKER_TYPES = {
   ROUTER:    'router',
   GATEWAY:   'gateway',
@@ -51,7 +53,7 @@ const EDGE_REGIONS = [
 
 class EdgeWorker {
   constructor({ id, type, name, routes = [], region = null }) {
-    this.id      = id || `worker-${Date.now().toString(36)}`;
+    this.id      = id || `worker-${Date.now().toString(36)}-${++_workerSeq}`;
     this.type    = type || WORKER_TYPES.ROUTER;
     this.name    = name || this.id;
     this.routes  = routes;    // URL patterns this worker handles
@@ -114,6 +116,40 @@ class EdgeWorker {
     else if (this.health >= 70) this.state = WORKER_STATES.ACTIVE;
   }
 
+  /** Deploy this worker (transition to ACTIVE) */
+  deploy() {
+    this.state = WORKER_STATES.ACTIVE;
+    this.deployedAt = Date.now();
+  }
+
+  /** Mark worker as degraded */
+  degrade() {
+    this.state = WORKER_STATES.DEGRADED;
+  }
+
+  /** Take worker offline */
+  offline() {
+    this.state = WORKER_STATES.OFFLINE;
+  }
+
+  /** Drain worker (stop accepting new requests) */
+  drain() {
+    this.state = WORKER_STATES.DRAINING;
+  }
+
+  /** Recalculate health based on error rate */
+  updateHealth() {
+    if (this.metrics.requests > 0) {
+      const errorRate = this.metrics.errors / this.metrics.requests;
+      this.health = Math.max(0, 100 - errorRate * 100);
+    }
+  }
+
+  /** Return current metrics snapshot */
+  getMetrics() {
+    return { ...this.metrics };
+  }
+
   getState() {
     return {
       id:      this.id,
@@ -133,7 +169,7 @@ class EdgeComputeProtocol {
   constructor(config = {}) {
     this.workers  = new Map();
     this.routes   = new Map();  // route pattern → [worker ids]
-    this.regions  = new Set(EDGE_REGIONS);
+    this.regions  = new Map(EDGE_REGIONS.map(r => [r, []]));
     this.ticks    = 0;
 
     // Global edge metrics
@@ -280,6 +316,37 @@ class EdgeComputeProtocol {
     this.globalMetrics.deployedRegions = new Set(
       Array.from(this.workers.values()).map(w => w.region).filter(Boolean)
     ).size;
+  }
+
+  /** Get a worker by id */
+  getWorker(id) {
+    return this.workers.get(id);
+  }
+
+  /** Get all healthy (ACTIVE) workers */
+  getHealthyWorkers() {
+    return Array.from(this.workers.values())
+      .filter(w => w.state === WORKER_STATES.ACTIVE);
+  }
+
+  /** Get workers deployed to a specific region */
+  getRegionWorkers(region) {
+    return Array.from(this.workers.values())
+      .filter(w => w.region === region);
+  }
+
+  /** Route a request object { path, method } to the best worker */
+  routeRequest(request) {
+    return this.route(request.path);
+  }
+
+  /** Get global metrics summary */
+  getMetrics() {
+    return {
+      ...this.globalMetrics,
+      totalWorkers: this.workers.size,
+      workerCount:  this.workers.size,
+    };
   }
 
   getState() {
