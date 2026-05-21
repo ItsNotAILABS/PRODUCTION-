@@ -2121,6 +2121,20 @@ function launchTool(toolId) {
   panelsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// ─── Auto-launch tool from URL hash ────────────────────────
+(function() {
+  const hash = window.location.hash;
+  if (hash && hash.startsWith('#tool-')) {
+    const toolId = hash.replace('#tool-', '');
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => launchTool(toolId));
+    } else {
+      setTimeout(() => launchTool(toolId), 100);
+    }
+  }
+})();
+
 // ─── HTML Escape Helper (prevents XSS) ─────────────────────
 function escapeHtml(str) {
   const div = document.createElement('div');
