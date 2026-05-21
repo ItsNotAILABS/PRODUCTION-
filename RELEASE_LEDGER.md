@@ -135,3 +135,26 @@ This ledger tracks public research releases, platform records, DOIs, URLs, versi
 - Dataset source: `docs/fleet-census.json`
 - Package metadata: `zenodo/packages/datasets/MSIT-DS-2026-001.md`
 - Integrity: `zenodo/checksums/MSIT-DS-2026-001.sha256`
+
+## MSIT-SW-2026-002
+
+**Title:** ALPHA ONE — Bot Fleet Release Package (Agents + Microbots)  
+**Author:** Alfredo Medina Hernandez  
+**Affiliation:** MedinaSITech  
+**Version:** v0.1.0-alpha.1  
+**Platform:** GitHub Release  
+**DOI / URL:** Pending  
+**Rights:** All rights reserved unless platform-specific record states otherwise.  
+**Files:**
+- Entry point: `releases/alpha-one/index.js`
+- Package manifest: `releases/alpha-one/package.json`
+- Documentation: `releases/alpha-one/README.md`
+- Tests: `releases/alpha-one/test.js`
+- Build script: `scripts/build-alpha-one.js`
+- Build output: `dist/alpha-one-v0.1.0-alpha.1/`
+
+**Contents:**
+- 4 Agents: ANIMUS, CORPUS, SENSUS, MEMORIA
+- 6 Microbots: SignalGatherer, SynapseTrainer, WeightEvolver, OrphanScanner, LinkChecker, GraphBuilder
+- Fleet Orchestrator (AlphaOneFleet) with parallel deployment
+- MicrobotRunner infrastructure
