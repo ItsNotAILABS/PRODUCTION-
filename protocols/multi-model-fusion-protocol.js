@@ -134,6 +134,7 @@ class MultiModelFusionProtocol {
    * @returns {number} - Consensus score 0-1
    */
   scoreConsensus(responses) {
+    if (responses.length === 0) return 0;
     if (responses.length < 2) return 1.0;
 
     let totalSimilarity = 0;

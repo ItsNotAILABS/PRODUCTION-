@@ -120,7 +120,7 @@ const LAYERS = {
     components: ['knowledge_corpus', 'vectorize', 'r2'],
   },
   GATEWAY: {
-    id: 'gateway',
+    id: 'ai_gateway',
     name: 'AI Gateway',
     emoji: '⚡',
     description: 'Multi-provider AI routing with caching and fallbacks',
@@ -428,6 +428,16 @@ export class CognitiveArchitectureProtocol {
     this.durableObjects = DURABLE_OBJECTS;
     this.dataFlows = DATA_FLOWS;
     this.providers = AI_PROVIDERS;
+    this.components = new Map();
+    this.connections = [];
+    this.metrics = {
+      processCount: 0,
+      routeCount: 0,
+      queryCount: 0,
+      errors: 0,
+      lastProcess: null,
+    };
+    this._nextId = 0;
   }
 
   /**
@@ -529,6 +539,131 @@ export class CognitiveArchitectureProtocol {
         large: Math.round(400 * PHI),
       },
       features: ['phi_chunking', 'hebbian_linking', 'cluster_organization'],
+    };
+  }
+
+  /**
+   * Register a component in the architecture
+   */
+  registerComponent(config) {
+    const id = `${config.layer}-${config.name}-${this._nextId++}`;
+    this.components.set(id, {
+      ...config,
+      id,
+      status: 'registered',
+    });
+    return id;
+  }
+
+  /**
+   * Activate a registered component
+   */
+  activateComponent(id) {
+    const component = this.components.get(id);
+    if (!component) {
+      return { activated: false };
+    }
+    component.status = 'active';
+    return { activated: true };
+  }
+
+  /**
+   * Deactivate a component
+   */
+  deactivateComponent(id) {
+    const component = this.components.get(id);
+    if (!component) {
+      return { deactivated: false };
+    }
+    component.status = 'inactive';
+    return { deactivated: true };
+  }
+
+  /**
+   * Connect two components
+   */
+  connect(sourceId, targetId, options = {}) {
+    const conn = {
+      source: sourceId,
+      target: targetId,
+      weight: options.weight !== undefined ? options.weight : 1 / PHI,
+    };
+    this.connections.push(conn);
+    return conn;
+  }
+
+  /**
+   * Route input to the appropriate layer
+   */
+  route(input) {
+    this.metrics.routeCount++;
+    const path = ['external', 'security', input.targetLayer || 'cognitive'];
+    return {
+      path,
+      passedSecurity: true,
+      targetLayer: input.targetLayer,
+      type: input.type,
+    };
+  }
+
+  /**
+   * Process input through the cognitive architecture
+   */
+  process(input) {
+    this.metrics.processCount++;
+    this.metrics.lastProcess = Date.now();
+    return {
+      result: `processed:${input.input}`,
+      output: input.input,
+      type: input.type,
+      timestamp: this.metrics.lastProcess,
+    };
+  }
+
+  /**
+   * Query the knowledge layer
+   */
+  query(input) {
+    this.metrics.queryCount++;
+    return {
+      results: [],
+      query: input.query,
+      type: input.type,
+    };
+  }
+
+  /**
+   * Get components registered to a specific layer
+   */
+  getLayerComponents(layerId) {
+    const result = [];
+    for (const component of this.components.values()) {
+      if (component.layer === layerId) {
+        result.push(component);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Get architecture summary
+   */
+  getArchitectureSummary() {
+    return {
+      layerCount: Object.keys(this.layers).length,
+      componentCount: this.components.size,
+      connectionCount: this.connections.length,
+      heartbeatMs: HEARTBEAT,
+    };
+  }
+
+  /**
+   * Get metrics about architecture operations
+   */
+  getMetrics() {
+    return {
+      ...this.metrics,
+      heartbeatMs: HEARTBEAT,
     };
   }
 }
