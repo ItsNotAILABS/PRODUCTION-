@@ -114,6 +114,29 @@ class MiniBrainProtocol {
     }
   }
 
+  decay() {
+    this.lastDecay = Date.now();
+
+    for (const [stimulus, responses] of this.synapses) {
+      for (const [response, weight] of responses) {
+        const decayed = weight * (1 - DECAY_RATE * (PHI - 1));
+        if (decayed < 0.01) {
+          responses.delete(response);
+        } else {
+          responses.set(response, decayed);
+        }
+      }
+    }
+  }
+
+  getStats() {
+    return {
+      workerId: this.workerId,
+      synapseCount: this.synapses.size,
+      learningCycles: this.learningCycles,
+    };
+  }
+
   reinforce(stimulus, response, reward) {
     return this.learn(stimulus, response, reward);
   }
