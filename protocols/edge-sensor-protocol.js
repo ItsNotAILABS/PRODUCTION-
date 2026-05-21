@@ -78,11 +78,13 @@ class EdgeSensorProtocol {
       let value = await sensor.pollFn();
       value += sensor.calibrationOffset;
       
+      const inRange = value >= sensor.thresholdMin && value <= sensor.thresholdMax;
       const reading = {
         sensorId,
         value,
         timestamp: Date.now(),
-        inRange: value >= sensor.thresholdMin && value <= sensor.thresholdMax,
+        inRange,
+        anomaly: !inRange,
       };
       
       sensor.lastPoll = Date.now();
@@ -151,8 +153,37 @@ class EdgeSensorProtocol {
     }
   }
 
-  getAnomalies(limit = 20) {
-    return this.anomalies.slice(-limit);
+  getReading(sensorId) {
+    const history = this.readings.get(sensorId);
+    if (!history || history.length === 0) return null;
+    return history[history.length - 1];
+  }
+
+  getReadings(sensorId, limit) {
+    const history = this.readings.get(sensorId);
+    if (!history) return [];
+    if (limit != null) return history.slice(-limit);
+    return [...history];
+  }
+
+  getAnomalies(sensorId) {
+    if (sensorId) {
+      return this.anomalies.filter(a => a.sensorId === sensorId);
+    }
+    return [...this.anomalies];
+  }
+
+  getSensorStats(sensorId) {
+    const sensor = this.sensors.get(sensorId);
+    if (!sensor) return null;
+    return {
+      id: sensor.id,
+      name: sensor.name,
+      type: sensor.type,
+      pollCount: sensor.pollCount,
+      anomalyCount: sensor.anomalyCount,
+      lastPoll: sensor.lastPoll,
+    };
   }
 
   getMetrics() {
@@ -171,6 +202,7 @@ class EdgeSensorProtocol {
     return {
       sensorCount: this.sensors.size,
       totalReadings: this.totalReadings,
+      anomalyCount: this.anomalies.length,
       totalAnomalies: this.anomalies.length,
       sensors: sensorStats,
       sensorTypes: SENSOR_TYPES,
