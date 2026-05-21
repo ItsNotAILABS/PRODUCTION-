@@ -2121,6 +2121,13 @@ function launchTool(toolId) {
   panelsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// ─── HTML Escape Helper (prevents XSS) ─────────────────────
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 // ─── Data Visualizer ────────────────────────────────────────
 function renderVisualization() {
   const input = document.getElementById('viz-input').value.trim();
@@ -2135,14 +2142,14 @@ function renderVisualization() {
     const data = lines.slice(1).map(l => l.split(',').map(v => parseFloat(v.trim()) || v.trim()));
     
     const maxVal = Math.max(...data.map(r => parseFloat(r[1]) || 0));
-    let chartHTML = `<div style="font-size:0.85rem;color:#94a3b8;margin-bottom:1rem;">Chart: ${chartType} | ${data.length} data points | Columns: ${headers.join(', ')}</div>`;
+    let chartHTML = `<div style="font-size:0.85rem;color:#94a3b8;margin-bottom:1rem;">Chart: ${escapeHtml(chartType)} | ${data.length} data points | Columns: ${escapeHtml(headers.join(', '))}</div>`;
     
     if (chartType === 'bar' || chartType === 'histogram') {
       chartHTML += '<div style="display:flex;align-items:flex-end;gap:4px;height:200px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">';
       data.forEach((row, i) => {
         const val = parseFloat(row[1]) || 0;
         const height = maxVal > 0 ? (val / maxVal * 180) : 0;
-        chartHTML += `<div style="flex:1;background:linear-gradient(180deg,#00ffcc,#a855f7);height:${height}px;border-radius:4px 4px 0 0;position:relative;min-width:20px;" title="${row[0]}: ${val}"><span style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:0.65rem;color:#64748b;white-space:nowrap;">${row[0]}</span></div>`;
+        chartHTML += `<div style="flex:1;background:linear-gradient(180deg,#00ffcc,#a855f7);height:${height}px;border-radius:4px 4px 0 0;position:relative;min-width:20px;" title="${escapeHtml(String(row[0]))}: ${val}"><span style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:0.65rem;color:#64748b;white-space:nowrap;">${escapeHtml(String(row[0]))}</span></div>`;
       });
       chartHTML += '</div>';
     } else if (chartType === 'line' || chartType === 'scatter') {
@@ -2171,7 +2178,7 @@ function renderVisualization() {
         angle += slice;
       });
       chartHTML += '</svg><div>';
-      data.forEach((row, i) => { chartHTML += `<div style="font-size:0.8rem;margin:0.2rem 0;"><span style="display:inline-block;width:10px;height:10px;background:${colors[i % colors.length]};border-radius:2px;margin-right:0.5rem;"></span>${row[0]}: ${row[1]}</div>`; });
+      data.forEach((row, i) => { chartHTML += `<div style="font-size:0.8rem;margin:0.2rem 0;"><span style="display:inline-block;width:10px;height:10px;background:${colors[i % colors.length]};border-radius:2px;margin-right:0.5rem;"></span>${escapeHtml(String(row[0]))}: ${escapeHtml(String(row[1]))}</div>`; });
       chartHTML += '</div></div>';
     } else {
       chartHTML += '<p style="color:#94a3b8;">Generating ' + chartType + ' chart for ' + data.length + ' data points...</p>';
@@ -2179,7 +2186,7 @@ function renderVisualization() {
     
     output.innerHTML = chartHTML;
   } catch (e) {
-    output.innerHTML = `<p style="color:#ef4444;">Error: ${e.message}</p>`;
+    output.innerHTML = `<p style="color:#ef4444;">Error: ${escapeHtml(e.message)}</p>`;
   }
 }
 
@@ -2292,7 +2299,8 @@ function runJulia() {
   let result = 'julia> ' + input.split('\n')[0] + '\n';
   
   try {
-    // Simple Julia-like interpreter
+    // Simple Julia-like interpreter (safe - no eval)
+    const juliaVars = {};
     const lines = input.split('\n');
     for (const line of lines) {
       const trimmed = line.trim();
@@ -2300,19 +2308,45 @@ function runJulia() {
       
       if (trimmed.startsWith('println(')) {
         const content = trimmed.match(/println\((.+)\)/);
-        if (content) result += eval(content[1]) + '\n';
+        if (content) {
+          const arg = content[1].trim();
+          // Check if it's a string literal
+          if ((arg.startsWith('"') && arg.endsWith('"')) || (arg.startsWith("'") && arg.endsWith("'"))) {
+            result += arg.slice(1, -1) + '\n';
+          } else if (juliaVars[arg] !== undefined) {
+            result += JSON.stringify(juliaVars[arg]) + '\n';
+          } else {
+            result += arg + '\n';
+          }
+        }
       } else if (trimmed.includes('eigen(')) {
         const matMatch = trimmed.match(/\[(.+)\]/);
         if (matMatch) {
           result += 'Eigen{Float64}\nvalues: Complex{Float64}[...]\nvectors: Matrix{Float64}(...)\n';
         }
       } else if (trimmed.includes('=') && !trimmed.startsWith('=')) {
-        const [varName, expr] = trimmed.split('=').map(s => s.trim());
-        try { result += `${varName} = ${eval(expr.replace(/\[/g,'[').replace(/;/g,','))}\n`; }
-        catch { result += `${varName} = <defined>\n`; }
+        const eqIdx = trimmed.indexOf('=');
+        const varName = trimmed.slice(0, eqIdx).trim();
+        const expr = trimmed.slice(eqIdx + 1).trim();
+        // Try to parse as number or array
+        if (!isNaN(Number(expr))) {
+          juliaVars[varName] = Number(expr);
+          result += `${varName} = ${expr}\n`;
+        } else if (expr.startsWith('[')) {
+          try {
+            const arrStr = expr.replace(/;/g, '],[').replace(/\s+/g, ',');
+            juliaVars[varName] = JSON.parse(arrStr.includes('],[') ? `[${arrStr}]` : arrStr);
+            result += `${varName} = ${JSON.stringify(juliaVars[varName])}\n`;
+          } catch { result += `${varName} = <array defined>\n`; }
+        } else if (expr.startsWith('"') || expr.startsWith("'")) {
+          juliaVars[varName] = expr.slice(1, -1);
+          result += `${varName} = "${juliaVars[varName]}"\n`;
+        } else {
+          juliaVars[varName] = expr;
+          result += `${varName} = <defined>\n`;
+        }
       } else {
-        try { result += eval(trimmed) + '\n'; }
-        catch { result += `${trimmed}\n`; }
+        result += `${trimmed}\n`;
       }
     }
   } catch (e) {
@@ -2541,32 +2575,31 @@ function testRegex() {
     const regex = new RegExp(pattern, flags);
     const matches = [...testStr.matchAll(new RegExp(pattern, flags + (flags.includes('g') ? '' : 'g')))];
     
-    let html = `<div style="margin-bottom:0.8rem;color:#94a3b8;">Pattern: <code style="color:#a855f7;">/${pattern}/${flags}</code></div>`;
+    let html = `<div style="margin-bottom:0.8rem;color:#94a3b8;">Pattern: <code style="color:#a855f7;">/${escapeHtml(pattern)}/${flags}</code></div>`;
     
     if (matches.length === 0) {
       html += '<div style="color:#ef4444;">No matches found.</div>';
     } else {
       html += `<div style="color:#22c55e;margin-bottom:0.5rem;">${matches.length} match${matches.length > 1 ? 'es' : ''} found:</div>`;
       
-      // Highlighted text
-      let highlighted = testStr;
+      // Highlighted text (escape all parts to prevent XSS)
       const allMatches = [...testStr.matchAll(new RegExp(pattern, 'g' + (flags.includes('i') ? 'i' : '')))];
       if (allMatches.length > 0) {
         let result = '';
         let lastIndex = 0;
         allMatches.forEach(m => {
-          result += testStr.slice(lastIndex, m.index);
-          result += `<mark style="background:rgba(0,255,204,0.3);color:#00ffcc;padding:0 2px;border-radius:2px;">${m[0]}</mark>`;
+          result += escapeHtml(testStr.slice(lastIndex, m.index));
+          result += `<mark style="background:rgba(0,255,204,0.3);color:#00ffcc;padding:0 2px;border-radius:2px;">${escapeHtml(m[0])}</mark>`;
           lastIndex = m.index + m[0].length;
         });
-        result += testStr.slice(lastIndex);
+        result += escapeHtml(testStr.slice(lastIndex));
         html += `<div style="font-family:monospace;padding:0.5rem;background:rgba(0,0,0,0.3);border-radius:4px;margin-bottom:0.5rem;white-space:pre-wrap;">${result}</div>`;
       }
       
       html += '<div style="font-size:0.8rem;color:#64748b;margin-top:0.5rem;">';
       matches.forEach((m, i) => {
-        html += `Match ${i+1}: "${m[0]}" at index ${m.index}`;
-        if (m.length > 1) html += ` | Groups: ${m.slice(1).join(', ')}`;
+        html += `Match ${i+1}: "${escapeHtml(m[0])}" at index ${m.index}`;
+        if (m.length > 1) html += ` | Groups: ${escapeHtml(m.slice(1).join(', '))}`;
         html += '<br>';
       });
       html += '</div>';
@@ -2574,7 +2607,7 @@ function testRegex() {
     
     output.innerHTML = html;
   } catch (e) {
-    output.innerHTML = `<span style="color:#ef4444;">Invalid regex: ${e.message}</span>`;
+    output.innerHTML = `<span style="color:#ef4444;">Invalid regex: ${escapeHtml(e.message)}</span>`;
   }
 }
 
