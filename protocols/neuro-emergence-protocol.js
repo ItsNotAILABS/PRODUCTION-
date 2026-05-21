@@ -104,29 +104,27 @@ class NeuroEmergenceProtocol {
     if (N === 0) {
       this.emergenceLevel = 0;
       this.collectivePhase = 0;
-      return;
+      return this.emergenceLevel;
     }
     
     // Order parameter (synchronization measure)
     let sumCos = 0;
     let sumSin = 0;
-    let sumActivity = 0;
     
     for (const worker of this.workers.values()) {
-      sumCos += Math.cos(worker.phase) * worker.activity;
-      sumSin += Math.sin(worker.phase) * worker.activity;
-      sumActivity += worker.activity;
+      sumCos += Math.cos(worker.phase);
+      sumSin += Math.sin(worker.phase);
     }
     
-    const avgActivity = sumActivity / N;
     sumCos /= N;
     sumSin /= N;
     
     const R = Math.sqrt(sumCos * sumCos + sumSin * sumSin);
     this.collectivePhase = Math.atan2(sumSin, sumCos);
     
-    // Emergence = synchronization × average activity
-    this.emergenceLevel = R * avgActivity;
+    // Emergence = order parameter R (phase synchronization measure)
+    this.emergenceLevel = R;
+    return this.emergenceLevel;
   }
 
   triggerCascade() {
@@ -147,6 +145,26 @@ class NeuroEmergenceProtocol {
     }
     
     return cascade;
+  }
+
+  checkCascade() {
+    if (this.emergenceLevel > CASCADE_THRESHOLD) {
+      this.triggerCascade();
+      return true;
+    }
+    return false;
+  }
+
+  getMetrics() {
+    return {
+      couplingCount: this.couplings.size,
+      couplings: this.couplings.size,
+      cascadeCount: this.cascadeEvents.length,
+      cascades: this.cascadeEvents.length,
+      emergenceLevel: this.emergenceLevel,
+      workerCount: this.workers.size,
+      beatCount: this.beatCount,
+    };
   }
 
   getState() {
