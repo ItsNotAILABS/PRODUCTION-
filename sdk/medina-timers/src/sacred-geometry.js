@@ -401,48 +401,20 @@ export function createMultiHeartGenerator(heartCount, callback, options = {}) {
 }
 
 /**
- * Creates a sacred geometry timer suite for an agent
+ * Creates a sacred geometry timer suite with all timers pre-started
  */
-export function createSacredGeometrySuite(agentId, options = {}) {
+export function createSacredGeometrySuite(callback, options = {}) {
   const baseMs = options.baseMs || HEARTBEAT;
-  const timers = {};
-  
+
   return {
-    agentId,
-    
-    startGoldenAngle: (callback) => {
-      timers.goldenAngle = createGoldenAngleRotator(callback, { baseMs });
-      return timers.goldenAngle;
-    },
-    
-    startPhiOscillator: (callback) => {
-      timers.phiOscillator = createPhiOscillator(callback, { baseMs });
-      return timers.phiOscillator;
-    },
-    
-    startFibonacci: (callback) => {
-      timers.fibonacci = createFibonacciTimer(callback, { baseMs });
-      return timers.fibonacci;
-    },
-    
-    startMetatron: (callback) => {
-      timers.metatron = createMetatronRouter(callback, { baseMs });
-      return timers.metatron;
-    },
-    
-    startPhyllotaxis: (callback) => {
-      timers.phyllotaxis = createPhyllotaxisTimer(callback, { baseMs });
-      return timers.phyllotaxis;
-    },
-    
-    stopAll: () => {
-      Object.values(timers).forEach(t => {
-        if (t && typeof t === 'number') clearInterval(t);
-        if (t && t.stop) t.stop();
-      });
-    },
-    
-    getActiveTimers: () => Object.keys(timers).filter(k => timers[k]),
+    fibonacci: createFibonacciTimer(callback, { baseMs }),
+    spiral: createFibonacciSpiralTimer(callback, { baseMs }),
+    oscillator: createPhiOscillator(callback, { baseMs }),
+    dualOscillator: createDualPhiOscillator(callback, { baseMs }),
+    rotator: createGoldenAngleRotator(callback, { baseMs }),
+    phyllotaxis: createPhyllotaxisTimer(callback, { baseMs }),
+    metatron: createMetatronRouter(callback, { baseMs }),
+    multiHeart: createMultiHeartGenerator(3, callback, { baseMs }),
   };
 }
 
