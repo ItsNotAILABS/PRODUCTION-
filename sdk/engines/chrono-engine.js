@@ -162,19 +162,43 @@ class ChronoEngine {
   // ── Event System ───────────────────────────────────────────────────────
 
   /**
-   * Subscribe to heartbeat events
+   * Subscribe to an event
+   * @param {string} event - Event name
+   * @param {Function} callback - Event handler
+   * @returns {Function} Unsubscribe function
    */
-  onBeat(callback) {
-    const listenerId = `listener-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    this.listeners.set(listenerId, callback);
-    return listenerId;
+  on(event, callback) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, []);
+    }
+    this.listeners.get(event).push(callback);
+    return () => {
+      const arr = this.listeners.get(event);
+      if (arr) {
+        const idx = arr.indexOf(callback);
+        if (idx !== -1) arr.splice(idx, 1);
+      }
+    };
   }
 
   /**
-   * Unsubscribe from heartbeat events
+   * Emit an event to all registered listeners
+   * @param {string} event - Event name
+   * @param {*} data - Data to pass to listeners
    */
-  offBeat(listenerId) {
-    this.listeners.delete(listenerId);
+  emit(event, data) {
+    const arr = this.listeners.get(event);
+    if (!arr) return;
+    for (const cb of arr) {
+      try { cb(data); } catch (e) { /* ignore */ }
+    }
+  }
+
+  /**
+   * Subscribe to heartbeat events (legacy)
+   */
+  onBeat(callback) {
+    return this.on('beat', callback);
   }
 
   // ── Heartbeat Execution ────────────────────────────────────────────────
