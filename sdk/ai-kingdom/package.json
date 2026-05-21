@@ -20,5 +20,19 @@
     "knights"
   ],
   "author": "The Sovereign & The Knights",
-  "license": "MIT"
+  "license": "MIT",
+  "files": [
+    "src/"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FreddyCreates/potential-succotash.git",
+    "directory": "sdk/ai-kingdom"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

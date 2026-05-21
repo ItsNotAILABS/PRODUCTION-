@@ -23,6 +23,8 @@
     "status": "node organism-cli status",
     "install-extensions": "node organism-cli install",
     "bundle": "node scripts/bundle-release.js",
+    "deploy:release": "node scripts/deploy-release-pipeline.js",
+    "deploy:release:dry": "node scripts/deploy-release-pipeline.js --dry-run",
     "prepare-sdks": "node scripts/prepare-sdks.js",
     "clean": "rm -rf dist/"
   },
