@@ -18,6 +18,7 @@ import Array "mo:base/Array";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
 import Nat "mo:base/Nat";
+import Iter "mo:base/Iter";
 import Int "mo:base/Int";
 import Debug "mo:base/Debug";
 import Buffer "mo:base/Buffer";

@@ -610,6 +610,9 @@ export class JuliaCompute {
     }
     
     if (funcName === 'stats.mean') {
+      if (!args[0] || args[0].length === 0) {
+        throw new Error('Empty vector');
+      }
       const sum = args[0].reduce((a, b) => a + b, 0);
       return sum / args[0].length;
     }

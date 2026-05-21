@@ -592,7 +592,7 @@ const MODULE_NAME = "NovaJulia"
 function version_info()
     return """
     $MODULE_NAME v$VERSION
-    Julia $(VERSION) Bridge for NOVA
+    Julia Bridge for NOVA
     Powered by NOVA (Networked Omniscient Verified Architecture)
     
     Available modules:

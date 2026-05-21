@@ -227,6 +227,7 @@ export const idlFactory = ({ IDL }: { IDL: any }) => {
 export class JuliaComputeClient {
   private actor: any;
   private canisterId: string;
+  private connected: boolean = false;
   
   constructor(canisterId: string, agent?: any) {
     this.canisterId = canisterId;
@@ -244,96 +245,125 @@ export class JuliaComputeClient {
     //   agent,
     //   canisterId: this.canisterId,
     // });
+    this.connected = true;
     console.log(`Connected to JuliaCompute canister: ${this.canisterId}`);
+  }
+  
+  /**
+   * Ensure actor is connected before making calls
+   */
+  private ensureConnected(): void {
+    if (!this.actor || !this.connected) {
+      throw new Error('JuliaComputeClient not connected. Call connect(agent) first.');
+    }
   }
   
   // ─── Initialization ───────────────────────────────────────────────────────
   
   async initialize(): Promise<Result<string>> {
+    this.ensureConnected();
     return this.actor.initialize();
   }
   
   async getState(): Promise<BridgeState> {
+    this.ensureConnected();
     return this.actor.getState();
   }
   
   async getStats(): Promise<BridgeStats> {
+    this.ensureConnected();
     return this.actor.getStats();
   }
   
   // ─── Linear Algebra ───────────────────────────────────────────────────────
   
   async eigen(matrix: Matrix): Promise<Result<EigenResult>> {
+    this.ensureConnected();
     return this.actor.linalg_eigen(matrix);
   }
   
   async svd(matrix: Matrix): Promise<Result<SVDResult>> {
+    this.ensureConnected();
     return this.actor.linalg_svd(matrix);
   }
   
   async qr(matrix: Matrix): Promise<Result<QRResult>> {
+    this.ensureConnected();
     return this.actor.linalg_qr(matrix);
   }
   
   async lu(matrix: Matrix): Promise<Result<LUResult>> {
+    this.ensureConnected();
     return this.actor.linalg_lu(matrix);
   }
   
   async cholesky(matrix: Matrix): Promise<Result<CholeskyResult>> {
+    this.ensureConnected();
     return this.actor.linalg_cholesky(matrix);
   }
   
   // ─── Signal Processing ────────────────────────────────────────────────────
   
   async fft(signal: Vector): Promise<Result<FFTResult>> {
+    this.ensureConnected();
     return this.actor.signal_fft(signal);
   }
   
   async ifft(spectrum: FFTResult): Promise<Result<Vector>> {
+    this.ensureConnected();
     return this.actor.signal_ifft(spectrum);
   }
   
   // ─── Statistics ───────────────────────────────────────────────────────────
   
   async mean(data: Vector): Promise<Result<number>> {
+    this.ensureConnected();
     return this.actor.stats_mean(data);
   }
   
   async std(data: Vector): Promise<Result<number>> {
+    this.ensureConnected();
     return this.actor.stats_std(data);
   }
   
   async cov(data: Matrix): Promise<Result<Matrix>> {
+    this.ensureConnected();
     return this.actor.stats_cov(data);
   }
   
   async cor(data: Matrix): Promise<Result<Matrix>> {
+    this.ensureConnected();
     return this.actor.stats_cor(data);
   }
   
   // ─── Optimization ─────────────────────────────────────────────────────────
   
   async minimize(x0: Vector, coefficients: Vector): Promise<Result<OptimizationResult>> {
+    this.ensureConnected();
     return this.actor.optim_minimize(x0, coefficients);
   }
   
   // ─── Phi-Enhanced ─────────────────────────────────────────────────────────
   
   async phiGradientDescent(x0: Vector, coefficients: Vector): Promise<Result<OptimizationResult>> {
+    this.ensureConnected();
     return this.actor.phi_gradient_descent(x0, coefficients);
   }
   
   async phiResonanceFilter(signal: Vector): Promise<Result<Vector>> {
+    this.ensureConnected();
     return this.actor.phi_resonance_filter(signal);
   }
   
   // ─── Proof Recording ──────────────────────────────────────────────────────
   
   async getProofHistory(): Promise<ComputeProof[]> {
+    this.ensureConnected();
     return this.actor.getProofHistory();
   }
   
   async getProof(id: string): Promise<ComputeProof | null> {
+    this.ensureConnected();
     const result = await this.actor.getProof(id);
     return result.length > 0 ? result[0] : null;
   }
@@ -341,10 +371,12 @@ export class JuliaComputeClient {
   // ─── System ───────────────────────────────────────────────────────────────
   
   async health(): Promise<string> {
+    this.ensureConnected();
     return this.actor.health();
   }
   
   async version(): Promise<string> {
+    this.ensureConnected();
     return this.actor.version();
   }
 }
