@@ -158,3 +158,18 @@ export { CognitiveArchitectureProtocol, LAYERS, DURABLE_OBJECTS, DATA_FLOWS, AI_
 
 // PROTO-244: Alpha Tools — Production tool orchestration, plugin lifecycle, adapter routing
 export { AlphaToolsProtocol, ALPHA_TOOLS_STATES, MESSAGE_TYPES as ALPHA_TOOLS_MESSAGE_TYPES, TOOL_CATEGORIES, ALPHA_TOOLS_CONFIG, calculateToolPriority, calculateAdapterRoute, calculatePluginHealth, calculateLoadBalance } from './alpha-tools-protocol.js';
+
+// PROTO-246: Quantum Compiler — Multi-language compilation, transpilation, binding generation
+export { QuantumCompilerProtocol, COMPILER_PROTOCOL_STATES, SUPPORTED_LANGUAGES, COMPILER_CONFIG, MESSAGE_TYPES as COMPILER_MESSAGE_TYPES, calculateCompilePriority, calculateCacheScore } from './quantum-compiler-protocol.js';
+
+// PROTO-247: Sovereignty Mesh — Cross-chain interoperability, bridge management, identity portability
+export { SovereigntyMeshProtocol, MESH_PROTOCOL_STATES, BRIDGE_HEALTH, MESH_CONFIG, MESSAGE_TYPES as MESH_MESSAGE_TYPES, calculateRoutePriority, calculateTrustDecay } from './sovereignty-mesh-protocol.js';
+
+// PROTO-248: Dream Weaver — Generative AI orchestration, hallucination control, grounding verification
+export { DreamWeaverProtocol, DREAM_PROTOCOL_STATES, HALLUCINATION_LEVELS, DREAM_CONFIG, MESSAGE_TYPES as DREAM_MESSAGE_TYPES, calculateGroundingScore, calculateHallucinationRisk, calculateOptimalTemperature } from './dream-weaver-protocol.js';
+
+// PROTO-249: Chrono Vault — Temporal versioning, time-travel state, branching timelines
+export { ChronoVaultProtocol, VAULT_PROTOCOL_STATES, RETENTION_POLICIES, VAULT_CONFIG, MESSAGE_TYPES as VAULT_MESSAGE_TYPES, calculateRetentionPriority, calculateMergeCompatibility, calculateTravelCost } from './chrono-vault-protocol.js';
+
+// PROTO-250: Synapse Garden — Organic neural growth, Hebbian plasticity, adaptive pruning
+export { SynapseGardenProtocol, GARDEN_PROTOCOL_STATES, PLASTICITY_RULES, GARDEN_CONFIG, MESSAGE_TYPES as GARDEN_MESSAGE_TYPES, calculateStrengthDelta, calculatePruneScore, calculateGardenHealth, calculateTransmitterEffect } from './synapse-garden-protocol.js';

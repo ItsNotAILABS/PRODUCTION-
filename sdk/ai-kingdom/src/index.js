@@ -121,6 +121,31 @@ export { CoolingUnit, CoolingGenerator, COOLING_UNIT_TYPES, THERMAL_ZONES, COOLI
 export { PowerGrid, PowerGenerator, BatteryCluster, PowerSector } from './power-grid.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// QUANTUM COMPILER — Multi-language compilation and transpilation
+// ═══════════════════════════════════════════════════════════════════════════════
+export { QuantumCompiler, CompilerNetwork, COMPILER_TARGETS, LANGUAGE_BINDINGS, COMPILER_STATES } from './quantum-compiler.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SOVEREIGNTY MESH — Cross-chain and cross-realm interoperability
+// ═══════════════════════════════════════════════════════════════════════════════
+export { SovereigntyMesh, SovereigntyBridge, CHAIN_TYPES, BRIDGE_STATES, ENVELOPE_TYPES } from './sovereignty-mesh.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DREAM WEAVER — Generative AI composition and hallucination control
+// ═══════════════════════════════════════════════════════════════════════════════
+export { DreamWeaver, DreamOrchestra, DREAM_MODALITIES, GROUNDING_LEVELS, WEAVER_STATES } from './dream-weaver.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHRONO VAULT — Temporal versioning and time-travel state management
+// ═══════════════════════════════════════════════════════════════════════════════
+export { ChronoVault, ChronoSnapshot, TemporalQueryEngine, TEMPORAL_STATES, TIMELINE_TYPES } from './chrono-vault.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SYNAPSE GARDEN — Organic neural pathway growth and pruning
+// ═══════════════════════════════════════════════════════════════════════════════
+export { SynapseGarden, Synapse, Neuron, NEUROTRANSMITTERS, SYNAPSE_STATES, GARDEN_STATES } from './synapse-garden.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // DEFAULT EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
 export { default as CreatorRecognitionDefault } from './prima-causa.js';
@@ -139,3 +164,8 @@ export { default as NetworkIntelligenceDefault } from './network-intelligence.js
 export { default as ReservoirNetworkDefault } from './h2o-reservoir.js';
 export { default as CoolingGeneratorDefault } from './cooling-generator.js';
 export { default as PowerGridDefault } from './power-grid.js';
+export { default as QuantumCompilerDefault } from './quantum-compiler.js';
+export { default as SovereigntyMeshDefault } from './sovereignty-mesh.js';
+export { default as DreamWeaverDefault } from './dream-weaver.js';
+export { default as ChronoVaultDefault } from './chrono-vault.js';
+export { default as SynapseGardenDefault } from './synapse-garden.js';
