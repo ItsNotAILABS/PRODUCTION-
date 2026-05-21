@@ -102,7 +102,19 @@ class CurriculumProtocol {
    * Get the next recommended lesson based on curriculum progression
    * Returns lessons from the lowest-mastery domain at appropriate difficulty
    */
-  getNextLesson() {
+  getNextLesson(domain) {
+    if (domain) {
+      const domainInfo = this.domains[domain];
+      if (!domainInfo) return null;
+
+      const difficulty = domainInfo.currentDifficulty;
+      const pending = this.lessons.filter(l =>
+        l.domain === domain && !l.mastered && l.difficulty <= difficulty * PHI
+      );
+
+      return pending.length > 0 ? pending[0] : null;
+    }
+
     // Find the domain with lowest mastery that's unlocked
     const unlocked = Object.entries(this.domains)
       .filter(([, d]) => d.order <= this.currentLevel + 1)
@@ -250,6 +262,83 @@ class CurriculumProtocol {
       if (mastery >= ml.threshold) level = ml;
     }
     return level.label;
+  }
+
+  // ── Public API ──────────────────────────────────────────────────────────
+
+  /**
+   * Complete a lesson by id with a boolean success flag
+   */
+  completeLesson(lessonId, success) {
+    return this.attempt(lessonId, success ? 1.0 : 0.0);
+  }
+
+  /**
+   * Get the mastery value for a domain
+   */
+  getDomainMastery(domain) {
+    const d = this.domains[domain];
+    if (!d) return null;
+    return d.mastery;
+  }
+
+  /**
+   * Get the mastery level object for a domain
+   */
+  getMasteryLevel(domain) {
+    const d = this.domains[domain];
+    if (!d) return null;
+    let level = MASTERY_LEVELS.NOVICE;
+    for (const ml of Object.values(MASTERY_LEVELS)) {
+      if (d.mastery >= ml.threshold) level = ml;
+    }
+    return level;
+  }
+
+  /**
+   * Check if the organism can advance to the next level
+   */
+  canAdvance() {
+    const unlockedDomains = Object.entries(this.domains)
+      .filter(([, d]) => d.order <= this.currentLevel + 1);
+    if (unlockedDomains.length === 0) return false;
+    return unlockedDomains.every(([, d]) => d.mastery >= this.progressionThreshold);
+  }
+
+  /**
+   * Advance to the next curriculum level
+   */
+  advanceLevel() {
+    if (this.currentLevel >= this.maxLevel) return null;
+    this.currentLevel++;
+    this.stats.levelUps++;
+    for (const domain of Object.values(this.domains)) {
+      domain.currentDifficulty *= PHI;
+    }
+    return { newLevel: this.currentLevel };
+  }
+
+  /**
+   * Get overall progress report
+   */
+  getProgress() {
+    return {
+      currentLevel: this.currentLevel,
+      level: this.currentLevel,
+      domains: Object.fromEntries(
+        Object.entries(this.domains).map(([name, d]) => [name, d.mastery])
+      ),
+      domainMasteries: Object.fromEntries(
+        Object.entries(this.domains).map(([name, d]) => [name, d.mastery])
+      ),
+    };
+  }
+
+  /**
+   * Get statistics
+   */
+  getStats() {
+    return { ...this.stats };
   }
 
   // ── Query Interface ────────────────────────────────────────────────────
