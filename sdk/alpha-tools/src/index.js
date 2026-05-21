@@ -207,7 +207,8 @@ export class AlphaGenerator {
     
     let output = entry.template;
     for (const [key, value] of Object.entries(variables)) {
-      output = output.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+      const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      output = output.replace(new RegExp(`\\{\\{${escaped}\\}\\}`, 'g'), value);
     }
     
     entry.uses++;
