@@ -79,6 +79,70 @@ class VeinOfIntelligenceProtocol {
     };
   }
 
+  // ─── Simple Fracture Calls (local, no network) ──────────────────────────────
+
+  async callNeuronCluster(payload) {
+    this.metrics.totalRequests++;
+    this.metrics.neuronCalls++;
+    const cost = this.computeBilling(this.accessTier, 1);
+    this.metrics.totalBilled += cost;
+    return { ok: true, fracture: 'NEURON_CLUSTER', operation: payload.operation, payload };
+  }
+
+  async callMemoryVault(payload) {
+    this.metrics.totalRequests++;
+    this.metrics.memoryCalls++;
+    const cost = this.computeBilling(this.accessTier, 1);
+    this.metrics.totalBilled += cost;
+    return { ok: true, fracture: 'MEMORY_VAULT', operation: payload.operation, payload };
+  }
+
+  async callConsciousnessStream(payload) {
+    this.metrics.totalRequests++;
+    this.metrics.consciousnessCalls++;
+    const cost = this.computeBilling(this.accessTier, 1);
+    this.metrics.totalBilled += cost;
+    return { ok: true, fracture: 'CONSCIOUSNESS_STREAM', operation: payload.operation, payload };
+  }
+
+  // ─── Billing ────────────────────────────────────────────────────────────────
+
+  computeBilling(tier, units) {
+    const tierInfo = ACCESS_TIERS[tier] || ACCESS_TIERS.PARTNER;
+    return tierInfo.rate * tierInfo.multiplier * units;
+  }
+
+  // ─── Coherence ──────────────────────────────────────────────────────────────
+
+  updateCoherence(value) {
+    this.coherence = Math.max(0, Math.min(1, value));
+  }
+
+  // ─── Access Tier Management ─────────────────────────────────────────────────
+
+  getAccessTier(detailed = false) {
+    if (detailed) {
+      return ACCESS_TIERS[this.accessTier] || this.accessTier;
+    }
+    return this.accessTier;
+  }
+
+  setAccessTier(tier) {
+    if (!ACCESS_TIERS[tier]) return false;
+    this.accessTier = tier;
+    return true;
+  }
+
+  // ─── Getters ────────────────────────────────────────────────────────────────
+
+  getFractures() {
+    return FRACTURES;
+  }
+
+  getMetrics() {
+    return { ...this.metrics };
+  }
+
   // ─── NeuronCluster Operations ───────────────────────────────────────────────
 
   /**
@@ -390,24 +454,32 @@ class VeinOfIntelligenceProtocol {
   // ─── Heartbeat & Coherence ──────────────────────────────────────────────────
 
   /**
-   * Run heartbeat across all fractures.
+   * Run heartbeat. When called without arguments, performs a local heartbeat.
+   * When called with fracture IDs, performs a remote heartbeat across all fractures.
    */
-  async heartbeat(ids = { cluster: 'default', vault: 'default', stream: 'default' }) {
+  heartbeat(ids) {
     const now = Date.now();
     const delta = now - this.lastHeartbeat;
     this.lastHeartbeat = now;
-    
+
+    if (!ids) {
+      return { ok: true, delta, coherence: this.coherence, timestamp: now };
+    }
+
+    return this._heartbeatRemote(ids, delta);
+  }
+
+  async _heartbeatRemote(ids, delta) {
     const results = await Promise.all([
       this._call('cluster', `/cluster/heartbeat`, { id: ids.cluster, body: {} }),
       this._call('vault', `/vault/heartbeat`, { id: ids.vault, body: {} }),
       this._call('stream', `/stream/heartbeat`, { id: ids.stream, body: {} }),
     ]);
-    
-    // Update coherence from stream
+
     if (results[2] && results[2].coherence !== undefined) {
       this.coherence = results[2].coherence;
     }
-    
+
     return {
       delta,
       cluster: results[0],
@@ -453,20 +525,38 @@ class VeinOfIntelligenceProtocol {
   // ─── State ──────────────────────────────────────────────────────────────────
 
   /**
-   * Get full state of all fractures.
+   * Get state. When called without arguments, returns local state.
+   * When called with fracture IDs, fetches full remote state.
    */
-  async getState(ids = { cluster: 'default', vault: 'default', stream: 'default' }) {
+  getState(ids) {
+    if (!ids) {
+      return {
+        protocol: 'PROTO-230',
+        version: '1.0.0',
+        agentId: this.agentId,
+        coherence: this.coherence,
+        accessTier: this.accessTier,
+        metrics: this.getMetrics(),
+        phi: PHI,
+      };
+    }
+
+    return this._getRemoteState(ids);
+  }
+
+  async _getRemoteState(ids) {
     const results = await Promise.all([
       this._callGet('cluster', `/cluster/state`, { id: ids.cluster }),
       this._callGet('vault', `/vault/state`, { id: ids.vault }),
       this._callGet('stream', `/stream/state`, { id: ids.stream }),
     ]);
-    
+
     return {
       protocol: 'PROTO-230',
       version: '1.0.0',
       agentId: this.agentId,
       coherence: this.coherence,
+      accessTier: this.accessTier,
       fractures: {
         neuronCluster: results[0],
         memoryVault: results[1],
