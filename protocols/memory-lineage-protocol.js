@@ -424,6 +424,136 @@ class MemoryLineageProtocol {
     return trees;
   }
 
+  /* ─── Test-Compatible API ─── */
+
+  /**
+   * Create a new root memory node.
+   * @param {string} content - Memory content
+   * @param {Object} [metadata={}] - Arbitrary metadata
+   * @returns {Object} - Created memory node
+   */
+  createMemory(content, metadata = {}) {
+    const id = `mem-${this.nextIndex}`;
+    const coords = this._phiCoordinates(this.nextIndex);
+    const node = {
+      id,
+      parentId: null,
+      childIds: [],
+      content,
+      phiCoords: coords,
+      createdAt: Date.now(),
+      lastAccessed: null,
+      accessCount: 0,
+      generation: 0,
+      branchTag: 'main',
+      contentHash: this._contentHash(content),
+      metadata
+    };
+    this.memories.set(id, node);
+    this.rootIds.add(id);
+    if (!this.branches.has('main')) {
+      this.branches.set('main', new Set());
+    }
+    this.branches.get('main').add(id);
+    this.nextIndex++;
+    this.metrics.totalCreated++;
+    this.metrics.activeBranches = this.branches.size;
+    return node;
+  }
+
+  /**
+   * Fork a memory from an existing parent.
+   * @param {string} parentId - Parent memory ID
+   * @param {string} content - New content
+   * @param {Object} [metadata={}] - Metadata
+   * @returns {Object|null} - Forked memory node or null if parent not found
+   */
+  forkMemory(parentId, content, metadata = {}) {
+    const parent = this.memories.get(parentId);
+    if (!parent) return null;
+
+    const id = `mem-${this.nextIndex}`;
+    const coords = this._phiCoordinates(this.nextIndex);
+    const generation = parent.generation + 1;
+    const node = {
+      id,
+      parentId,
+      childIds: [],
+      content,
+      phiCoords: coords,
+      createdAt: Date.now(),
+      lastAccessed: null,
+      accessCount: 0,
+      generation,
+      branchTag: parent.branchTag,
+      contentHash: this._contentHash(content),
+      metadata
+    };
+    parent.childIds.push(id);
+    this.memories.set(id, node);
+    if (this.branches.has(parent.branchTag)) {
+      this.branches.get(parent.branchTag).add(id);
+    }
+    this.nextIndex++;
+    this.metrics.totalCreated++;
+    this.metrics.totalForked++;
+    if (generation > this.metrics.deepestGeneration) {
+      this.metrics.deepestGeneration = generation;
+    }
+    return node;
+  }
+
+  /**
+   * Access a memory by ID, updating access statistics.
+   * @param {string} id - Memory ID
+   * @returns {Object|null} - Memory node or null
+   */
+  accessMemory(id) {
+    const node = this.memories.get(id);
+    if (!node) return null;
+    node.lastAccessed = Date.now();
+    node.accessCount++;
+    this.metrics.totalAccessed++;
+    return node;
+  }
+
+  /**
+   * Get full lineage (ancestors) for a memory.
+   * @param {string} id - Memory ID
+   * @returns {Object[]} - Array of ancestor nodes from root to given memory
+   */
+  getLineage(id) {
+    const lineage = [];
+    let current = this.memories.get(id);
+    if (!current) return lineage;
+    while (current) {
+      lineage.unshift(current);
+      current = current.parentId ? this.memories.get(current.parentId) : null;
+    }
+    return lineage;
+  }
+
+  /**
+   * Consolidate a deep memory lineage.
+   * @param {string} id - Tip memory ID
+   * @returns {Object|null} - Consolidated result or null
+   */
+  consolidate(id) {
+    return this._autoConsolidate(id);
+  }
+
+  /**
+   * Run garbage collection on infrequently accessed memories.
+   * @returns {number} - Number of memories collected
+   */
+  garbageCollect() {
+    const originalMax = this.maxMemories;
+    this.maxMemories = Math.floor(this.memories.size * 0.8);
+    const result = this._checkGC();
+    this.maxMemories = originalMax;
+    return result.collected;
+  }
+
   /**
    * Returns protocol metrics.
    * @returns {Object} - Current metrics snapshot
