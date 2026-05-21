@@ -79,12 +79,24 @@ class IntelligenceContract {
     return { activated: true, id: this.id, type: this.type };
   }
 
+  /** Transition to WATCHING state (sync convenience) */
+  watch(context) {
+    if (arguments.length === 0 || context === undefined) {
+      if (this.state === CONTRACT_STATES.ACTIVE) {
+        this.state = CONTRACT_STATES.WATCHING;
+        this._log('watching', {});
+      }
+      return { watching: true, id: this.id };
+    }
+    return this.watchCycle(context);
+  }
+
   /**
-   * Watch — evaluate all conditions. If any condition triggers, execute actions.
+   * Watch cycle — evaluate all conditions. If any condition triggers, execute actions.
    * Call this on every heartbeat tick.
    * @param {object} context - Current organism state for condition evaluation
    */
-  async watch(context = {}) {
+  async watchCycle(context = {}) {
     if (this.state === CONTRACT_STATES.DRAFT || this.state === CONTRACT_STATES.FULFILLED) return null;
 
     // Check TTL
@@ -163,6 +175,58 @@ class IntelligenceContract {
     if (this.executionLog.length > 50) this.executionLog.shift();
   }
 
+  /** Check conditions against context without triggering actions */
+  checkConditions(context = {}) {
+    const results = this.conditions.map(cond => {
+      try { return cond(context); } catch { return false; }
+    });
+    const allMet = results.every(r => !!r);
+    return { allMet, results };
+  }
+
+  /** Trigger the contract — moves from WATCHING to TRIGGERED */
+  trigger() {
+    this.state = CONTRACT_STATES.TRIGGERED;
+    this.triggerCount++;
+    this._log('triggered', {});
+    return { triggered: true, id: this.id };
+  }
+
+  /** Execute all actions */
+  execute(context = {}) {
+    this.state = CONTRACT_STATES.EXECUTING;
+    for (const action of this.actions) {
+      try { action(context); } catch (err) { this._log('action-error', { error: err.message }); }
+    }
+    this._log('executed', {});
+    return { executed: true, id: this.id };
+  }
+
+  /** Fulfill the contract */
+  fulfill() {
+    this.state = CONTRACT_STATES.FULFILLED;
+    this.fulfilledAt = Date.now();
+    this.fulfillCount++;
+    this.weight = Math.min(PHI, this.weight + 0.1);
+    this._log('fulfilled', {});
+    return { fulfilled: true, id: this.id };
+  }
+
+  /** Breach the contract */
+  breach(reason = '') {
+    this.state = CONTRACT_STATES.BREACHED;
+    this.weight *= PHI_INV;
+    this._log('breached', { reason });
+    return { breached: true, id: this.id, reason };
+  }
+
+  /** Expire the contract */
+  expire() {
+    this.state = CONTRACT_STATES.EXPIRED;
+    this._log('expired', {});
+    return { expired: true, id: this.id };
+  }
+
   getState() {
     return {
       id:           this.id,
@@ -185,6 +249,7 @@ class IntelligenceContractProtocol {
   constructor() {
     this.contracts = new Map();
     this.active    = new Set();
+    this.activeContracts = this.active;  // Alias for tests
     this.watchInterval = null;
     this.ticks     = 0;
 
@@ -243,7 +308,7 @@ class IntelligenceContractProtocol {
       const contract = this.contracts.get(contractId);
       if (!contract) { this.active.delete(contractId); continue; }
 
-      const result = await contract.watch(context);
+      const result = await contract.watchCycle(context);
 
       if (result) {
         results.push(result);
@@ -326,6 +391,40 @@ class IntelligenceContractProtocol {
       ticks:  this.ticks,
       stats:  { ...this.stats },
       contracts: contractStates,
+    };
+  }
+
+  /** Alias: create and register a contract */
+  createContract(def) {
+    return this.register(def);
+  }
+
+  /** Alias: activate a contract by ID */
+  activateContract(contractId, context) {
+    return this.activate(contractId, context);
+  }
+
+  /** Alias: run one watch cycle (sync-friendly wrapper) */
+  tick(context = {}) {
+    this.ticks++;
+    const results = [];
+    for (const contractId of this.active) {
+      const contract = this.contracts.get(contractId);
+      if (!contract) { this.active.delete(contractId); continue; }
+      const condResult = contract.checkConditions(context);
+      results.push({ id: contractId, ...condResult });
+    }
+    return { ticks: this.ticks, activeContracts: this.active.size, results };
+  }
+
+  /** Return protocol metrics */
+  getMetrics() {
+    return {
+      totalContracts: this.contracts.size,
+      contractCount: this.contracts.size,
+      activeContracts: this.active.size,
+      ticks: this.ticks,
+      ...this.stats,
     };
   }
 }
