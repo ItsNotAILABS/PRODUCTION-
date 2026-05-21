@@ -125,6 +125,27 @@ class HomeostaticDriveProtocol {
     return { type: dominantType, motivation: maxMotivation };
   }
 
+  getMotivation(type) {
+    return this.motivations.get(type) ?? 0;
+  }
+
+  getAllDrives() {
+    const drives = {};
+    for (const [type, drive] of this.drives) {
+      drives[type] = { ...drive, motivation: this.motivations.get(type) };
+    }
+    return drives;
+  }
+
+  getState() {
+    return {
+      drives: this.getAllDrives(),
+      motivations: this.getMotivationVector(),
+      beatCount: this.beatCount,
+      historyLength: this.driveHistory.length,
+    };
+  }
+
   getMotivationVector() {
     const vector = {};
     for (const [type, motivation] of this.motivations) {
