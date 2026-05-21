@@ -173,3 +173,6 @@ export { ChronoVaultProtocol, VAULT_PROTOCOL_STATES, RETENTION_POLICIES, VAULT_C
 
 // PROTO-250: Synapse Garden — Organic neural growth, Hebbian plasticity, adaptive pruning
 export { SynapseGardenProtocol, GARDEN_PROTOCOL_STATES, PLASTICITY_RULES, GARDEN_CONFIG, MESSAGE_TYPES as GARDEN_MESSAGE_TYPES, calculateStrengthDelta, calculatePruneScore, calculateGardenHealth, calculateTransmitterEffect } from './synapse-garden-protocol.js';
+
+// PROTO-251: NOVA Intelligence Exchange — Julia-Motoko contracted compute exchange with 8 internal agents, L0-L7 stack
+export { NovaIntelligenceExchangeProtocol, NIE_PROTOCOL_STATES, NIE_CONTRACT_TYPES, NIE_AGENT_ROSTER, NIE_LAYERS, NIE_CONFIG, MESSAGE_TYPES as NIE_MESSAGE_TYPES, calculateContractPriority, calculateProofScore, calculateLearningConfidence, calculateLinguaConfidence } from './nova-intelligence-exchange-protocol.js';
