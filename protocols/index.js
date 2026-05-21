@@ -155,3 +155,6 @@ export { VeinOfIntelligenceProtocol, FRACTURES, ACCESS_TIERS } from './vein-of-i
 
 // PROTO-231: Cognitive Architecture — unified AGI infrastructure specification
 export { CognitiveArchitectureProtocol, LAYERS, DURABLE_OBJECTS, DATA_FLOWS, AI_PROVIDERS } from './cognitive-architecture-protocol.js';
+
+// PROTO-244: Alpha Tools — Production tool orchestration, plugin lifecycle, adapter routing
+export { AlphaToolsProtocol, ALPHA_TOOLS_STATES, MESSAGE_TYPES as ALPHA_TOOLS_MESSAGE_TYPES, TOOL_CATEGORIES, ALPHA_TOOLS_CONFIG, calculateToolPriority, calculateAdapterRoute, calculatePluginHealth, calculateLoadBalance } from './alpha-tools-protocol.js';
