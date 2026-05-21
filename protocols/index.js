@@ -158,3 +158,6 @@ export { CognitiveArchitectureProtocol, LAYERS, DURABLE_OBJECTS, DATA_FLOWS, AI_
 
 // PROTO-244: Julia Compute — Julia-Motoko bridge for scientific computing
 export { JuliaComputeProtocol, JuliaCompute, getJuliaCompute, TYPE_ISOMORPHISMS, JULIA_FUNCTIONS, BRIDGE_STATES } from '../NOVA/protocols/PROTOCOL-JULIA.js';
+
+// PROTO-252: Webbed Sphere Networking — Geodesic mesh with φ-driven dynamic weight functions
+export { WebbedSphereNetworkingProtocol, SPHERE_CONFIG, MESSAGE_TYPES as SPHERE_MESSAGE_TYPES, SPHERE_STATES, phiEdgeWeight, phiNodeWeight, phiRoutePriority, phiResonance, phiLoadShare, phiHealingUrgency } from './webbed-sphere-networking-protocol.js';

@@ -121,6 +121,11 @@ export { CoolingUnit, CoolingGenerator, COOLING_UNIT_TYPES, THERMAL_ZONES, COOLI
 export { PowerGrid, PowerGenerator, BatteryCluster, PowerSector } from './power-grid.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// WEBBED SPHERE — Geodesic mesh networking with φ-dynamic weights
+// ═══════════════════════════════════════════════════════════════════════════════
+export { WebbedSphere, SphereNetwork, PhiWeightEngine, SPHERE_SHELLS, NODE_TYPES, EDGE_STATES } from './webbed-sphere.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // DEFAULT EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
 export { default as CreatorRecognitionDefault } from './prima-causa.js';
@@ -139,3 +144,4 @@ export { default as NetworkIntelligenceDefault } from './network-intelligence.js
 export { default as ReservoirNetworkDefault } from './h2o-reservoir.js';
 export { default as CoolingGeneratorDefault } from './cooling-generator.js';
 export { default as PowerGridDefault } from './power-grid.js';
+export { default as WebbedSphereDefault } from './webbed-sphere.js';
