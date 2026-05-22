@@ -150,6 +150,34 @@ export { ThermalManagementProtocol, THERMAL_CONFIG, MESSAGE_TYPES as THERMAL_MES
 
 // PROTO-234: Power Distribution — Power generation, distribution, storage, and load balancing
 export { PowerDistributionProtocol, POWER_CONFIG, MESSAGE_TYPES as POWER_MESSAGE_TYPES, POWER_STATES, GENERATION_SOURCES, LOAD_PRIORITIES, calculateLoadDistribution, calculateBatteryPlan, calculateTransmissionEfficiency, getPowerState, calculateEnergyExport } from './power-distribution-protocol.js';
+
+// PROTO-235: Quantum Entanglement — Cross-AI state synchronization and coordination
+export { QuantumEntanglementProtocol, ENTANGLEMENT_CONFIG, MESSAGE_TYPES as ENTANGLEMENT_MESSAGE_TYPES, ENTANGLEMENT_STATES as ENTANGLEMENT_PROTOCOL_STATES } from './quantum-entanglement-protocol.js';
+
+// PROTO-236: Neural Forge — Distributed AI training, fine-tuning, and knowledge transfer
+export { NeuralForgeProtocol, FORGE_CONFIG, MESSAGE_TYPES as FORGE_MESSAGE_TYPES, FORGE_STATES as FORGE_PROTOCOL_STATES, TRAINING_MODES } from './neural-forge-protocol.js';
+
+// PROTO-237: Temporal Engine — Time-aware scheduling, forecasting, and temporal reasoning
+export { TemporalEngineProtocol, TEMPORAL_CONFIG, MESSAGE_TYPES as TEMPORAL_MESSAGE_TYPES, TEMPORAL_STATES as TEMPORAL_PROTOCOL_STATES, SCHEDULE_PRIORITIES, TIME_SCALES } from './temporal-engine-protocol.js';
+
+// PROTO-238: Consciousness Bridge — Inter-AI awareness, shared context, and collective reasoning
+export { ConsciousnessBridgeProtocol, CONSCIOUSNESS_CONFIG, MESSAGE_TYPES as CONSCIOUSNESS_MESSAGE_TYPES, CONSCIOUSNESS_STATES as CONSCIOUSNESS_PROTOCOL_STATES, AWARENESS_TYPES, CONTEXT_CHANNELS } from './consciousness-bridge-protocol.js';
+
+// PROTO-239: Wisdom Distillery — Knowledge extraction, compression, and transfer
+export { WisdomDistilleryProtocol, DISTILLERY_CONFIG, MESSAGE_TYPES as DISTILLERY_MESSAGE_TYPES, DISTILLERY_STATES, KNOWLEDGE_TYPES as DISTILLERY_KNOWLEDGE_TYPES, COMPRESSION_LEVELS } from './wisdom-distillery-protocol.js';
+
+// PROTO-240: Adaptive Optimizer — Self-tuning optimization with dynamic strategy selection
+export { AdaptiveOptimizerProtocol, OPTIMIZER_CONFIG, MESSAGE_TYPES as OPTIMIZER_MESSAGE_TYPES, OPTIMIZER_STATES, STRATEGIES as OPTIMIZER_STRATEGIES } from './adaptive-optimizer-protocol.js';
+
+// PROTO-241: Swarm Intelligence — Multi-agent coordination through emergent behavior
+export { SwarmIntelligenceProtocol, SWARM_CONFIG, MESSAGE_TYPES as SWARM_MESSAGE_TYPES, SWARM_STATES, AGENT_ROLES, COMMUNICATION_TYPES } from './swarm-intelligence-protocol.js';
+
+// PROTO-242: Memory Palace — Hierarchical memory organization and retrieval
+export { MemoryPalaceProtocol, MEMORY_CONFIG, MESSAGE_TYPES as MEMORY_MESSAGE_TYPES, PALACE_STATES, MEMORY_TYPES, RETRIEVAL_STRATEGIES } from './memory-palace-protocol.js';
+
+// PROTO-243: Evolution Chamber — Genetic algorithm-based model evolution
+export { EvolutionChamberProtocol, EVOLUTION_CONFIG, MESSAGE_TYPES as EVOLUTION_MESSAGE_TYPES, EVOLUTION_STATES, SELECTION_METHODS, CROSSOVER_TYPES, MUTATION_TYPES } from './evolution-chamber-protocol.js';
+
 // PROTO-230: Vein of Intelligence — unified interface to cognitive Durable Objects
 export { VeinOfIntelligenceProtocol, FRACTURES, ACCESS_TIERS } from './vein-of-intelligence-protocol.js';
 
@@ -161,3 +189,23 @@ export { JuliaComputeProtocol, JuliaCompute, getJuliaCompute, TYPE_ISOMORPHISMS,
 
 // PROTO-252: Webbed Sphere Networking — Geodesic mesh with φ-driven dynamic weight functions
 export { WebbedSphereNetworkingProtocol, SPHERE_CONFIG, MESSAGE_TYPES as SPHERE_MESSAGE_TYPES, SPHERE_STATES, phiEdgeWeight, phiNodeWeight, phiRoutePriority, phiResonance, phiLoadShare, phiHealingUrgency } from './webbed-sphere-networking-protocol.js';
+// PROTO-244: Alpha Tools — Production tool orchestration, plugin lifecycle, adapter routing
+export { AlphaToolsProtocol, ALPHA_TOOLS_STATES, MESSAGE_TYPES as ALPHA_TOOLS_MESSAGE_TYPES, TOOL_CATEGORIES, ALPHA_TOOLS_CONFIG, calculateToolPriority, calculateAdapterRoute, calculatePluginHealth, calculateLoadBalance } from './alpha-tools-protocol.js';
+
+// PROTO-246: Quantum Compiler — Multi-language compilation, transpilation, binding generation
+export { QuantumCompilerProtocol, COMPILER_PROTOCOL_STATES, SUPPORTED_LANGUAGES, COMPILER_CONFIG, MESSAGE_TYPES as COMPILER_MESSAGE_TYPES, calculateCompilePriority, calculateCacheScore } from './quantum-compiler-protocol.js';
+
+// PROTO-247: Sovereignty Mesh — Cross-chain interoperability, bridge management, identity portability
+export { SovereigntyMeshProtocol, MESH_PROTOCOL_STATES, BRIDGE_HEALTH, MESH_CONFIG, MESSAGE_TYPES as MESH_MESSAGE_TYPES, calculateRoutePriority, calculateTrustDecay } from './sovereignty-mesh-protocol.js';
+
+// PROTO-248: Dream Weaver — Generative AI orchestration, hallucination control, grounding verification
+export { DreamWeaverProtocol, DREAM_PROTOCOL_STATES, HALLUCINATION_LEVELS, DREAM_CONFIG, MESSAGE_TYPES as DREAM_MESSAGE_TYPES, calculateGroundingScore, calculateHallucinationRisk, calculateOptimalTemperature } from './dream-weaver-protocol.js';
+
+// PROTO-249: Chrono Vault — Temporal versioning, time-travel state, branching timelines
+export { ChronoVaultProtocol, VAULT_PROTOCOL_STATES, RETENTION_POLICIES, VAULT_CONFIG, MESSAGE_TYPES as VAULT_MESSAGE_TYPES, calculateRetentionPriority, calculateMergeCompatibility, calculateTravelCost } from './chrono-vault-protocol.js';
+
+// PROTO-250: Synapse Garden — Organic neural growth, Hebbian plasticity, adaptive pruning
+export { SynapseGardenProtocol, GARDEN_PROTOCOL_STATES, PLASTICITY_RULES, GARDEN_CONFIG, MESSAGE_TYPES as GARDEN_MESSAGE_TYPES, calculateStrengthDelta, calculatePruneScore, calculateGardenHealth, calculateTransmitterEffect } from './synapse-garden-protocol.js';
+
+// PROTO-251: NOVA Intelligence Exchange — Julia-Motoko contracted compute exchange with 8 internal agents, L0-L7 stack
+export { NovaIntelligenceExchangeProtocol, NIE_PROTOCOL_STATES, NIE_CONTRACT_TYPES, NIE_AGENT_ROSTER, NIE_LAYERS, NIE_CONFIG, MESSAGE_TYPES as NIE_MESSAGE_TYPES, calculateContractPriority, calculateProofScore, calculateLearningConfidence, calculateLinguaConfidence } from './nova-intelligence-exchange-protocol.js';

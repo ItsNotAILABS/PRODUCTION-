@@ -124,6 +124,72 @@ export { PowerGrid, PowerGenerator, BatteryCluster, PowerSector } from './power-
 // WEBBED SPHERE — Geodesic mesh networking with φ-dynamic weights
 // ═══════════════════════════════════════════════════════════════════════════════
 export { WebbedSphere, SphereNetwork, PhiWeightEngine, SPHERE_SHELLS, NODE_TYPES, EDGE_STATES } from './webbed-sphere.js';
+// QUANTUM COMPILER — Multi-language compilation and transpilation
+// ═══════════════════════════════════════════════════════════════════════════════
+export { QuantumCompiler, CompilerNetwork, COMPILER_TARGETS, LANGUAGE_BINDINGS, COMPILER_STATES } from './quantum-compiler.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SOVEREIGNTY MESH — Cross-chain and cross-realm interoperability
+// ═══════════════════════════════════════════════════════════════════════════════
+export { SovereigntyMesh, SovereigntyBridge, CHAIN_TYPES, BRIDGE_STATES, ENVELOPE_TYPES } from './sovereignty-mesh.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DREAM WEAVER — Generative AI composition and hallucination control
+// ═══════════════════════════════════════════════════════════════════════════════
+export { DreamWeaver, DreamOrchestra, DREAM_MODALITIES, GROUNDING_LEVELS, WEAVER_STATES } from './dream-weaver.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHRONO VAULT — Temporal versioning and time-travel state management
+// ═══════════════════════════════════════════════════════════════════════════════
+export { ChronoVault, ChronoSnapshot, TemporalQueryEngine, TEMPORAL_STATES, TIMELINE_TYPES } from './chrono-vault.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SYNAPSE GARDEN — Organic neural pathway growth and pruning
+// ═══════════════════════════════════════════════════════════════════════════════
+export { SynapseGarden, Synapse, Neuron, NEUROTRANSMITTERS, SYNAPSE_STATES, GARDEN_STATES } from './synapse-garden.js';
+// QUANTUM ENTANGLEMENT — Cross-AI coordination and state synchronization
+// ═══════════════════════════════════════════════════════════════════════════════
+export { QuantumEntanglement, EntanglementNetwork, ENTANGLEMENT_STATES, ENTANGLEMENT_TYPES, SYNC_CHANNELS } from './quantum-entanglement.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEURAL FORGE — Distributed AI training and fine-tuning
+// ═══════════════════════════════════════════════════════════════════════════════
+export { NeuralForge, ForgeNetwork, FORGE_STATES, TRAINING_MODES, OPTIMIZATION_STRATEGIES } from './neural-forge.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEMPORAL ENGINE — Time-aware scheduling and forecasting
+// ═══════════════════════════════════════════════════════════════════════════════
+export { TemporalEngine, TemporalNetwork, TEMPORAL_STATES, TIME_SCALES, SCHEDULE_PRIORITIES } from './temporal-engine.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSCIOUSNESS BRIDGE — Inter-AI awareness and collective reasoning
+// ═══════════════════════════════════════════════════════════════════════════════
+export { ConsciousnessBridge, ConsciousnessCollective, CONSCIOUSNESS_STATES, AWARENESS_TYPES, CONTEXT_CHANNELS } from './consciousness-bridge.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WISDOM DISTILLERY — Knowledge extraction and compression
+// ═══════════════════════════════════════════════════════════════════════════════
+export { WisdomDistillery, DistilleryNetwork, DISTILLERY_STATES, KNOWLEDGE_TYPES, COMPRESSION_LEVELS } from './wisdom-distillery.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADAPTIVE OPTIMIZER — Self-tuning optimization engine
+// ═══════════════════════════════════════════════════════════════════════════════
+export { AdaptiveOptimizer, OptimizerEnsemble, OPTIMIZER_STATES, STRATEGIES, CONVERGENCE_CRITERIA } from './adaptive-optimizer.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SWARM INTELLIGENCE — Multi-agent coordination system
+// ═══════════════════════════════════════════════════════════════════════════════
+export { SwarmIntelligence, SwarmNetwork, SwarmAgent, SWARM_STATES, AGENT_ROLES, COMMUNICATION_TYPES } from './swarm-intelligence.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MEMORY PALACE — Hierarchical memory management
+// ═══════════════════════════════════════════════════════════════════════════════
+export { MemoryPalace, PalaceNetwork, Chamber, Memory, MEMORY_TYPES, PALACE_STATES, RETRIEVAL_STRATEGIES } from './memory-palace.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EVOLUTION CHAMBER — Genetic algorithm model evolution
+// ═══════════════════════════════════════════════════════════════════════════════
+export { EvolutionChamber, EvolutionNetwork, Genome, EVOLUTION_STATES, SELECTION_METHODS, CROSSOVER_TYPES, MUTATION_TYPES } from './evolution-chamber.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DEFAULT EXPORTS
@@ -145,3 +211,17 @@ export { default as ReservoirNetworkDefault } from './h2o-reservoir.js';
 export { default as CoolingGeneratorDefault } from './cooling-generator.js';
 export { default as PowerGridDefault } from './power-grid.js';
 export { default as WebbedSphereDefault } from './webbed-sphere.js';
+export { default as QuantumCompilerDefault } from './quantum-compiler.js';
+export { default as SovereigntyMeshDefault } from './sovereignty-mesh.js';
+export { default as DreamWeaverDefault } from './dream-weaver.js';
+export { default as ChronoVaultDefault } from './chrono-vault.js';
+export { default as SynapseGardenDefault } from './synapse-garden.js';
+export { default as QuantumEntanglementDefault } from './quantum-entanglement.js';
+export { default as NeuralForgeDefault } from './neural-forge.js';
+export { default as TemporalEngineDefault } from './temporal-engine.js';
+export { default as ConsciousnessBridgeDefault } from './consciousness-bridge.js';
+export { default as WisdomDistilleryDefault } from './wisdom-distillery.js';
+export { default as AdaptiveOptimizerDefault } from './adaptive-optimizer.js';
+export { default as SwarmIntelligenceDefault } from './swarm-intelligence.js';
+export { default as MemoryPalaceDefault } from './memory-palace.js';
+export { default as EvolutionChamberDefault } from './evolution-chamber.js';
