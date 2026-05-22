@@ -2,9 +2,14 @@
   "version": 1,
   "dfx": "0.22.0",
   "canisters": {
-    "vigil_frontend": {
+    "organism_backend": {
+      "type": "motoko",
+      "main": "organism/motoko/src/Organism.mo"
+    },
+    "organism_frontend": {
       "type": "assets",
-      "source": ["icp-dist"]
+      "source": ["icp-dist"],
+      "dependencies": ["organism_backend"]
     }
   },
   "networks": {

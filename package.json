@@ -24,7 +24,10 @@
     "install-extensions": "node organism-cli install",
     "bundle": "node scripts/bundle-release.js",
     "prepare-sdks": "node scripts/prepare-sdks.js",
-    "clean": "rm -rf dist/"
+    "build:icp": "node scripts/build-icp.js",
+    "deploy:icp": "dfx deploy organism_backend && node scripts/build-icp.js && dfx deploy organism_frontend",
+    "deploy:icp:ic": "DFX_NETWORK=ic dfx deploy --network ic organism_backend && DFX_NETWORK=ic node scripts/build-icp.js && dfx deploy --network ic organism_frontend",
+    "clean": "rm -rf dist/ icp-dist/"
   },
   "keywords": [
     "ai",
