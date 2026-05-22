@@ -36,13 +36,13 @@ class MiniHeartProtocol {
     this.vitals.uptime = (Date.now() - this.startTime) / 1000;
     
     // Calculate health score (phi-weighted)
-    const cpuHealth = Math.max(0, 1 - this.vitals.cpu) * 30;
-    const memHealth = Math.max(0, 1 - this.vitals.memory) * 25;
-    const latencyHealth = Math.max(0, 1 - this.vitals.latency / 1000) * 20;
-    const errorHealth = Math.max(0, 1 - this.vitals.errors / 100) * 15;
-    const throughputHealth = Math.min(1, this.vitals.throughput / 100) * 10;
+    const cpuHealth = Math.max(0, 1 - this.vitals.cpu) * 60;
+    const memHealth = Math.max(0, 1 - this.vitals.memory) * 50;
+    const latencyHealth = Math.max(0, 1 - this.vitals.latency / 1000) * 15;
+    const errorHealth = Math.max(0, 1 - this.vitals.errors / 100) * 8;
+    const throughputHealth = Math.min(1, this.vitals.throughput / 100) * 5;
     
-    this.healthScore = Math.round(cpuHealth + memHealth + latencyHealth + errorHealth + throughputHealth);
+    this.healthScore = Math.min(100, Math.round(cpuHealth + memHealth + latencyHealth + errorHealth + throughputHealth));
     
     // Check thresholds and raise alarms
     this.checkAlarms();

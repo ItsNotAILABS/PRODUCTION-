@@ -79,34 +79,50 @@ class MetaLearningProtocol {
 
   /**
    * Record a learning step within the current task
-   * @param {number} loss - Current loss value
-   * @param {object} gradients - Gradients w.r.t. parameters
+   * @param {object|number} data - Step data object { loss, accuracy } or loss value
+   * @param {object} gradients - Gradients w.r.t. parameters (when data is number)
    */
-  recordStep(loss, gradients = {}) {
+  recordStep(data, gradients = {}) {
     const currentTask = this.innerLoop[this.innerLoop.length - 1];
     if (!currentTask) return;
 
-    currentTask.steps.push({
-      loss,
-      gradients,
-      timestamp: Date.now(),
-    });
+    if (typeof data === 'object' && data !== null) {
+      currentTask.steps.push({
+        loss: data.loss,
+        accuracy: data.accuracy,
+        timestamp: Date.now(),
+      });
+    } else {
+      currentTask.steps.push({
+        loss: data,
+        gradients,
+        timestamp: Date.now(),
+      });
+    }
 
     return currentTask.steps.length;
   }
 
   /**
    * End the current task and compute meta-gradient
-   * @param {number} finalLoss - Final loss after inner loop
+   * @param {number} [finalLoss] - Final loss after inner loop (derived from steps if omitted)
    * @returns {object} Task summary with convergence metrics
    */
   endTask(finalLoss) {
     const currentTask = this.innerLoop[this.innerLoop.length - 1];
     if (!currentTask) return null;
 
-    const initialLoss = currentTask.steps[0]?.loss || 1.0;
+    const steps = currentTask.steps;
+    const initialLoss = steps[0]?.loss || 1.0;
+    const lastStep = steps[steps.length - 1];
+
+    if (finalLoss === undefined) {
+      finalLoss = lastStep?.loss ?? initialLoss;
+    }
+
+    const finalAccuracy = lastStep?.accuracy ?? 0;
     const convergenceRate = initialLoss > 0 ? (initialLoss - finalLoss) / initialLoss : 0;
-    const stepCount = currentTask.steps.length;
+    const stepCount = steps.length;
     const duration = Date.now() - currentTask.startTime;
 
     // Compute effectiveness (how well did current hyperparams work?)
@@ -116,7 +132,9 @@ class MetaLearningProtocol {
       taskId: currentTask.taskId,
       initialLoss,
       finalLoss,
+      finalAccuracy,
       convergenceRate,
+      improvement: initialLoss - finalLoss,
       stepCount,
       duration,
       effectiveness,
@@ -275,6 +293,71 @@ class MetaLearningProtocol {
       tasksAnalyzed: recent.length,
       bestPerformance: this.stats.bestPerformance,
       totalAdaptations: this.stats.adaptations,
+    };
+  }
+
+  /**
+   * Compute meta-gradient for a specific hyperparameter
+   * @param {string} key - Hyperparameter name
+   * @returns {number} Estimated gradient
+   */
+  computeMetaGradient(key) {
+    if (this.taskPerformance.length < 2) return 0;
+
+    const prev = this.taskPerformance[this.taskPerformance.length - 2];
+    const curr = this.taskPerformance[this.taskPerformance.length - 1];
+    const deltaPerf = curr.effectiveness - prev.effectiveness;
+    const deltaParam = curr.hyperparams[key] - prev.hyperparams[key];
+
+    if (Math.abs(deltaParam) > 1e-10) {
+      return deltaPerf / deltaParam;
+    }
+    return this.metaGradients[key] || 0;
+  }
+
+  /**
+   * Set hyperparameters, clamping to bounds
+   * @param {object} params - Hyperparameters to update
+   */
+  setHyperparams(params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (key in HYPER_BOUNDS) {
+        const bounds = HYPER_BOUNDS[key];
+        this.hyperparams[key] = Math.max(bounds.min, Math.min(bounds.max, value));
+      }
+    }
+  }
+
+  /**
+   * Reset all meta-gradients to zero
+   */
+  resetMetaGradients() {
+    for (const key of Object.keys(this.metaGradients)) {
+      this.metaGradients[key] = 0;
+    }
+  }
+
+  /**
+   * Get current stats
+   * @returns {object} Copy of stats
+   */
+  getStats() {
+    return { ...this.stats };
+  }
+
+  /**
+   * Get a comprehensive meta-learning report
+   * @returns {object} Report with hyperparams, stats, and history
+   */
+  getMetaReport() {
+    return {
+      hyperparams: { ...this.hyperparams },
+      currentParams: { ...this.hyperparams },
+      stats: { ...this.stats },
+      taskCount: this.taskPerformance.length,
+      history: this.taskPerformance.slice(-10),
+      outerSteps: this.outerSteps,
+      metaGradients: { ...this.metaGradients },
     };
   }
 

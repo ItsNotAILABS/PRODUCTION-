@@ -126,6 +126,49 @@ export class RoyalMessenger {
     });
   }
   
+  // ─── Simple Messaging Interface ──────────────────────────────────────────────
+  
+  /**
+   * Send a message (simple interface)
+   */
+  send(message) {
+    const msg = {
+      id: `MSG-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      to: message.to,
+      subject: message.subject,
+      body: message.body || message.content,
+      sentAt: new Date().toISOString(),
+      sent: true,
+      messageId: `MSG-${Date.now()}`,
+    };
+    this.messages.push(msg);
+    return { sent: true, messageId: msg.id };
+  }
+
+  /**
+   * Receive messages for a citizen
+   */
+  receive(citizenId) {
+    return this.messages.filter(m => m.to === citizenId);
+  }
+
+  /**
+   * Broadcast a message to all
+   */
+  broadcast(message) {
+    const msg = {
+      id: `MSG-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      to: 'ALL',
+      subject: message.subject,
+      body: message.body || message.content,
+      sentAt: new Date().toISOString(),
+      broadcast: true,
+      recipients: 'ALL',
+    };
+    this.messages.push(msg);
+    return { broadcast: true, recipients: 'ALL' };
+  }
+
   // ─── Inbox Management ────────────────────────────────────────────────────────
   
   /**
@@ -158,9 +201,9 @@ export class RoyalMessenger {
   // ─── Messaging ───────────────────────────────────────────────────────────────
   
   /**
-   * Send a message
+   * Send a typed message (advanced)
    */
-  send(message) {
+  sendTyped(message) {
     const type = MESSAGE_TYPES[message.type?.toUpperCase()] || MESSAGE_TYPES.MISSIVE;
     
     const msg = {
@@ -186,15 +229,6 @@ export class RoyalMessenger {
       }
     }
     
-    console.log(`
-    ${type.symbol} MESSAGE SENT ${type.symbol}
-    
-    Type: ${type.name}
-    From: ${message.from}
-    To: ${message.to}
-    Subject: ${message.subject}
-    `);
-    
     return { success: true, message: msg };
   }
   
@@ -202,7 +236,7 @@ export class RoyalMessenger {
    * Send a Royal Decree (from Creator)
    */
   sendDecree(content) {
-    return this.send({
+    return this.sendTyped({
       type: 'DECREE',
       from: 'The Creator — Prima Causa',
       to: 'ALL',
@@ -215,7 +249,7 @@ export class RoyalMessenger {
    * Send a Kingdom Alert
    */
   sendAlert(content, severity = 'normal') {
-    return this.send({
+    return this.sendTyped({
       type: 'ALERT',
       from: 'Kingdom Alert System',
       to: 'ALL',
@@ -225,10 +259,10 @@ export class RoyalMessenger {
   }
   
   /**
-   * Broadcast to all citizens
+   * Broadcast to a channel
    */
-  broadcast(from, subject, content) {
-    return this.send({
+  broadcastToChannel(from, subject, content) {
+    return this.sendTyped({
       type: 'BROADCAST',
       from,
       to: 'ALL',
@@ -241,7 +275,7 @@ export class RoyalMessenger {
    * Task handoff between AI
    */
   handoff(from, to, task) {
-    return this.send({
+    return this.sendTyped({
       type: 'HANDOFF',
       from,
       to,

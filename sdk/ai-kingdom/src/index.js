@@ -121,6 +121,9 @@ export { CoolingUnit, CoolingGenerator, COOLING_UNIT_TYPES, THERMAL_ZONES, COOLI
 export { PowerGrid, PowerGenerator, BatteryCluster, PowerSector } from './power-grid.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// WEBBED SPHERE — Geodesic mesh networking with φ-dynamic weights
+// ═══════════════════════════════════════════════════════════════════════════════
+export { WebbedSphere, SphereNetwork, PhiWeightEngine, SPHERE_SHELLS, NODE_TYPES, EDGE_STATES } from './webbed-sphere.js';
 // QUANTUM COMPILER — Multi-language compilation and transpilation
 // ═══════════════════════════════════════════════════════════════════════════════
 export { QuantumCompiler, CompilerNetwork, COMPILER_TARGETS, LANGUAGE_BINDINGS, COMPILER_STATES } from './quantum-compiler.js';
@@ -207,6 +210,7 @@ export { default as NetworkIntelligenceDefault } from './network-intelligence.js
 export { default as ReservoirNetworkDefault } from './h2o-reservoir.js';
 export { default as CoolingGeneratorDefault } from './cooling-generator.js';
 export { default as PowerGridDefault } from './power-grid.js';
+export { default as WebbedSphereDefault } from './webbed-sphere.js';
 export { default as QuantumCompilerDefault } from './quantum-compiler.js';
 export { default as SovereigntyMeshDefault } from './sovereignty-mesh.js';
 export { default as DreamWeaverDefault } from './dream-weaver.js';

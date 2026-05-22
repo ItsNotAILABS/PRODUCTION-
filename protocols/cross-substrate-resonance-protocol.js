@@ -101,6 +101,18 @@ class CrossSubstrateResonanceProtocol {
     return { accepted: true, envelope };
   }
 
+  broadcast(payload) {
+    for (const [substrate] of this.peers) {
+      this.send(substrate, payload, 'broadcast');
+    }
+  }
+
+  getResonanceBond(substrate) {
+    const peer = this.peers.get(substrate);
+    if (!peer) return 0;
+    return peer.resonanceStrength;
+  }
+
   bond(substrate1, substrate2) {
     const key = [substrate1, substrate2].sort().join('<->');
     this.resonanceBonds.set(key, {

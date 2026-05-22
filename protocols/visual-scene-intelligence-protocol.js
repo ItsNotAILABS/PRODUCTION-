@@ -105,7 +105,7 @@ class VisualSceneIntelligenceProtocol {
   /**
    * Detect objects returning bounding boxes.
    * @param {string|Object} imageData
-   * @returns {Object[]} - [{label, x, y, w, h, confidence}]
+   * @returns {Object} - {objects, engine, count}
    */
   detectObjects(imageData) {
     const engine = this._getBestEngine('detect');
@@ -132,7 +132,11 @@ class VisualSceneIntelligenceProtocol {
     if (engine) engine.usageCount++;
     this.metrics.objectsDetected += detections.length;
 
-    return detections;
+    return {
+      objects: detections,
+      engine: engine ? engine.id : 'fallback',
+      count: detections.length
+    };
   }
 
   /**
@@ -175,11 +179,14 @@ class VisualSceneIntelligenceProtocol {
 
   /**
    * Create visual element using best visual engine (DALL-E/SD routing).
-   * @param {string} prompt - Generation prompt
+   * @param {string|Object} promptInput - Generation prompt string or {prompt, style}
    * @param {string} style - Visual style
-   * @returns {Object} - {elementId, engine, prompt, style, dimensions, generatedAt}
+   * @returns {Object} - {elementId, engine, prompt, style, dimensions, output, generatedAt}
    */
-  generateElement(prompt, style = 'realistic') {
+  generateElement(promptInput, style = 'realistic') {
+    const prompt = typeof promptInput === 'object' ? (promptInput.prompt || '') : promptInput;
+    if (typeof promptInput === 'object' && promptInput.style) style = promptInput.style;
+
     // Route to best generation engine
     let bestEngine = null;
     let bestScore = -1;
@@ -205,6 +212,8 @@ class VisualSceneIntelligenceProtocol {
       engine: bestEngine ? bestEngine.id : 'fallback',
       prompt,
       style,
+      output: `generated-${this._simpleHash(prompt)}`,
+      element: { width, height, prompt },
       dimensions: { width, height },
       goldenRatio: width / height,
       generatedAt: Date.now()
@@ -263,9 +272,12 @@ class VisualSceneIntelligenceProtocol {
 
     return {
       sceneId: `scene-${this.metrics.scenesComposed}`,
+      scene: `scene-${this.metrics.scenesComposed}`,
+      composition: positioned,
       canvas: { width: canvasWidth, height: canvasHeight },
       elements: positioned,
       compositionScore,
+      score: compositionScore,
       goldenRatioAdherence: 1 - avgDeviation
     };
   }
@@ -288,6 +300,8 @@ class VisualSceneIntelligenceProtocol {
       contentSource: contentStr.slice(0, 50),
       styleSource: styleStr.slice(0, 50),
       engine: engine ? engine.id : 'fallback',
+      output: `styled-${Date.now()}`,
+      styled: true,
       blendFactor: 1 / PHI,
       preserveContent: PHI / (1 + PHI),
       preserveStyle: 1 / (1 + PHI),
@@ -341,18 +355,112 @@ class VisualSceneIntelligenceProtocol {
   }
 
   /**
+   * Segment an entire scene into regions.
+   * @param {string|Object} imageData
+   * @returns {Object} - {segments, engine, count}
+   */
+  segmentScene(imageData) {
+    const engine = this._getBestEngine('segment');
+    const dataStr = typeof imageData === 'string' ? imageData : JSON.stringify(imageData);
+    const hash = this._simpleHash(dataStr);
+
+    const numSegments = 3 + (hash % 5);
+    const segments = [];
+    for (let i = 0; i < numSegments; i++) {
+      const angle = i * GOLDEN_ANGLE;
+      const r = Math.sqrt(i + 1) / Math.sqrt(numSegments);
+      segments.push({
+        id: `seg-${i}`,
+        x: Math.round((0.5 + r * Math.cos(angle) * 0.4) * 1000) / 1000,
+        y: Math.round((0.5 + r * Math.sin(angle) * 0.4) * 1000) / 1000,
+        area: Math.round((0.05 + (hash % 20) / 100) * 1000) / 1000
+      });
+    }
+
+    if (engine) engine.usageCount++;
+
+    return {
+      segments,
+      engine: engine ? engine.id : 'fallback',
+      count: segments.length
+    };
+  }
+
+  /**
+   * Apply style transfer between content and style images.
+   * @param {string|Object} content - Content image
+   * @param {string|Object} styleRef - Style reference
+   * @returns {Object} - Style transfer result
+   */
+  applyStyle(content, styleRef) {
+    return this.applyStyleTransfer(content, styleRef);
+  }
+
+  /**
+   * Run the full visual pipeline on input data.
+   * @param {string|Object} imageData
+   * @returns {Promise<Object>} - Pipeline result
+   */
+  async runPipeline(imageData) {
+    const stages = [];
+
+    const description = this.describeScene(imageData);
+    stages.push({ stage: 'describe', result: description });
+
+    const detection = this.detectObjects(imageData);
+    stages.push({ stage: 'detect', result: detection });
+
+    const segmentation = this.segmentScene(imageData);
+    stages.push({ stage: 'segment', result: segmentation });
+
+    const generated = this.generateElement({ prompt: `enhance ${description.tags[0]}` });
+    stages.push({ stage: 'generate', result: generated });
+
+    const composed = this.composeScene([
+      { type: 'base', data: description },
+      { type: 'generated', data: generated }
+    ]);
+    stages.push({ stage: 'compose', result: composed });
+
+    return {
+      output: composed,
+      scene: composed.scene,
+      final: composed,
+      stages,
+      pipelineStages: stages.map(s => s.stage)
+    };
+  }
+
+  /**
+   * Get all registered engines.
+   * @returns {Object[]}
+   */
+  getEngines() {
+    return Array.from(this.engineRegistry.values());
+  }
+
+  /**
    * Returns scene intelligence metrics.
    * @returns {Object}
    */
-  getSceneMetrics() {
+  getMetrics() {
     return {
       scenesComposed: this.metrics.scenesComposed,
       objectsDetected: this.metrics.objectsDetected,
       elementsGenerated: this.metrics.elementsGenerated,
+      totalCompositionScore: this.metrics.totalCompositionScore,
       avgCompositionScore: this.metrics.scenesComposed > 0
         ? this.metrics.totalCompositionScore / this.metrics.scenesComposed
         : 0
     };
+  }
+
+  /**
+   * Returns scene intelligence metrics (alias).
+   * @returns {Object}
+   */
+  getSceneMetrics() {
+    return this.getMetrics();
   }
 }
 

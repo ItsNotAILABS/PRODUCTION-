@@ -191,6 +191,14 @@ class AdaptiveKnowledgeAbsorptionProtocol {
       }
     }
 
+    if (totalScore === 0) {
+      return {
+        topCategory: 'general',
+        confidence: 0,
+        categories: scores
+      };
+    }
+
     const topCategory = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
     return {
       topCategory: topCategory ? topCategory[0] : 'general',

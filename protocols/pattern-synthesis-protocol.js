@@ -326,106 +326,157 @@ class PatternSynthesisProtocol {
     this.cacheLimit = 100;
     this.synthesesPerformed = 0;
     this.lastSynthesis = null;
+    this.syntheses = new Map();
+    this.patterns = [];
+    this.extractions = [];
+    this.synthesisCount = 0;
+    this.primitives = new Map();
+    for (const [domain, prims] of Object.entries(KNOWLEDGE_PRIMITIVES)) {
+      this.primitives.set(domain, prims);
+    }
   }
 
   recognize(input) {
-    const patterns = [];
+    const matches = [];
+    const domains = [];
     const text = typeof input === 'string' ? input.toLowerCase() : JSON.stringify(input).toLowerCase();
-    
+
     for (const [domain, primitives] of Object.entries(KNOWLEDGE_PRIMITIVES)) {
       for (const prim of primitives) {
         const keywords = prim.name.toLowerCase().split(/\s+/);
-        const matches = keywords.filter(kw => text.includes(kw.substring(0, 4))).length;
-        if (matches > 0) {
-          patterns.push({
-            domain,
-            primitive: prim,
-            confidence: matches / keywords.length * prim.weight,
-          });
+        const hitCount = keywords.filter(kw => {
+          const prefix = kw.length <= 4 ? kw : kw.substring(0, 5);
+          return text.includes(prefix);
+        }).length;
+        if (hitCount > 0) {
+          const confidence = hitCount / keywords.length * prim.weight;
+          matches.push({ domain, primitive: prim, confidence, id: prim.id });
+          if (!domains.includes(domain)) domains.push(domain);
         }
       }
     }
-    
-    return patterns.sort((a, b) => b.confidence - a.confidence);
+
+    matches.sort((a, b) => b.confidence - a.confidence);
+    const confidence = matches.length > 0 ? matches[0].confidence : 0;
+    this.patterns.push(...matches);
+
+    return { matches, confidence, domains };
   }
 
-  extract(patterns) {
-    const extracted = {};
-    for (const p of patterns) {
-      if (!extracted[p.domain]) extracted[p.domain] = [];
-      extracted[p.domain].push({
-        id: p.primitive.id,
-        weight: p.primitive.weight * p.confidence,
-      });
-    }
-    return extracted;
+  extract(input) {
+    const recognition = this.recognize(input);
+    const primitives = recognition.matches.map(m => ({
+      id: m.primitive.id,
+      weight: m.primitive.weight,
+      domain: m.domain,
+    }));
+
+    const result = { primitives, domains: recognition.domains, input };
+    this.extractions.push(result);
+    return result;
   }
 
-  merge(extractions) {
-    const merged = [];
-    const domains = Object.keys(extractions);
-    
-    for (let i = 0; i < domains.length; i++) {
-      for (let j = i + 1; j < domains.length; j++) {
-        const d1 = extractions[domains[i]] || [];
-        const d2 = extractions[domains[j]] || [];
-        
-        for (const p1 of d1) {
-          for (const p2 of d2) {
-            merged.push({
-              bridge: `${domains[i]}:${p1.id} ↔ ${domains[j]}:${p2.id}`,
-              strength: (p1.weight + p2.weight) / 2 * PHI,
-              domains: [domains[i], domains[j]],
-            });
-          }
+  merge(extractionsList) {
+    const allPrimitives = [];
+    const allDomains = [];
+    let totalWeight = 0;
+
+    for (const ext of extractionsList) {
+      if (ext && ext.primitives) {
+        allPrimitives.push(...ext.primitives);
+        for (const p of ext.primitives) {
+          totalWeight += (p.weight || 0);
+        }
+      }
+      if (ext && ext.domains) {
+        for (const d of ext.domains) {
+          if (!allDomains.includes(d)) allDomains.push(d);
         }
       }
     }
-    
-    return merged.sort((a, b) => b.strength - a.strength).slice(0, 10);
+
+    const combinedWeight = totalWeight * PHI;
+
+    return {
+      primitives: allPrimitives,
+      totalWeight,
+      combinedWeight,
+      domains: allDomains,
+      sourceDomains: allDomains,
+    };
   }
 
-  synthesize(input) {
-    const cacheKey = typeof input === 'string' ? input : JSON.stringify(input);
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey);
-    }
-    
-    const patterns = this.recognize(input);
-    const extracted = this.extract(patterns);
-    const merged = this.merge(extracted);
-    
+  synthesize(label) {
+    const id = `synth-${Date.now()}-${this.synthesisCount}`;
+    const allPrimitives = this.extractions.flatMap(e => e.primitives || []);
+    const totalWeight = allPrimitives.reduce((sum, p) => sum + (p.weight || 0), 0);
+    const confidence = allPrimitives.length > 0 ? Math.min(totalWeight / allPrimitives.length / PHI, 1.0) : 0;
+
     const synthesis = {
-      input: cacheKey.substring(0, 100),
-      patterns: patterns.slice(0, 5),
-      extractions: extracted,
-      bridges: merged,
-      dominantDomain: patterns[0]?.domain || null,
-      totalWeight: patterns.reduce((sum, p) => sum + p.confidence, 0),
-      phiHarmony: patterns.length > 0 ? patterns[0].confidence / PHI : 0,
+      id,
+      synthesisId: id,
+      label,
+      primitives: allPrimitives,
+      totalWeight,
+      confidence,
       timestamp: Date.now(),
     };
-    
-    if (this.cache.size >= this.cacheLimit) {
-      const oldest = this.cache.keys().next().value;
-      this.cache.delete(oldest);
-    }
-    this.cache.set(cacheKey, synthesis);
-    
+
+    this.syntheses.set(id, synthesis);
+    this.synthesisCount++;
     this.synthesesPerformed++;
     this.lastSynthesis = synthesis;
-    
+
     return synthesis;
   }
 
+  findCrossDomainPatterns() {
+    const domainMap = {};
+    for (const ext of this.extractions) {
+      if (ext.domains) {
+        for (const d of ext.domains) {
+          if (!domainMap[d]) domainMap[d] = [];
+          domainMap[d].push(ext);
+        }
+      }
+    }
+
+    const patterns = [];
+    const domainKeys = Object.keys(domainMap);
+    for (let i = 0; i < domainKeys.length; i++) {
+      for (let j = i + 1; j < domainKeys.length; j++) {
+        patterns.push({
+          domains: [domainKeys[i], domainKeys[j]],
+          strength: PHI_INV,
+        });
+      }
+    }
+
+    return { patterns };
+  }
+
+  getPrimitivesByDomain(domain) {
+    return KNOWLEDGE_PRIMITIVES[domain] || [];
+  }
+
+  getSynthesisMetrics() {
+    return {
+      synthesisCount: this.synthesisCount,
+      totalSyntheses: this.synthesisCount,
+      extractionCount: this.extractions.length,
+      totalExtractions: this.extractions.length,
+      patternCount: this.patterns.length,
+      totalPatterns: this.patterns.length,
+    };
+  }
+
   getMetrics() {
-    // Count total primitives across all 40 domains (5 per domain = 200)
     const totalPrimitives = Object.values(KNOWLEDGE_PRIMITIVES)
       .reduce((sum, prims) => sum + prims.length, 0);
-    
+
     return {
-      totalPrimitives,  // 200 primitives across 40 domains
-      domains: DOMAINS.length,  // 40 domains
+      totalPrimitives,
+      domains: DOMAINS.length,
       domainCategories: {
         coreSciences: 8,
         cognitiveSciences: 8,
@@ -443,16 +494,10 @@ class PatternSynthesisProtocol {
     };
   }
 
-  /**
-   * Get all primitives for a specific domain
-   */
   getDomainPrimitives(domain) {
     return KNOWLEDGE_PRIMITIVES[domain] || [];
   }
 
-  /**
-   * Get all domains in a category
-   */
   getDomainsInCategory(category) {
     const categories = {
       coreSciences: ['physics', 'math', 'chemistry', 'biology', 'astronomy', 'geology', 'ecology', 'genetics'],

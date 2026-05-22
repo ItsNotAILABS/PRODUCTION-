@@ -91,7 +91,58 @@ class SynapseBindingEngineProtocol {
     if (!inserted) this.jobQueue.push(job);
     
     this.totalJobs++;
-    return job.id;
+    return job;
+  }
+
+  processNextJob() {
+    if (this.jobQueue.length === 0) return null;
+    const job = this.jobQueue.shift();
+    job.status = 'processing';
+    job.scheduledAt = Date.now();
+    this._activeJobs = this._activeJobs || [];
+    this._activeJobs.push(job);
+    return job;
+  }
+
+  completeJob(jobId) {
+    const job = this._findJob(jobId);
+    if (!job) return null;
+    job.status = 'completed';
+    job.completedAt = Date.now();
+    this.completedJobs.push(job);
+    return job;
+  }
+
+  failJob(jobId, failureClass) {
+    const job = this._findJob(jobId);
+    if (!job) return null;
+    job.status = 'failed';
+    job.failureClass = failureClass;
+    this.failedJobs.push(job);
+    return job;
+  }
+
+  retryJob(jobId) {
+    const job = this._findJob(jobId);
+    if (!job) return null;
+    const bounds = RECOVERY_BOUNDS[job.failureClass];
+    if (!bounds || bounds.retries === 0) return job;
+    job.retries++;
+    job.status = 'queued';
+    this.jobQueue.push(job);
+    return job;
+  }
+
+  getImprint(id) {
+    return this.imprints.get(id);
+  }
+
+  _findJob(jobId) {
+    return this.jobQueue.find(j => j.id === jobId)
+      || (this._activeJobs || []).find(j => j.id === jobId)
+      || this.completedJobs.find(j => j.id === jobId)
+      || this.failedJobs.find(j => j.id === jobId)
+      || null;
   }
 
   async processNext() {
@@ -214,7 +265,10 @@ class SynapseBindingEngineProtocol {
   getMetrics() {
     return {
       imprintCount: this.imprints.size,
+      totalImprints: this.imprints.size,
       queueLength: this.jobQueue.length,
+      queuedJobs: this.jobQueue.length,
+      pendingJobs: this.jobQueue.length,
       completedCount: this.completedJobs.length,
       failedCount: this.failedJobs.length,
       totalJobs: this.totalJobs,

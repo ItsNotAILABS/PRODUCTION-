@@ -71,7 +71,7 @@ class VitalityHomeostasisProtocol {
       cognitive: PHI,
       affective: 1.0,
       somatic: PHI - 1,
-      sovereign: PHI * PHI,
+      sovereign: PHI * PHI * PHI,
     };
     
     let weightedSum = 0;

@@ -159,7 +159,14 @@ class EncryptedIntelligenceTransport {
     const base64Part = encrypted.ciphertext.split('.')[0];
     let plaintext;
     try {
-      plaintext = Buffer.from(base64Part, 'base64').toString('utf-8');
+      const decoded = Buffer.from(base64Part, 'base64');
+      // Verify the base64 roundtrips correctly (detects corrupt data)
+      if (decoded.toString('base64') !== base64Part && base64Part.length > 0) {
+        plaintext = null;
+        verified = false;
+      } else {
+        plaintext = decoded.toString('utf-8');
+      }
     } catch {
       plaintext = null;
       verified = false;

@@ -164,6 +164,44 @@ export class AIKingdom {
     `);
   }
   
+  // ─── Territory Management ─────────────────────────────────────────────────────
+  
+  /**
+   * Add a new territory to the Kingdom
+   */
+  addTerritory(territory) {
+    if (!this._customTerritories) this._customTerritories = new Map();
+    const entry = {
+      name: territory.name,
+      type: territory.type || 'province',
+      addedAt: new Date().toISOString(),
+    };
+    this._customTerritories.set(territory.name, entry);
+    return entry;
+  }
+
+  /**
+   * Get a territory by name
+   */
+  getTerritory(name) {
+    if (this._customTerritories && this._customTerritories.has(name)) {
+      return this._customTerritories.get(name);
+    }
+    const key = Object.keys(this.territories).find(
+      k => this.territories[k].name === name
+    );
+    return key ? this.territories[key] : null;
+  }
+
+  /**
+   * Enforce a kingdom law
+   */
+  enforceLaw(lawId) {
+    const law = this.laws[lawId];
+    if (!law) return { success: false, reason: 'Law not found' };
+    return { success: true, law, enforced: true };
+  }
+
   // ─── Citizenship ─────────────────────────────────────────────────────────────
   
   /**
