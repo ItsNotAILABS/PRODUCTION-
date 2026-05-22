@@ -209,3 +209,6 @@ export { SynapseGardenProtocol, GARDEN_PROTOCOL_STATES, PLASTICITY_RULES, GARDEN
 
 // PROTO-251: NOVA Intelligence Exchange — Julia-Motoko contracted compute exchange with 8 internal agents, L0-L7 stack
 export { NovaIntelligenceExchangeProtocol, NIE_PROTOCOL_STATES, NIE_CONTRACT_TYPES, NIE_AGENT_ROSTER, NIE_LAYERS, NIE_CONFIG, MESSAGE_TYPES as NIE_MESSAGE_TYPES, calculateContractPriority, calculateProofScore, calculateLearningConfidence, calculateLinguaConfidence } from './nova-intelligence-exchange-protocol.js';
+
+// PROTO-253: Organism Arm Invocation — Extensions as autonomous arms (sense→think→act cycle)
+export { OrganismArmInvocationProtocol, ARM_PROTOCOL_STATES, ARM_TYPES, MESSAGE_TYPES as ARM_MESSAGE_TYPES, ARM_PROTOCOL_CONFIG, calculateArmPriority, calculateArmBackoff, calculateCycleHealth, shouldEscalate } from './organism-arm-invocation-protocol.js';
