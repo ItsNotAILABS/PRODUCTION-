@@ -40,6 +40,22 @@ class SignalRelayAdapter {
       EMERGENCE: 'emergence'
     };
 
+    // Outbound (motor command) queues — organism → extensions
+    this.outboundQueue = [];
+    this.maxOutbound = 500;
+    this.totalDispatches = 0;
+    this.dispatchLog = [];
+    this.maxDispatchLog = 200;
+
+    // Command types the organism can send to extension arms
+    this.COMMAND_TYPES = {
+      MOTOR:     'motor',      // Execute an action (Screen Commander, Code Sovereign, Voice Forge)
+      QUERY:     'query',      // Request data (Data Alchemist, Knowledge Sync)
+      REASON:    'reason',     // Ask for reasoning (Sovereign Mind, Logic Prover)
+      CONFIGURE: 'configure',  // Adjust arm parameters
+      HEARTBEAT: 'heartbeat',  // Organism pulse acknowledgement
+    };
+
     this.state = {
       initialized: true,
       heartbeatCount: 0,
@@ -141,6 +157,130 @@ class SignalRelayAdapter {
   }
 
   /**
+   * Dispatch a motor command from the organism to an extension arm.
+   * Outbound signal: organism → extension.
+   * @param {object} command { target, type, intent, payload, urgency }
+   * @returns {object}
+   */
+  dispatch(command) {
+    this.totalDispatches++;
+
+    var entry = {
+      id: 'cmd-' + Date.now().toString(36) + '-' + (this.totalDispatches % 9999),
+      target: command.target || 'organism-core',
+      type: command.type || this.COMMAND_TYPES.MOTOR,
+      intent: command.intent || 'act',
+      payload: command.payload || {},
+      urgency: command.urgency || 1,
+      phiWeight: this._phiWeight(command.urgency || 1),
+      dispatchedAt: Date.now(),
+      acknowledged: false,
+      result: null
+    };
+
+    // Phi-weight: urgent commands go to front
+    if (entry.phiWeight > 1.0) {
+      this.outboundQueue.unshift(entry);
+    } else {
+      this.outboundQueue.push(entry);
+    }
+    if (this.outboundQueue.length > this.maxOutbound) this.outboundQueue.pop();
+
+    // Route to target channel
+    var channel = this.channels.get(entry.target);
+    if (channel) {
+      if (!channel.outbound) channel.outbound = [];
+      channel.outbound.push(entry.id);
+      if (channel.outbound.length > 100) channel.outbound.shift();
+    }
+
+    var logEntry = {
+      dispatchId: entry.id,
+      target: entry.target,
+      type: entry.type,
+      intent: entry.intent,
+      phiWeight: entry.phiWeight,
+      timestamp: Date.now()
+    };
+    this.dispatchLog.unshift(logEntry);
+    if (this.dispatchLog.length > this.maxDispatchLog) this.dispatchLog.pop();
+
+    this._persist();
+
+    return {
+      success: true,
+      commandId: entry.id,
+      target: entry.target,
+      phiWeight: entry.phiWeight,
+      outboundDepth: this.outboundQueue.filter(function(c) { return !c.acknowledged; }).length,
+      ring: 'sovereign'
+    };
+  }
+
+  /**
+   * Dispatch multiple motor commands in batch (organism multi-arm reach).
+   * @param {object[]} commands - Array of command objects
+   * @returns {object[]}
+   */
+  dispatchAll(commands) {
+    var results = [];
+    for (var i = 0; i < commands.length; i++) {
+      results.push(this.dispatch(commands[i]));
+    }
+    return results;
+  }
+
+  /**
+   * Acknowledge a dispatched command with a result (extension → organism feedback).
+   * @param {string} commandId
+   * @param {object} result
+   * @returns {object}
+   */
+  acknowledge(commandId, result) {
+    var cmd = null;
+    for (var i = 0; i < this.outboundQueue.length; i++) {
+      if (this.outboundQueue[i].id === commandId) {
+        cmd = this.outboundQueue[i];
+        break;
+      }
+    }
+    if (!cmd) return { success: false, error: 'Command not found: ' + commandId };
+
+    cmd.acknowledged = true;
+    cmd.acknowledgedAt = Date.now();
+    cmd.result = result || {};
+    cmd.roundTripMs = cmd.acknowledgedAt - cmd.dispatchedAt;
+
+    return {
+      success: true,
+      commandId: commandId,
+      roundTripMs: cmd.roundTripMs,
+      phiEfficiency: Math.round((1 - (cmd.roundTripMs / (HEARTBEAT * PHI))) * 1000) / 1000,
+      ring: 'sovereign'
+    };
+  }
+
+  /**
+   * Get pending (unacknowledged) outbound commands.
+   * @param {number} [n=50]
+   * @returns {object[]}
+   */
+  getPendingOutbound(n) {
+    return this.outboundQueue
+      .filter(function(c) { return !c.acknowledged; })
+      .slice(0, n || 50);
+  }
+
+  /**
+   * Get outbound dispatch log.
+   * @param {number} [n=20]
+   * @returns {object[]}
+   */
+  getDispatchLog(n) {
+    return this.dispatchLog.slice(0, n || 20);
+  }
+
+  /**
    * Get pending (unrelayed) signals.
    */
   getPending(n) {
@@ -174,16 +314,20 @@ class SignalRelayAdapter {
 
   getState() {
     var pending = this.signalQueue.filter(function (s) { return !s.relayed; }).length;
+    var pendingOutbound = this.outboundQueue.filter(function (c) { return !c.acknowledged; }).length;
     return {
       initialized: this.state.initialized,
       heartbeatCount: this.state.heartbeatCount,
       healthy: this.state.healthy,
       totalSignals: this.totalSignals,
       totalRelays: this.totalRelays,
+      totalDispatches: this.totalDispatches,
       pendingSignals: pending,
+      pendingOutbound: pendingOutbound,
       pulseCount: this.pulseCount,
       phiPhase: Math.round(this.phiPhase * 1000) / 1000,
-      channels: this.channels.size
+      channels: this.channels.size,
+      bidirectional: true
     };
   }
 
@@ -242,6 +386,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   var engine = globalThis.signalRelayAdapter;
 
   switch (message.action) {
+    // Inbound (sensory): extension → organism
     case 'capture':
       sendResponse(engine.capture(message.signal));
       break;
@@ -251,6 +396,23 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     case 'getPending':
       sendResponse(engine.getPending(message.n));
       break;
+    // Outbound (motor): organism → extension
+    case 'dispatch':
+      sendResponse(engine.dispatch(message.command));
+      break;
+    case 'dispatchAll':
+      sendResponse(engine.dispatchAll(message.commands));
+      break;
+    case 'acknowledge':
+      sendResponse(engine.acknowledge(message.commandId, message.result));
+      break;
+    case 'getPendingOutbound':
+      sendResponse(engine.getPendingOutbound(message.n));
+      break;
+    case 'getDispatchLog':
+      sendResponse(engine.getDispatchLog(message.n));
+      break;
+    // Status
     case 'getChannelStats':
       sendResponse(engine.getChannelStats());
       break;
