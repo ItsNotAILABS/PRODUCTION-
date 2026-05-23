@@ -164,6 +164,96 @@ describe('Organism Arms SDK', () => {
       assert.ok(result.sensed.length > 0);
     });
   });
+
+  describe('BidirectionalRelay', () => {
+    let BidirectionalRelay, relay;
+
+    beforeEach(async () => {
+      const relayModule = await import('../../sdk/organism-arms/src/bidirectional-relay.js');
+      BidirectionalRelay = relayModule.BidirectionalRelay;
+      relay = new BidirectionalRelay(executor);
+    });
+
+    it('dispatches outbound motor commands', () => {
+      const result = relay.dispatch({
+        target: 'screen-commander',
+        type: 'motor',
+        intent: 'click',
+        payload: { selector: '#btn' },
+        urgency: 1.5,
+      });
+
+      assert.ok(result.commandId.startsWith('cmd-'));
+      assert.equal(result.target, 'screen-commander');
+      assert.equal(result.dispatched, true);
+      assert.ok(result.phiWeight > 0);
+    });
+
+    it('receives inbound signals from extensions', () => {
+      let received = null;
+      relay.onSignal('threat', (signal) => { received = signal; });
+
+      relay.receiveSignal({
+        source: 'sentinel-watch',
+        type: 'threat',
+        payload: { severity: 'high', description: 'XSS detected' },
+        priority: 0.9,
+      });
+
+      assert.ok(received !== null);
+      assert.equal(received.source, 'sentinel-watch');
+      assert.equal(received.type, 'threat');
+    });
+
+    it('dispatches and executes through ArmExecutor', async () => {
+      const ext = { id: 'EXT-024', slug: 'screen-commander', name: 'Screen Commander', wire: 'w', engines: [] };
+      registry.registerArm(ext, async ({ payload }) => ({ navigated: payload.url }));
+
+      const result = await relay.dispatchAndExecute({
+        target: 'screen-commander',
+        type: 'motor',
+        intent: 'navigate',
+        payload: { url: 'https://example.com' },
+      });
+
+      assert.equal(result.dispatched, true);
+      assert.equal(result.result.arm, 'screen-commander');
+      assert.deepEqual(result.result.output, { navigated: 'https://example.com' });
+    });
+
+    it('tracks relay statistics', async () => {
+      const ext = { id: 'EXT-005', slug: 'code-sovereign', name: 'Code Sovereign', wire: 'w', engines: [] };
+      registry.registerArm(ext, async () => ({ written: true }));
+
+      await relay.dispatchAndExecute({ target: 'code-sovereign', intent: 'write', payload: {} });
+      relay.receiveSignal({ source: 'sentinel-watch', type: 'data', payload: {} });
+
+      const stats = relay.getStats();
+      assert.equal(stats.outboundCount, 1);
+      assert.equal(stats.acknowledgedCount, 1);
+      assert.equal(stats.inboundCount, 1);
+      assert.ok(stats.phiEfficiency >= 0 && stats.phiEfficiency <= 1);
+    });
+
+    it('handles wildcard signal handler', () => {
+      let caught = [];
+      relay.onSignal('*', (signal) => { caught.push(signal); });
+
+      relay.receiveSignal({ source: 'data-alchemist', type: 'data', payload: {} });
+      relay.receiveSignal({ source: 'memory-palace', type: 'memory', payload: {} });
+
+      assert.equal(caught.length, 2);
+    });
+
+    it('reports pending outbound commands', () => {
+      relay.dispatch({ target: 'voice-forge', intent: 'speak', payload: { text: 'hello' } });
+      relay.dispatch({ target: 'code-sovereign', intent: 'write', payload: {} });
+
+      const pending = relay.getPendingOutbound();
+      assert.equal(pending.length, 2);
+      assert.equal(pending[0].acknowledged, false);
+    });
+  });
 });
 
 describe('Organism Arm Invocation Protocol (PROTO-253)', () => {
