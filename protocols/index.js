@@ -129,3 +129,6 @@ export { GeometricKeyProtocol, INTERFACE_TYPES, KEY_STATES, ACCESS, WINDOW_MS, D
 
 // PROTO-227: Sovereign Charter — hierarchical covenant binding all protocols, canisters, and the log
 export { SovereignCharterProtocol, TIERS, PROTOCOLS, DEPENDENCIES, CANISTERS, LOG_COVENANT, ACTIVATION_SEQUENCE } from './sovereign-charter.js';
+
+// PROTO-228: Edge AI Intelligence — named AI engines at edge locations, federated learning
+export { EdgeAIEngine, EdgeAIMesh, EDGE_AI_ENGINES, EDGE_AI_STATES, CORE_AI_ENGINES } from './edge-ai-intelligence-protocol.js';
