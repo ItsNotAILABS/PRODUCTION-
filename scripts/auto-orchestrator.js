@@ -32,7 +32,7 @@
 
 const fs   = require('fs');
 const path = require('path');
-const { execSync, spawn } = require('child_process');
+const { execFileSync, spawn } = require('child_process');
 
 // ── PHI Constants ─────────────────────────────────────────────────────────────
 const PHI = 1.618033988749895;
@@ -48,6 +48,27 @@ const METRICS_FILE   = path.join(REPO, 'governance', 'divergence', 'metrics.json
 const LINEAGE_FILE   = path.join(REPO, 'governance', 'divergence', 'lineage.json');
 const REGISTRY_DIR   = path.join(REPO, 'governance', 'organism', 'registry', 'entities');
 const SCRIPTS_DIR    = path.join(REPO, 'scripts');
+
+// ── Allowed Scripts (whitelist for security) ──────────────────────────────────
+const ALLOWED_SCRIPTS = new Set([
+  'genesis-agent.js',
+  'divergence-tracker.js',
+  'evolution-engine.js',
+]);
+
+/**
+ * Safely execute a whitelisted script with arguments
+ * @param {string} scriptName - The script filename (must be in ALLOWED_SCRIPTS)
+ * @param {string[]} args - Arguments to pass to the script
+ * @returns {string} - The script output
+ */
+function safeExecScript(scriptName, args = []) {
+  if (!ALLOWED_SCRIPTS.has(scriptName)) {
+    throw new Error(`Script not allowed: ${scriptName}`);
+  }
+  const scriptPath = path.join(SCRIPTS_DIR, scriptName);
+  return execFileSync('node', [scriptPath, ...args], { encoding: 'utf8' });
+}
 const AUTO_DIR       = path.join(REPO, 'governance', 'auto');
 
 // ── Agent Types ───────────────────────────────────────────────────────────────
@@ -257,7 +278,7 @@ function processTask(task, state) {
 function spawnTask(task) {
   // Delegate to genesis-agent
   try {
-    execSync(`node ${path.join(SCRIPTS_DIR, 'genesis-agent.js')} --census`, { encoding: 'utf8' });
+    safeExecScript('genesis-agent.js', ['--census']);
     return { success: true, message: 'Census complete' };
   } catch (e) {
     return { success: false, error: e.message };
@@ -267,7 +288,7 @@ function spawnTask(task) {
 function evolveTask(task) {
   // Update divergence metrics
   try {
-    execSync(`node ${path.join(SCRIPTS_DIR, 'divergence-tracker.js')} --update`, { encoding: 'utf8' });
+    safeExecScript('divergence-tracker.js', ['--update']);
     return { success: true, message: 'Evolution metrics updated' };
   } catch (e) {
     return { success: false, error: e.message };
@@ -310,7 +331,7 @@ function commitTask(task) {
 function divergeTask(task) {
   // Track divergence metrics
   try {
-    const output = execSync(`node ${path.join(SCRIPTS_DIR, 'divergence-tracker.js')} --update`, { encoding: 'utf8' });
+    const output = safeExecScript('divergence-tracker.js', ['--update']);
     return { success: true, message: 'Divergence tracked', output };
   } catch (e) {
     return { success: false, error: e.message };
@@ -396,7 +417,7 @@ function displayStatus() {
 
 function displayMetrics() {
   try {
-    const output = execSync(`node ${path.join(SCRIPTS_DIR, 'divergence-tracker.js')} --metrics`, { encoding: 'utf8' });
+    const output = safeExecScript('divergence-tracker.js', ['--metrics']);
     console.log(output);
   } catch (e) {
     console.log('  ⚠️ Could not load divergence metrics');
