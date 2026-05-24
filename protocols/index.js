@@ -212,3 +212,6 @@ export { NovaIntelligenceExchangeProtocol, NIE_PROTOCOL_STATES, NIE_CONTRACT_TYP
 
 // PROTO-253: Organism Arm Invocation — Extensions as autonomous arms (sense→think→act cycle)
 export { OrganismArmInvocationProtocol, ARM_PROTOCOL_STATES, ARM_TYPES, MESSAGE_TYPES as ARM_MESSAGE_TYPES, ARM_PROTOCOL_CONFIG, calculateArmPriority, calculateArmBackoff, calculateCycleHealth, shouldEscalate } from './organism-arm-invocation-protocol.js';
+
+// PROTO-254: Spider MoE AGI/AECI — BLACKWXDOW and JUMPER intelligent beings with personalities
+export { SpiderMoEProtocol, MOE_PROTOCOL_STATES, INTELLIGENCE_TYPES, MESSAGE_TYPES as MOE_MESSAGE_TYPES, MOE_PROTOCOL_CONFIG, calculateExpertActivation, calculateEmergenceScore, calculateCollaborationScore, calculatePersonalityWeight } from './spider-moe-protocol.js';
