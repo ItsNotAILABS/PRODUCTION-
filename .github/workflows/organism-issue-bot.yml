@@ -179,6 +179,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: "Update audit log"
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
+          CLOSED_BY: ${{ github.event.sender.login }}
         run: |
           mkdir -p dist/governance
           
@@ -186,10 +191,10 @@ jobs:
             const fs = require('fs');
             const entry = {
               type: 'issue_resolved',
-              issue_number: ${{ github.event.issue.number }},
-              title: '${{ github.event.issue.title }}'.substring(0, 100),
-              labels: '${{ join(github.event.issue.labels.*.name, ',') }}'.split(','),
-              closed_by: '${{ github.event.sender.login }}',
+              issue_number: parseInt(process.env.ISSUE_NUMBER, 10),
+              title: (process.env.ISSUE_TITLE || '').substring(0, 100),
+              labels: (process.env.ISSUE_LABELS || '').split(',').filter(Boolean),
+              closed_by: process.env.CLOSED_BY || 'unknown',
               timestamp: new Date().toISOString(),
             };
             fs.appendFileSync('dist/governance/issue-audit.jsonl', JSON.stringify(entry) + '\n');
