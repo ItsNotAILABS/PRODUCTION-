@@ -6,13 +6,24 @@
   "divisionNum": "II",
   "emoji": "📸",
   "domain": "Visual regression & screenshots",
-  "triggers": ["schedule:nightly", "push:*.html"],
-  "capabilities": ["screenshot", "visual_diff", "video"],
-  "languages": ["atlas://language/ril"],
+  "triggers": [
+    "schedule:nightly",
+    "push:*.html"
+  ],
+  "capabilities": [
+    "screenshot",
+    "visual_diff",
+    "video"
+  ],
+  "languages": [
+    "atlas://language/ril"
+  ],
   "governance_pipeline": "pipeline://governance/bot_cycle",
   "ocl_ref": "atlas://organism/bot-fleet",
   "script": "scripts/visual-regression.js",
   "workflow": ".github/workflows/organism-visual-bot.yml",
   "report": "docs/visual-regression-report.md",
-  "microbots": []
+  "microbots": [],
+  "fitness_score": 0.556,
+  "fitness_evaluated": "2026-05-24T08:04:56.560Z"
 }

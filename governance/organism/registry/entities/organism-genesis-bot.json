@@ -6,8 +6,16 @@
   "divisionNum": "VII",
   "emoji": "🧬",
   "domain": "Agent Genesis",
-  "triggers": ["issues:labeled", "workflow_dispatch"],
-  "capabilities": ["spawn_agent", "register", "generate_workflow", "lineage_track"],
+  "triggers": [
+    "issues:labeled",
+    "workflow_dispatch"
+  ],
+  "capabilities": [
+    "spawn_agent",
+    "register",
+    "generate_workflow",
+    "lineage_track"
+  ],
   "authority": "coordinator",
   "governance_pipeline": "pipeline://governance/bot_cycle",
   "ocl_ref": "atlas://organism/bot-fleet",
@@ -15,7 +23,8 @@
   "workflow": ".github/workflows/organism-genesis-bot.yml",
   "report": "docs/genesis-report.md",
   "generation": 1,
-  "fitness_score": 0.6,
+  "fitness_score": 0.586,
   "created_at": "2026-05-24T06:00:00.000Z",
-  "created_by": "atlas://human/operator"
+  "created_by": "atlas://human/operator",
+  "fitness_evaluated": "2026-05-24T08:04:56.558Z"
 }
