@@ -1,0 +1,31 @@
+{
+  "id": "atlas://blueprint/analyzer",
+  "name": "Analyzer Blueprint",
+  "description": "Base blueprint for analysis and research agents",
+  "version": "1.0.0",
+  "class": "Bot",
+  "baseCapabilities": [
+    "analyze",
+    "research",
+    "report",
+    "learn"
+  ],
+  "restrictedCapabilities": [
+    "deploy",
+    "release",
+    "orchestrate"
+  ],
+  "defaultTriggers": [
+    "schedule:every-12h",
+    "workflow_dispatch"
+  ],
+  "defaultDivision": "VI — Learn & Evolve",
+  "authority": "analyzer",
+  "fitnessBaseline": 0.5,
+  "resourceQuota": {
+    "cpuMinutes": 20,
+    "apiCalls": 300
+  },
+  "workflowTemplate": "analyzer-workflow.yml.template",
+  "scriptTemplate": "analyzer-script.js.template"
+}

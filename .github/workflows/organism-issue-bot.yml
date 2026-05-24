@@ -1,0 +1,262 @@
+# ============================================================================
+# organism-issue-bot — Autonomous Issue Management
+#
+# Manages autonomous issue creation and routing:
+#   1. Create issues from agent requests
+#   2. Route issues to appropriate bots based on domain
+#   3. Track issue resolution by agents
+#   4. Update governance audit with issue activities
+#
+# References:
+#   OCL:   governance/organism/bot-fleet.ocl
+#   Agent: .github/agents/issue-agent.md
+#
+# Identity: organism-issue-bot <organism-issue-bot@users.noreply.github.com>
+# ============================================================================
+
+name: "📋 Issue Bot"
+
+on:
+  issues:
+    types: [opened, labeled, assigned, closed]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'route'
+        type: choice
+        options:
+          - route
+          - create
+          - audit
+      issue_number:
+        description: 'Issue number (for route/audit)'
+        required: false
+      issue_title:
+        description: 'Issue title (for create)'
+        required: false
+      issue_body:
+        description: 'Issue body (for create)'
+        required: false
+      issue_type:
+        description: 'Issue type'
+        required: false
+        default: 'agent-coordination'
+        type: choice
+        options:
+          - agent-bug
+          - agent-feature
+          - agent-escalation
+          - agent-research
+          - agent-coordination
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  route-issue:
+    name: "📋 Route Issue"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && (github.event.action == 'opened' || github.event.action == 'labeled')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: "Analyze and route issue"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const labels = issue.labels.map(l => l.name);
+            
+            // Skip if not agent-related
+            if (!labels.some(l => l.startsWith('agent-'))) {
+              console.log('Not an agent issue, skipping routing');
+              return;
+            }
+            
+            // Domain to bot mapping
+            const domainRouting = {
+              'security': 'organism-sentinel-bot',
+              'testing': 'organism-test-bot',
+              'deployment': 'organism-deploy-bot',
+              'documentation': 'organism-docs-bot',
+              'evolution': 'organism-learning-bot',
+              'governance': 'organism-governance-bot',
+              'coordination': 'organism-alpha-bot',
+              'new-agent': 'organism-genesis-bot',
+              'build': 'organism-build-bot',
+              'neural': 'organism-neural-bot',
+              'protocol': 'organism-protocol-bot',
+            };
+            
+            // Extract domain from labels
+            let targetBot = null;
+            for (const [domain, bot] of Object.entries(domainRouting)) {
+              if (labels.includes(domain) || issue.body?.toLowerCase().includes(domain)) {
+                targetBot = bot;
+                break;
+              }
+            }
+            
+            // Default to alpha bot for coordination
+            if (!targetBot && labels.includes('agent-coordination')) {
+              targetBot = 'organism-alpha-bot';
+            }
+            
+            if (targetBot) {
+              console.log(`Routing to: ${targetBot}`);
+              
+              // Add routing label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: [`routed:${targetBot}`],
+              });
+              
+              // Add comment about routing
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `🤖 **Issue routed to:** \`${targetBot}\`\n\nThis issue has been automatically routed based on its domain and labels.\n\n---\n*organism-issue-bot*`,
+              });
+            }
+
+  create-issue:
+    name: "📋 Create Issue"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'create'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "Create agent issue"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueType = '${{ github.event.inputs.issue_type }}';
+            const title = '${{ github.event.inputs.issue_title }}' || `[${issueType.toUpperCase()}] Agent-generated issue`;
+            const body = '${{ github.event.inputs.issue_body }}' || 'Auto-generated by organism-issue-bot';
+            
+            const typeLabels = {
+              'agent-bug': ['agent-generated', 'bug'],
+              'agent-feature': ['agent-generated', 'enhancement'],
+              'agent-escalation': ['agent-generated', 'escalation', 'priority-high'],
+              'agent-research': ['agent-generated', 'research', 'divergence'],
+              'agent-coordination': ['agent-generated', 'coordination'],
+            };
+            
+            const labels = typeLabels[issueType] || ['agent-generated'];
+            
+            const result = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: `## Agent Issue\n\n**Type:** ${issueType}\n**Generated:** ${new Date().toISOString()}\n\n---\n\n${body}\n\n---\n*Auto-generated by organism-issue-bot*`,
+              labels: labels,
+            });
+            
+            console.log(`Created issue #${result.data.number}`);
+
+  track-resolution:
+    name: "📋 Track Resolution"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'closed'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "Update audit log"
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
+          CLOSED_BY: ${{ github.event.sender.login }}
+        run: |
+          mkdir -p dist/governance
+          
+          node -e "
+            const fs = require('fs');
+            const entry = {
+              type: 'issue_resolved',
+              issue_number: parseInt(process.env.ISSUE_NUMBER, 10),
+              title: (process.env.ISSUE_TITLE || '').substring(0, 100),
+              labels: (process.env.ISSUE_LABELS || '').split(',').filter(Boolean),
+              closed_by: process.env.CLOSED_BY || 'unknown',
+              timestamp: new Date().toISOString(),
+            };
+            fs.appendFileSync('dist/governance/issue-audit.jsonl', JSON.stringify(entry) + '\n');
+          "
+
+      - name: Commit audit
+        run: |
+          git config user.name "organism-issue-bot"
+          git config user.email "organism-issue-bot@users.noreply.github.com"
+          git add dist/governance/issue-audit.jsonl 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "📋 Issue-bot: resolution audit for #${{ github.event.issue.number }}"
+            git push
+          fi
+
+  audit-issues:
+    name: "📋 Audit Issues"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'audit'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "Generate audit report"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get all agent-generated issues
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'agent-generated',
+              state: 'all',
+              per_page: 100,
+            });
+            
+            const stats = {
+              total: issues.length,
+              open: issues.filter(i => i.state === 'open').length,
+              closed: issues.filter(i => i.state === 'closed').length,
+              byType: {},
+              byBot: {},
+            };
+            
+            issues.forEach(issue => {
+              issue.labels.forEach(l => {
+                if (l.name.startsWith('agent-')) {
+                  stats.byType[l.name] = (stats.byType[l.name] || 0) + 1;
+                }
+                if (l.name.startsWith('routed:')) {
+                  const bot = l.name.replace('routed:', '');
+                  stats.byBot[bot] = (stats.byBot[bot] || 0) + 1;
+                }
+              });
+            });
+            
+            console.log('=== Agent Issue Audit ===');
+            console.log(`Total: ${stats.total}`);
+            console.log(`Open: ${stats.open}`);
+            console.log(`Closed: ${stats.closed}`);
+            console.log('\nBy Type:', JSON.stringify(stats.byType, null, 2));
+            console.log('\nBy Bot:', JSON.stringify(stats.byBot, null, 2));

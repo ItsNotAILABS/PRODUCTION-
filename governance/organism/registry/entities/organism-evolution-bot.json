@@ -1,0 +1,21 @@
+{
+  "id": "atlas://bot/organism-evolution-bot",
+  "name": "organism-evolution-bot",
+  "class": "Bot",
+  "division": "VI — Learn & Evolve",
+  "divisionNum": "VI",
+  "emoji": "🧬",
+  "domain": "Continuous Evolution",
+  "triggers": ["schedule:weekly", "workflow_run:completed", "workflow_dispatch"],
+  "capabilities": ["evaluate", "hebbian_update", "evolve", "fitness_track", "report"],
+  "authority": "analyzer",
+  "governance_pipeline": "pipeline://governance/bot_cycle",
+  "ocl_ref": "atlas://organism/bot-fleet",
+  "script": "scripts/evolution-engine.js",
+  "workflow": ".github/workflows/organism-evolution-bot.yml",
+  "report": "docs/evolution-report.md",
+  "generation": 1,
+  "fitness_score": 0.6,
+  "created_at": "2026-05-24T06:00:00.000Z",
+  "created_by": "atlas://human/operator"
+}
