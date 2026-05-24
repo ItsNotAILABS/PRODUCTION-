@@ -1,0 +1,170 @@
+# ============================================================================
+# organism-coordinator-bot — Inter-Agent Coordination Hub
+#
+# Orchestrates multi-agent task coordination:
+#   1. Task marketplace management
+#   2. Capability matching
+#   3. Agent collaboration protocols
+#   4. Deadlock detection and resolution
+#   5. Cross-agent communication
+#
+# References:
+#   OCL:   governance/organism/bot-fleet.ocl
+#   Agent: .github/agents/
+#
+# Identity: organism-coordinator-bot <organism-coordinator-bot@users.noreply.github.com>
+# ============================================================================
+
+name: "🎯 Coordinator Bot"
+
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_run:
+    workflows: ["👑 Alpha Fleet Controller"]
+    types: [completed]
+  schedule:
+    - cron: '0 */2 * * *'  # Every 2 hours
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'coordinate'
+        type: choice
+        options:
+          - coordinate
+          - match
+          - detect-deadlock
+          - marketplace
+          - status
+      task_id:
+        description: 'Task ID (for specific task operations)'
+        required: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  coordinate-tasks:
+    name: "🎯 Coordinate Tasks"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'coordinate')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: "Phase 1 — Scan pending tasks"
+        run: |
+          node scripts/coordinator-engine.js --scan-tasks
+
+      - name: "Phase 2 — Match tasks to agents"
+        run: |
+          node scripts/coordinator-engine.js --match-all
+
+      - name: "Phase 3 — Detect deadlocks"
+        id: deadlock
+        run: |
+          DEADLOCK=$(node scripts/coordinator-engine.js --detect-deadlock)
+          echo "has_deadlock=$DEADLOCK" >> $GITHUB_OUTPUT
+
+      - name: "Phase 4 — Resolve deadlocks"
+        if: steps.deadlock.outputs.has_deadlock == 'true'
+        run: |
+          node scripts/coordinator-engine.js --resolve-deadlock
+
+      - name: "Phase 5 — Update coordination status"
+        run: |
+          node scripts/coordinator-engine.js --update-status
+
+      - name: Commit coordination updates
+        run: |
+          git config user.name "organism-coordinator-bot"
+          git config user.email "organism-coordinator-bot@users.noreply.github.com"
+          git add dist/coordination/ || true
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "🎯 Coordinator-bot: task coordination update"
+            git push
+          fi
+
+  process-coordination-request:
+    name: "🎯 Process Coordination Request"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'agent-coordination')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "Parse and process coordination request"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            
+            // Parse task requirements
+            const taskMatch = body.match(/task:\s*(.+)/i);
+            const capMatch = body.match(/capabilities:\s*(.+)/i);
+            const priorityMatch = body.match(/priority:\s*(\w+)/i);
+            
+            const task = {
+              id: `task-${issue.number}`,
+              title: issue.title,
+              description: taskMatch?.[1] || body.substring(0, 200),
+              requiredCapabilities: capMatch?.[1]?.split(',').map(c => c.trim()) || [],
+              priority: priorityMatch?.[1] || 'normal',
+              status: 'pending',
+              created: new Date().toISOString(),
+            };
+            
+            // Add acknowledgment comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `🎯 **Coordination request received**\n\nTask ID: \`${task.id}\`\nRequired capabilities: ${task.requiredCapabilities.join(', ') || 'Any'}\nPriority: ${task.priority}\n\nSearching for matching agents...\n\n---\n*organism-coordinator-bot*`,
+            });
+            
+            // Add processing label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['coordination-processing'],
+            });
+
+  marketplace-status:
+    name: "🎯 Marketplace Status"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'marketplace'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "Generate marketplace report"
+        run: |
+          node scripts/coordinator-engine.js --marketplace-report
+
+  detect-deadlock:
+    name: "🎯 Detect Deadlock"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'detect-deadlock'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "Run deadlock detection"
+        run: |
+          node scripts/coordinator-engine.js --detect-deadlock --verbose

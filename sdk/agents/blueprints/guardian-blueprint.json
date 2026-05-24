@@ -1,0 +1,33 @@
+{
+  "id": "atlas://blueprint/guardian",
+  "name": "Guardian Blueprint",
+  "description": "Base blueprint for security and safety agents",
+  "version": "1.0.0",
+  "class": "Bot",
+  "baseCapabilities": [
+    "secure",
+    "scan",
+    "monitor",
+    "alert",
+    "report"
+  ],
+  "restrictedCapabilities": [
+    "deploy",
+    "release"
+  ],
+  "defaultTriggers": [
+    "push:main",
+    "pull_request",
+    "schedule:every-1h",
+    "workflow_dispatch"
+  ],
+  "defaultDivision": "III — Secure & Monitor",
+  "authority": "guardian",
+  "fitnessBaseline": 0.6,
+  "resourceQuota": {
+    "cpuMinutes": 15,
+    "apiCalls": 200
+  },
+  "workflowTemplate": "guardian-workflow.yml.template",
+  "scriptTemplate": "guardian-script.js.template"
+}

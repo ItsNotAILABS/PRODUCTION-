@@ -1,0 +1,30 @@
+{
+  "id": "atlas://bot/organism-commit-bot",
+  "name": "organism-commit-bot",
+  "class": "Bot",
+  "division": "I — Build & Package",
+  "divisionNum": "I",
+  "emoji": "🔄",
+  "domain": "Autonomous Commits",
+  "triggers": [
+    "push:main",
+    "workflow_dispatch"
+  ],
+  "capabilities": [
+    "commit",
+    "classify",
+    "stage",
+    "pr_create"
+  ],
+  "authority": "executor",
+  "governance_pipeline": "pipeline://governance/bot_cycle",
+  "ocl_ref": "atlas://organism/bot-fleet",
+  "script": "scripts/commit-classifier.js",
+  "workflow": ".github/workflows/organism-commit-bot.yml",
+  "report": "docs/commit-report.md",
+  "generation": 1,
+  "fitness_score": 0.537,
+  "created_at": "2026-05-24T06:00:00.000Z",
+  "created_by": "atlas://human/operator",
+  "fitness_evaluated": "2026-05-24T08:04:56.556Z"
+}

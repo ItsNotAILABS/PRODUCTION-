@@ -6,14 +6,27 @@
   "divisionNum": "I",
   "emoji": "🚀",
   "domain": "Production releases",
-  "triggers": ["push:tags:v*"],
-  "capabilities": ["build", "release", "publish", "create_gh_release"],
-  "languages": ["atlas://language/cpl-p"],
+  "triggers": [
+    "push:tags:v*"
+  ],
+  "capabilities": [
+    "build",
+    "release",
+    "publish",
+    "create_gh_release"
+  ],
+  "languages": [
+    "atlas://language/cpl-p"
+  ],
   "governance_pipeline": "pipeline://governance/bot_cycle",
   "ocl_ref": "atlas://organism/bot-fleet",
-  "law_refs": ["governance://law/BOT_FLEET_SAFETY#NO_RELEASE_ON_RED"],
+  "law_refs": [
+    "governance://law/BOT_FLEET_SAFETY#NO_RELEASE_ON_RED"
+  ],
   "script": "scripts/bundle-release.js",
   "workflow": ".github/workflows/release.yml",
   "report": "docs/release-report.md",
-  "microbots": []
+  "microbots": [],
+  "fitness_score": 0.549,
+  "fitness_evaluated": "2026-05-24T08:04:56.560Z"
 }

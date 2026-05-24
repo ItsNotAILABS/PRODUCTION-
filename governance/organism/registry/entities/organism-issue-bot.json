@@ -1,0 +1,31 @@
+{
+  "id": "atlas://bot/organism-issue-bot",
+  "name": "organism-issue-bot",
+  "class": "Bot",
+  "division": "IV — Document & Report",
+  "divisionNum": "IV",
+  "emoji": "📋",
+  "domain": "Issue Management",
+  "triggers": [
+    "issues:opened",
+    "issues:labeled",
+    "workflow_dispatch"
+  ],
+  "capabilities": [
+    "issue_create",
+    "issue_route",
+    "issue_track",
+    "report"
+  ],
+  "authority": "observer",
+  "governance_pipeline": "pipeline://governance/bot_cycle",
+  "ocl_ref": "atlas://organism/bot-fleet",
+  "script": "scripts/issue-router.js",
+  "workflow": ".github/workflows/organism-issue-bot.yml",
+  "report": "docs/issue-report.md",
+  "generation": 1,
+  "fitness_score": 0.561,
+  "created_at": "2026-05-24T06:00:00.000Z",
+  "created_by": "atlas://human/operator",
+  "fitness_evaluated": "2026-05-24T08:04:56.559Z"
+}

@@ -1,0 +1,190 @@
+# ============================================================================
+# organism-evolution-bot — Continuous Evolution Engine
+#
+# Manages continuous improvement through Hebbian learning:
+#   1. Track success metrics for agent actions
+#   2. Calculate fitness scores
+#   3. Apply Hebbian weight updates
+#   4. Run generational cycles
+#   5. Expand/sunset capabilities
+#
+# References:
+#   OCL:   governance/organism/bot-fleet.ocl
+#   Agent: .github/agents/evolution-agent.md
+#
+# Identity: organism-evolution-bot <organism-evolution-bot@users.noreply.github.com>
+# ============================================================================
+
+name: "🧬 Evolution Bot"
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly generational cycle (Sunday midnight)
+  workflow_run:
+    workflows: ["🧪 Test Bot", "🛡️ Sentinel Scan", "🏛️ Governance Engine"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'evaluate'
+        type: choice
+        options:
+          - evaluate
+          - evolve
+          - report
+          - generational-cycle
+      agent_id:
+        description: 'Specific agent to evaluate (optional)'
+        required: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  evaluate-fitness:
+    name: "🧬 Evaluate Fitness"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'evaluate')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: "Evaluate agent fitness"
+        run: |
+          node scripts/evolution-engine.js --evaluate-all
+
+      - name: "Record fitness history"
+        run: |
+          node scripts/evolution-engine.js --record-fitness
+
+      - name: Commit fitness updates
+        run: |
+          git config user.name "organism-evolution-bot"
+          git config user.email "organism-evolution-bot@users.noreply.github.com"
+          git add governance/divergence/ governance/organism/registry/entities/ || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🧬 Evolution-bot: fitness evaluation update"
+            git push
+          fi
+
+  generational-cycle:
+    name: "🧬 Generational Cycle"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'generational-cycle')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: "Phase 1 — Evaluate all agents"
+        run: |
+          node scripts/evolution-engine.js --evaluate-all
+
+      - name: "Phase 2 — Identify candidates"
+        id: candidates
+        run: |
+          node scripts/evolution-engine.js --identify-candidates > /tmp/candidates.json
+          
+          EXPANSION=$(cat /tmp/candidates.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).expansion?.length || 0")
+          SUNSET=$(cat /tmp/candidates.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).sunset?.length || 0")
+          
+          echo "expansion_count=$EXPANSION" >> $GITHUB_OUTPUT
+          echo "sunset_count=$SUNSET" >> $GITHUB_OUTPUT
+
+      - name: "Phase 3 — Apply Hebbian updates"
+        run: |
+          node scripts/evolution-engine.js --hebbian-update
+
+      - name: "Phase 4 — Propose capability changes"
+        if: steps.candidates.outputs.expansion_count > 0 || steps.candidates.outputs.sunset_count > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const candidates = JSON.parse(fs.readFileSync('/tmp/candidates.json', 'utf8'));
+            
+            if (candidates.expansion?.length > 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '[EVOLUTION] Capability expansion candidates',
+                body: `## Capability Expansion Candidates\n\nAgents with fitness ≥ 0.8 eligible for capability expansion:\n\n${candidates.expansion.map(a => `- ${a.name} (fitness: ${a.fitness_score})`).join('\n')}\n\n---\n*organism-evolution-bot*`,
+                labels: ['agent-generated', 'evolution', 'capability-expansion'],
+              });
+            }
+            
+            if (candidates.sunset?.length > 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '[EVOLUTION] Sunset candidates require review',
+                body: `## Sunset Candidates\n\nAgents with fitness < 0.2 are candidates for sunset:\n\n${candidates.sunset.map(a => `- ${a.name} (fitness: ${a.fitness_score})`).join('\n')}\n\n⚠️ Requires governance approval to proceed.\n\n---\n*organism-evolution-bot*`,
+                labels: ['agent-generated', 'evolution', 'sunset-candidate', 'needs-review'],
+              });
+            }
+
+      - name: "Phase 5 — Generate evolution report"
+        run: |
+          node scripts/evolution-engine.js --report
+
+      - name: "Phase 6 — Update divergence metrics"
+        run: |
+          node scripts/divergence-tracker.js --update
+
+      - name: Commit evolution cycle
+        run: |
+          git config user.name "organism-evolution-bot"
+          git config user.email "organism-evolution-bot@users.noreply.github.com"
+          git add governance/ docs/ || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🧬 Evolution-bot: generational cycle complete"
+            git push
+          fi
+
+  evolution-report:
+    name: "🧬 Evolution Report"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'report'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: "Generate report"
+        run: |
+          node scripts/evolution-engine.js --report
+
+      - name: Commit report
+        run: |
+          git config user.name "organism-evolution-bot"
+          git config user.email "organism-evolution-bot@users.noreply.github.com"
+          git add docs/ || true
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "🧬 Evolution-bot: report update"
+            git push
+          fi

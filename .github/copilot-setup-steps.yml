@@ -1,0 +1,58 @@
+# ════════════════════════════════════════════════════════════════════════════
+# COPILOT SETUP STEPS — Autonomous Agent Environment
+# id: atlas://config/copilot-setup
+#
+# Configures the GitHub Copilot Agent environment for the Sovereign Organism.
+# This file defines the setup steps that run before any Copilot agent task.
+#
+# The environment includes:
+#   - Node.js runtime for bot scripts
+#   - Access to governance laws (CPL-L) and charters (OCL)
+#   - Agent bootstrap protocol initialization
+#   - Atlas registry access for identity verification
+# ════════════════════════════════════════════════════════════════════════════
+
+name: "Sovereign Organism Agent Environment"
+
+steps:
+  # ── Install Dependencies ─────────────────────────────────────────────────────
+  - name: "Install Node.js dependencies"
+    run: |
+      npm ci --prefer-offline --no-audit 2>/dev/null || npm install --prefer-offline --no-audit
+    
+  # ── Bootstrap Agent Protocol ─────────────────────────────────────────────────
+  - name: "Initialize agent bootstrap"
+    run: |
+      node sdk/agents/bootstrap/agent-bootstrap.js --init
+      
+  # ── Load Governance Context ──────────────────────────────────────────────────
+  - name: "Load governance context"
+    run: |
+      # Export key governance constants for agent use
+      export ORGANISM_OCL="governance/organism/bot-fleet.ocl"
+      export ORGANISM_LAWS="governance/laws/bot-fleet.cpl-l"
+      export ORGANISM_REGISTRY="governance/organism/registry/entities"
+      export PHI=1.618033988749895
+      export PHI_INV=0.618033988749895
+      export HEARTBEAT_MS=873
+      
+      # Create governance context file for agent runtime
+      node -e "
+        const fs = require('fs');
+        const ctx = {
+          ocl: '$ORGANISM_OCL',
+          laws: '$ORGANISM_LAWS',
+          registry: '$ORGANISM_REGISTRY',
+          phi: 1.618033988749895,
+          phiInv: 0.618033988749895,
+          heartbeatMs: 873,
+          timestamp: new Date().toISOString(),
+        };
+        fs.mkdirSync('dist/agent-context', { recursive: true });
+        fs.writeFileSync('dist/agent-context/governance.json', JSON.stringify(ctx, null, 2));
+      "
+      
+  # ── Verify Agent Identity ────────────────────────────────────────────────────
+  - name: "Verify agent identity"
+    run: |
+      node sdk/agents/bootstrap/verify-identity.js --agent-type=copilot

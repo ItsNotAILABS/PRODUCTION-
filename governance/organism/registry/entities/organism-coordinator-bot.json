@@ -1,0 +1,31 @@
+{
+  "id": "atlas://bot/organism-coordinator-bot",
+  "name": "organism-coordinator-bot",
+  "class": "Bot",
+  "division": "VII — Command & Control",
+  "divisionNum": "VII",
+  "emoji": "🎯",
+  "domain": "Task Coordination",
+  "triggers": [
+    "issues:labeled",
+    "schedule:every-2h",
+    "workflow_dispatch"
+  ],
+  "capabilities": [
+    "coordinate",
+    "match",
+    "deadlock_detect",
+    "marketplace"
+  ],
+  "authority": "coordinator",
+  "governance_pipeline": "pipeline://governance/bot_cycle",
+  "ocl_ref": "atlas://organism/bot-fleet",
+  "script": "scripts/coordinator-engine.js",
+  "workflow": ".github/workflows/organism-coordinator-bot.yml",
+  "report": "docs/coordination-report.md",
+  "generation": 1,
+  "fitness_score": 0.57,
+  "created_at": "2026-05-24T06:00:00.000Z",
+  "created_by": "atlas://human/operator",
+  "fitness_evaluated": "2026-05-24T08:04:56.556Z"
+}

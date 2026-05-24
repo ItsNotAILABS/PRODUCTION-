@@ -264,6 +264,49 @@ extensions/jarvis/src/
 
 ---
 
+## 🏛️ Governance & Architecture
+
+The Sovereign Organism operates under a comprehensive governance framework:
+
+### Core Documents
+| Document | Description |
+|----------|-------------|
+| [**SOVEREIGN_CHARTER.md**](SOVEREIGN_CHARTER.md) | The supreme governance covenant — 5 tiers, 7 core engines, 12 edge AI engines |
+| [**MEGA_LAWS.md**](MEGA_LAWS.md) | Complete law registry — 89 laws across 10 domains |
+| [**EDGE_AI_ENGINES.md**](EDGE_AI_ENGINES.md) | Named AI engines powering the global edge mesh |
+
+### Engine Architecture
+
+**7 Core AI Engines:**
+- 🕐 **CHRONOS** — The Timekeeper (873ms heartbeat)
+- 🔮 **NEXORIS** — The State Oracle (4 registers)
+- 🎲 **QUANTUM** — The Entropy Weaver
+- 📡 **COREOGRAPH** — The Message Dancer
+- 🧠 **SOLUS** — The Sovereign Mind (offline AI)
+- 🛡️ **SENTINEL** — The Guardian
+- 🗺️ **CARTOGRAPHER** — The Knowledge Mapper
+
+**12 Edge AI Engines:**
+- 🤠 **DALLAS COGNITOR** (DFW) — Central US routing
+- 🌊 **PACIFIC ORACLE** (LAX) — West coast inference
+- 🌲 **CASCADIA MIND** (SEA) — Pacific Northwest
+- 🏙️ **MIDWEST CORTEX** (ORD) — Great Lakes hub
+- 🗽 **ATLANTIC SAGE** (EWR) — East coast gateway
+- 🌴 **CARIBBEAN SYNAPSE** (MIA) — Southeast bridge
+- 🎩 **BRITANNIA ENGINE** (LHR) — European gateway
+- 🏛️ **FRANKFURT NEXUS** (FRA) — EU central
+- ⛩️ **TOKYO RESONANCE** (NRT) — Asia-Pacific core
+- 🦁 **SINGAPORE MATRIX** (SIN) — Southeast Asian intelligence
+- 🦘 **OCEANIA PULSE** (SYD) — Australian reasoning
+- 🎭 **SAO PAULO AXIOM** (GRU) — Latin American intelligence
+
+### Protocol Count
+- **45 Intelligence Protocols** across 5 tiers
+- **89 Architectural Laws** across 10 domains
+- **21 Bot Identities** across 8 divisions
+
+---
+
 ## Extension Library
 
 👉 See [download.html](download.html) for the full library of browser extensions.

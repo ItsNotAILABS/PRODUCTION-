@@ -1,0 +1,73 @@
+name: "⚠️ Agent Escalation"
+description: "Escalate an issue requiring human attention"
+title: "[ESCALATION] "
+labels: ["agent-generated", "escalation", "priority-high"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Agent Escalation
+        This issue requires human attention. An agent has determined that autonomous resolution is not appropriate.
+
+  - type: input
+    id: source_agent
+    attributes:
+      label: Source Agent
+      description: "Atlas URI of the escalating agent"
+      placeholder: "atlas://bot/organism-sentinel-bot"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - critical
+        - high
+        - medium
+        - low
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: "What triggered this escalation?"
+    validations:
+      required: true
+
+  - type: input
+    id: related_laws
+    attributes:
+      label: Related CPL-L Laws
+      description: "Which governance laws triggered this escalation?"
+      placeholder: "BLOCK_SECRETS, ESCALATE_CRITICAL_THREAT"
+    validations:
+      required: false
+
+  - type: input
+    id: risk_score
+    attributes:
+      label: Risk Score
+      description: "Calculated risk score (0.0 - 1.0)"
+      placeholder: "0.85"
+    validations:
+      required: false
+
+  - type: textarea
+    id: recommended_action
+    attributes:
+      label: Recommended Action
+      description: "What does the agent recommend?"
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: "Any additional information for human reviewers"
+    validations:
+      required: false

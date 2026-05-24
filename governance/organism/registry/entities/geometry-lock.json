@@ -7,7 +7,13 @@
   "emoji": "🔷",
   "domain": "Sovereign terminal — Intelligence & Machine access gate (Nova protocol bridge)",
   "description": "Two-interface access gate: Intelligence (AI-to-AI, phi-resonant geometric key) and Machine (conventional HMAC bearer token). Intelligence callers dock into the organism's resonant field; machine callers access mechanically.",
-  "triggers": ["call_attempt", "key_validation", "token_validation", "caller_registration", "key_revocation"],
+  "triggers": [
+    "call_attempt",
+    "key_validation",
+    "token_validation",
+    "caller_registration",
+    "key_revocation"
+  ],
   "interfaces": {
     "intelligence": {
       "description": "AI-to-AI docking. Caller presents a phi-spiral geometric key validated by Kuramoto phase resonance (R > φ⁻¹). The sovereign terminal for AI entities.",
@@ -36,7 +42,9 @@
     "medina_calls_gating",
     "interface_type_enforcement"
   ],
-  "languages": ["atlas://language/cpl-l"],
+  "languages": [
+    "atlas://language/cpl-l"
+  ],
   "governance_pipeline": "pipeline://governance/bot_cycle",
   "ocl_ref": "atlas://organism/bot-fleet",
   "protocol_refs": [
@@ -52,5 +60,7 @@
   ],
   "sdk": "sdk/geometry-lock/",
   "report": "docs/geometry-lock-report.md",
-  "microbots": []
+  "microbots": [],
+  "fitness_score": 0.551,
+  "fitness_evaluated": "2026-05-24T08:04:56.555Z"
 }

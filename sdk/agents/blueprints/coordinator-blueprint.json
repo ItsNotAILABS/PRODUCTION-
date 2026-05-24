@@ -1,0 +1,30 @@
+{
+  "id": "atlas://blueprint/coordinator",
+  "name": "Coordinator Blueprint",
+  "description": "Base blueprint for multi-agent orchestration agents",
+  "version": "1.0.0",
+  "class": "Bot",
+  "baseCapabilities": [
+    "orchestrate",
+    "coordinate",
+    "schedule",
+    "report"
+  ],
+  "restrictedCapabilities": [
+    "policy_enforce"
+  ],
+  "defaultTriggers": [
+    "workflow_run",
+    "schedule:every-3h",
+    "workflow_dispatch"
+  ],
+  "defaultDivision": "VII — Command & Control",
+  "authority": "coordinator",
+  "fitnessBaseline": 0.6,
+  "resourceQuota": {
+    "cpuMinutes": 15,
+    "apiCalls": 1000
+  },
+  "workflowTemplate": "coordinator-workflow.yml.template",
+  "scriptTemplate": "coordinator-script.js.template"
+}

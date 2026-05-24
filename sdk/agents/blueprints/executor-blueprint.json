@@ -1,0 +1,31 @@
+{
+  "id": "atlas://blueprint/executor",
+  "name": "Executor Blueprint",
+  "description": "Base blueprint for action-taking and execution agents",
+  "version": "1.0.0",
+  "class": "Bot",
+  "baseCapabilities": [
+    "build",
+    "test",
+    "execute",
+    "report"
+  ],
+  "restrictedCapabilities": [
+    "orchestrate",
+    "policy_enforce"
+  ],
+  "defaultTriggers": [
+    "push:main",
+    "pull_request",
+    "workflow_dispatch"
+  ],
+  "defaultDivision": "I — Build & Package",
+  "authority": "executor",
+  "fitnessBaseline": 0.5,
+  "resourceQuota": {
+    "cpuMinutes": 30,
+    "apiCalls": 500
+  },
+  "workflowTemplate": "executor-workflow.yml.template",
+  "scriptTemplate": "executor-script.js.template"
+}
