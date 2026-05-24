@@ -1,0 +1,49 @@
+{
+  "id": "divergence://metrics/current",
+  "version": "1.0.0",
+  "initialized": "2026-05-24T06:00:00.000Z",
+  "lastUpdated": null,
+  "experiment": {
+    "name": "Long-term Autonomous Divergence",
+    "started": "2026-05-24T06:00:00.000Z",
+    "status": "active",
+    "description": "Observing how autonomous agents evolve the codebase without constant human intervention"
+  },
+  "codeDivergence": {
+    "totalAgentCommits": 0,
+    "totalHumanCommits": 0,
+    "agentFilesCreated": 0,
+    "linesAddedByAgents": 0,
+    "linesRemovedByAgents": 0
+  },
+  "protocolDrift": {
+    "averageWeightChange": 0,
+    "maxDrift": 0,
+    "protocolsModified": 0,
+    "newProtocols": 0
+  },
+  "capabilityExpansion": {
+    "totalCapabilities": 0,
+    "newCapabilitiesThisCycle": 0,
+    "sunsetCapabilities": 0,
+    "mostCommonCapability": null
+  },
+  "governanceEvolution": {
+    "lawsProposed": 0,
+    "lawsApproved": 0,
+    "lawsRejected": 0,
+    "votesHeld": 0
+  },
+  "fleetMetrics": {
+    "totalAgents": 0,
+    "activeAgents": 0,
+    "maxGeneration": 0,
+    "averageFitness": 0,
+    "healthStatus": "green"
+  },
+  "phiMetrics": {
+    "goldenRatioAlignment": 0,
+    "heartbeatStability": 0,
+    "resonanceScore": 0
+  }
+}

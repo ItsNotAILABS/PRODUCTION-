@@ -1,0 +1,252 @@
+# ============================================================================
+# organism-genesis-bot — Agent Self-Replication System
+#
+# Creates and manages new agent definitions:
+#   1. Spawn new agents from blueprints
+#   2. Register agents in Atlas registry
+#   3. Generate workflow files
+#   4. Track agent lineage
+#   5. Enforce fleet capacity limits
+#
+# References:
+#   OCL:       governance/organism/bot-fleet.ocl
+#   Blueprints: sdk/agents/blueprints/
+#   Agent:     .github/agents/genesis-agent.md
+#
+# Identity: organism-genesis-bot <organism-genesis-bot@users.noreply.github.com>
+# ============================================================================
+
+name: "🧬 Genesis Bot"
+
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'spawn'
+        type: choice
+        options:
+          - spawn
+          - register
+          - census
+          - lineage
+      agent_name:
+        description: 'New agent name (e.g., organism-newdomain-bot)'
+        required: false
+      blueprint:
+        description: 'Blueprint to use'
+        required: false
+        default: 'observer'
+        type: choice
+        options:
+          - observer
+          - executor
+          - analyzer
+          - coordinator
+          - guardian
+      capabilities:
+        description: 'Comma-separated capabilities'
+        required: false
+        default: 'report'
+      domain:
+        description: 'Agent domain description'
+        required: false
+      emoji:
+        description: 'Agent emoji'
+        required: false
+        default: '🤖'
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  spawn-agent:
+    name: "🧬 Spawn New Agent"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'spawn'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: "Phase 1 — Validate request"
+        id: validate
+        run: |
+          AGENT_NAME="${{ github.event.inputs.agent_name }}"
+          
+          # Check fleet capacity
+          CURRENT_COUNT=$(ls -1 governance/organism/registry/entities/*.json 2>/dev/null | wc -l)
+          MAX_CAPACITY=50
+          
+          if [ "$CURRENT_COUNT" -ge "$MAX_CAPACITY" ]; then
+            echo "❌ Fleet at capacity ($CURRENT_COUNT/$MAX_CAPACITY)"
+            echo "valid=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          # Validate name format
+          if [[ ! "$AGENT_NAME" =~ ^organism-[a-z]+-bot$ ]]; then
+            echo "❌ Invalid agent name format. Must be: organism-{domain}-bot"
+            echo "valid=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          # Check if already exists
+          if [ -f "governance/organism/registry/entities/${AGENT_NAME}.json" ]; then
+            echo "❌ Agent already exists: $AGENT_NAME"
+            echo "valid=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "✅ Validation passed"
+          echo "valid=true" >> $GITHUB_OUTPUT
+          echo "current_count=$CURRENT_COUNT" >> $GITHUB_OUTPUT
+
+      - name: "Phase 2 — Generate agent definition"
+        if: steps.validate.outputs.valid == 'true'
+        run: |
+          node scripts/genesis-agent.js \
+            --spawn \
+            --name="${{ github.event.inputs.agent_name }}" \
+            --blueprint="${{ github.event.inputs.blueprint }}" \
+            --capabilities="${{ github.event.inputs.capabilities }}" \
+            --domain="${{ github.event.inputs.domain }}" \
+            --emoji="${{ github.event.inputs.emoji }}"
+
+      - name: "Phase 3 — Generate workflow file"
+        if: steps.validate.outputs.valid == 'true'
+        run: |
+          node scripts/genesis-agent.js \
+            --generate-workflow \
+            --name="${{ github.event.inputs.agent_name }}"
+
+      - name: "Phase 4 — Update lineage"
+        if: steps.validate.outputs.valid == 'true'
+        run: |
+          node scripts/genesis-agent.js \
+            --update-lineage \
+            --name="${{ github.event.inputs.agent_name }}" \
+            --parent="atlas://bot/organism-genesis-bot"
+
+      - name: "Phase 5 — Create PR for new agent"
+        if: steps.validate.outputs.valid == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const agentName = '${{ github.event.inputs.agent_name }}';
+            const blueprint = '${{ github.event.inputs.blueprint }}';
+            
+            // Create issue for tracking
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[GENESIS] New agent spawned: ${agentName}`,
+              body: `## New Agent Created\n\n**Name:** \`${agentName}\`\n**Blueprint:** ${blueprint}\n**Created by:** organism-genesis-bot\n**Time:** ${new Date().toISOString()}\n\n### Next Steps\n1. Review generated files\n2. Approve agent registration\n3. Activate workflow\n\n---\n*Auto-generated by organism-genesis-bot*`,
+              labels: ['agent-generated', 'genesis', 'new-agent'],
+            });
+
+      - name: Commit new agent
+        if: steps.validate.outputs.valid == 'true'
+        run: |
+          git config user.name "organism-genesis-bot"
+          git config user.email "organism-genesis-bot@users.noreply.github.com"
+          
+          git add governance/organism/registry/entities/ || true
+          git add .github/workflows/ || true
+          git add scripts/ || true
+          git add governance/divergence/ || true
+          
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🧬 Genesis-bot: spawn ${{ github.event.inputs.agent_name }} from ${{ github.event.inputs.blueprint }} blueprint"
+            git push
+          fi
+
+  register-agent:
+    name: "🧬 Register Agent"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'register'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "Register existing agent"
+        run: |
+          node scripts/genesis-agent.js \
+            --register \
+            --name="${{ github.event.inputs.agent_name }}"
+
+  agent-census:
+    name: "🧬 Agent Census"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'census'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "Run census"
+        run: |
+          node scripts/genesis-agent.js --census
+
+  agent-lineage:
+    name: "🧬 Agent Lineage"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'lineage'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "Generate lineage report"
+        run: |
+          node scripts/genesis-agent.js --lineage-report
+
+  process-spawn-request:
+    name: "🧬 Process Spawn Request"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'spawn-request')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "Parse spawn request"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            
+            // Parse agent definition from issue body
+            const nameMatch = body.match(/name:\s*`?([^`\n]+)`?/i);
+            const blueprintMatch = body.match(/blueprint:\s*`?([^`\n]+)`?/i);
+            
+            if (!nameMatch) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: '❌ Could not parse agent name from request. Please include `name: organism-domain-bot` in the issue body.',
+              });
+              return;
+            }
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `🧬 **Spawn request received**\n\nAgent: \`${nameMatch[1]}\`\nBlueprint: ${blueprintMatch?.[1] || 'observer'}\n\nProcessing...`,
+            });

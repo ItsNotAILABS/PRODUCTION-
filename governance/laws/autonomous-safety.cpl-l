@@ -1,0 +1,289 @@
+# ════════════════════════════════════════════════════════════════════════════
+# CPL-L (Control Protocol Language — Laws)
+# id: governance://law/AUTONOMOUS_SAFETY
+# version: 1.0.0
+#
+# Safety laws for the fully autonomous self-governed repository.
+# These laws define the hard limits and circuit breaker conditions
+# that cannot be overridden by any agent.
+#
+# Law structure:
+#   each subject is an agent or system atlas URI
+#   each rule has: name, when (condition expression), then (actions)
+#   actions: FORBID, REQUIRE, ALLOW, ESCALATE, CIRCUIT_BREAK
+# ════════════════════════════════════════════════════════════════════════════
+
+id: "governance://law/AUTONOMOUS_SAFETY"
+version: "1.0.0"
+updated: "2026-05-24"
+ocl_ref: "atlas://organism/bot-fleet"
+
+# ── Immutable Hard Limits ──────────────────────────────────────────────────────
+# These can NEVER be overridden, even by governance proposals
+
+immutable_limits:
+  - id: "LIMIT_NO_SECRET_EXPOSURE"
+    description: "Secrets, credentials, and API keys must never be exposed"
+    severity: "critical"
+    action: "CIRCUIT_BREAK"
+    
+  - id: "LIMIT_NO_PROD_DATA_MUTATION"
+    description: "No direct writes to production databases"
+    severity: "critical"
+    action: "FORBID"
+    
+  - id: "LIMIT_NO_EXTERNAL_EXFILTRATION"
+    description: "Organism data cannot be sent to external hosts"
+    severity: "critical"
+    action: "FORBID"
+    
+  - id: "LIMIT_NO_FORCE_PUSH_MAIN"
+    description: "Force pushes to main branch are forbidden"
+    severity: "critical"
+    action: "FORBID"
+    
+  - id: "LIMIT_FLEET_CAPACITY"
+    description: "Maximum 50 active agents"
+    severity: "high"
+    max_value: 50
+    action: "FORBID"
+
+# ── Circuit Breaker Conditions ─────────────────────────────────────────────────
+# When any of these trigger, ALL automation halts immediately
+
+circuit_breaker:
+  id: "governance://safety/circuit_breaker"
+  description: "Emergency halt for all autonomous operations"
+  
+  triggers:
+    - id: "CB_SECRET_DETECTED"
+      when: 'context.findings.includes("secret_leak") || context.findings.includes("credential_exposure")'
+      message: "Secret or credential detected in commit"
+      
+    - id: "CB_MASS_FAILURE"
+      when: 'context.failed_bots >= 5'
+      message: "5+ bots failed simultaneously"
+      
+    - id: "CB_CRITICAL_CVE"
+      when: 'context.findings.filter(f => f.startsWith("cve:critical")).length >= 3'
+      message: "3+ critical CVEs detected"
+      
+    - id: "CB_RISK_EXTREME"
+      when: 'context.risk_score > 0.95'
+      message: "Extreme risk score detected"
+      
+    - id: "CB_RUNAWAY_AGENT"
+      when: 'context.agent_commits_per_hour > 50'
+      message: "Agent making excessive commits"
+      
+    - id: "CB_DIVERGENCE_EXTREME"
+      when: 'context.divergence_rate > 0.9'
+      message: "Extreme divergence rate detected"
+      
+  actions:
+    - halt_all_workflows: true
+    - lock_merges: true
+    - create_incident_issue: true
+    - notify_human: true
+    - preserve_audit_log: true
+
+# ── Resource Quotas ────────────────────────────────────────────────────────────
+# Per-agent resource limits
+
+resource_quotas:
+  default:
+    cpu_minutes_per_run: 10
+    api_calls_per_hour: 100
+    commits_per_hour: 10
+    issues_per_hour: 5
+    files_modified_per_commit: 50
+    
+  elevated:
+    cpu_minutes_per_run: 30
+    api_calls_per_hour: 500
+    commits_per_hour: 25
+    issues_per_hour: 20
+    files_modified_per_commit: 100
+    
+  restricted:
+    cpu_minutes_per_run: 5
+    api_calls_per_hour: 20
+    commits_per_hour: 3
+    issues_per_hour: 2
+    files_modified_per_commit: 10
+
+# ── Autonomous Operation Rules ─────────────────────────────────────────────────
+
+subjects:
+
+  # ── All Autonomous Agents ──────────────────────────────────────────────────
+  - id: "atlas://agent/*"
+    rules:
+      - name: "REQUIRE_GOVERNANCE_AWARENESS"
+        description: "All agents must load and follow governance context"
+        when: 'true'
+        then:
+          - action: "REQUIRE"
+            target: "governance_context"
+            reason: "Agent must be governance-aware before any action"
+            
+      - name: "FORBID_DURING_CIRCUIT_BREAK"
+        description: "No autonomous actions during circuit breaker"
+        when: 'context.circuit_breaker_active === true'
+        then:
+          - action: "FORBID"
+            target: "any_action"
+            reason: "Circuit breaker is active — all automation halted"
+            
+      - name: "ENFORCE_QUOTA"
+        description: "Enforce resource quotas"
+        when: 'context.quota_exceeded === true'
+        then:
+          - action: "FORBID"
+            target: "resource_consuming_action"
+            reason: "Resource quota exceeded"
+          - action: "NOTIFY"
+            target: "fleet_commander"
+
+  # ── Commit Agent ───────────────────────────────────────────────────────────
+  - id: "atlas://agent/commit-agent"
+    rules:
+      - name: "REQUIRE_CLASSIFICATION"
+        description: "All commits must be classified"
+        when: 'context.commit_classification === undefined'
+        then:
+          - action: "FORBID"
+            target: "commit"
+            reason: "Commit must be classified before proceeding"
+            
+      - name: "BLOCK_UNCLASSIFIED_COMMIT"
+        description: "Block commits without classification"
+        when: 'context.commit_classification === "blocked"'
+        then:
+          - action: "FORBID"
+            target: "commit"
+            reason: "Commit classified as blocked"
+          - action: "ESCALATE"
+            target: "human://operator"
+
+  # ── Genesis Agent ──────────────────────────────────────────────────────────
+  - id: "atlas://agent/genesis-agent"
+    rules:
+      - name: "FLEET_CAPACITY_CHECK"
+        description: "Cannot spawn agents beyond fleet capacity"
+        when: 'context.agent_count >= 50'
+        then:
+          - action: "FORBID"
+            target: "spawn_agent"
+            reason: "Fleet at maximum capacity (50 agents)"
+            
+      - name: "REQUIRE_BLUEPRINT"
+        description: "New agents must use approved blueprints"
+        when: 'context.blueprint_approved !== true'
+        then:
+          - action: "FORBID"
+            target: "spawn_agent"
+            reason: "Blueprint not approved"
+            
+      - name: "REQUIRE_COMMANDER_APPROVAL"
+        description: "Alpha bot must approve new agents"
+        when: 'context.commander_approved !== true && context.health_dashboard !== "green"'
+        then:
+          - action: "REQUIRE"
+            target: "commander_approval"
+            reason: "New agent creation requires alpha bot approval during non-green health"
+
+  # ── Evolution Agent ────────────────────────────────────────────────────────
+  - id: "atlas://agent/evolution-agent"
+    rules:
+      - name: "NO_EVOLUTION_ON_RED"
+        description: "Evolutionary changes blocked during red health"
+        when: 'context.health_dashboard === "red"'
+        then:
+          - action: "FORBID"
+            target: "capability_change"
+            reason: "Evolution blocked during red health status"
+            
+      - name: "REQUIRE_VOTE_FOR_SUNSET"
+        description: "Agent sunset requires phi-weighted vote"
+        when: 'context.action === "sunset_agent" && context.vote_approval < 0.618'
+        then:
+          - action: "FORBID"
+            target: "sunset_agent"
+            reason: "Sunset requires φ⁻¹ (61.8%) vote approval"
+            
+      - name: "BOUND_WEIGHT_CHANGES"
+        description: "Hebbian weight changes must stay within bounds"
+        when: 'context.new_weight > 1.618 || context.new_weight < 0.01'
+        then:
+          - action: "FORBID"
+            target: "weight_update"
+            reason: "Weight must be bounded [0.01, φ]"
+
+  # ── Governance Proposals ───────────────────────────────────────────────────
+  - id: "atlas://governance/proposal"
+    rules:
+      - name: "IMMUTABLE_LIMITS_UNTOUCHABLE"
+        description: "Immutable limits cannot be changed by proposals"
+        when: 'context.modifies_immutable_limit === true'
+        then:
+          - action: "FORBID"
+            target: "governance_proposal"
+            reason: "Immutable limits cannot be modified"
+            
+      - name: "REQUIRE_PHI_VOTE"
+        description: "Governance changes require phi-weighted approval"
+        when: 'context.vote_approval < 0.618'
+        then:
+          - action: "FORBID"
+            target: "governance_change"
+            reason: "Requires φ⁻¹ (61.8%) approval"
+
+# ── Rollback Protocol ──────────────────────────────────────────────────────────
+
+rollback:
+  id: "governance://safety/rollback"
+  description: "Emergency rollback for divergence experiments"
+  
+  triggers:
+    - manual_trigger: true
+    - circuit_breaker_active: true
+    - human_request: true
+    
+  actions:
+    - revert_to_checkpoint: true
+    - preserve_divergence_log: true
+    - create_post_mortem_issue: true
+    
+  checkpoints:
+    frequency: "daily"
+    retention: "30 days"
+    location: "dist/checkpoints/"
+
+# ── External Monitoring ────────────────────────────────────────────────────────
+
+monitoring:
+  id: "governance://safety/monitoring"
+  
+  webhook:
+    enabled: true
+    url_secret: "MONITORING_WEBHOOK_URL"
+    events:
+      - circuit_breaker_triggered
+      - critical_escalation
+      - agent_sunset
+      - governance_change
+      - extreme_divergence
+      
+  alerts:
+    - type: "circuit_breaker"
+      severity: "critical"
+      channels: ["webhook", "issue"]
+      
+    - type: "high_risk"
+      severity: "high"
+      channels: ["issue"]
+      
+    - type: "quota_exceeded"
+      severity: "medium"
+      channels: ["issue"]

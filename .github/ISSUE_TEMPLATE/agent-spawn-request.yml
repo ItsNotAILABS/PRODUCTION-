@@ -1,0 +1,80 @@
+name: "🧬 Spawn Agent Request"
+description: "Request creation of a new agent"
+title: "[SPAWN] "
+labels: ["agent-generated", "genesis", "spawn-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Agent Spawn Request
+        Request the Genesis Bot to create a new agent.
+
+  - type: input
+    id: name
+    attributes:
+      label: Agent Name
+      description: "Must follow format: organism-{domain}-bot"
+      placeholder: "organism-analytics-bot"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: blueprint
+    attributes:
+      label: Blueprint
+      description: "Base blueprint for the new agent"
+      options:
+        - observer
+        - executor
+        - analyzer
+        - coordinator
+        - guardian
+    validations:
+      required: true
+
+  - type: input
+    id: capabilities
+    attributes:
+      label: Additional Capabilities
+      description: "Comma-separated list of capabilities to add"
+      placeholder: "analyze, report, visualize"
+    validations:
+      required: false
+
+  - type: input
+    id: domain
+    attributes:
+      label: Domain Description
+      description: "What is this agent's primary responsibility?"
+      placeholder: "Analytics and metrics visualization"
+    validations:
+      required: true
+
+  - type: input
+    id: emoji
+    attributes:
+      label: Emoji
+      description: "Agent's identifying emoji"
+      placeholder: "📊"
+    validations:
+      required: false
+
+  - type: textarea
+    id: justification
+    attributes:
+      label: Justification
+      description: "Why is this new agent needed?"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: governance
+    attributes:
+      label: Governance Acknowledgment
+      options:
+        - label: "I confirm fleet capacity allows a new agent (< 50)"
+          required: true
+        - label: "I confirm this agent serves a unique purpose"
+          required: true
+        - label: "I accept that phi-weighted vote approval is required"
+          required: true

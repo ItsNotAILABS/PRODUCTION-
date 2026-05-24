@@ -1,0 +1,30 @@
+{
+  "id": "atlas://blueprint/observer",
+  "name": "Observer Blueprint",
+  "description": "Base blueprint for monitoring and reporting agents",
+  "version": "1.0.0",
+  "class": "Bot",
+  "baseCapabilities": [
+    "monitor",
+    "report",
+    "analyze"
+  ],
+  "restrictedCapabilities": [
+    "deploy",
+    "release",
+    "orchestrate"
+  ],
+  "defaultTriggers": [
+    "schedule:every-6h",
+    "workflow_dispatch"
+  ],
+  "defaultDivision": "III — Secure & Monitor",
+  "authority": "observer",
+  "fitnessBaseline": 0.5,
+  "resourceQuota": {
+    "cpuMinutes": 10,
+    "apiCalls": 100
+  },
+  "workflowTemplate": "observer-workflow.yml.template",
+  "scriptTemplate": "observer-script.js.template"
+}
