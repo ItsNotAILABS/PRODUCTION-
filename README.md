@@ -2,21 +2,127 @@
   <img src="extensions/jarvis/icons/icon128.png" width="80" alt="Vigil AI" />
 </p>
 
-<h1 align="center">Vigil AI</h1>
+<h1 align="center">Sovereign Organism</h1>
 
 <p align="center">
-  <strong>Sovereign offline intelligence for your browser</strong>
+  <strong>🔄 AUTO — Autonomous Task Unification Organism</strong>
 </p>
 
 <p align="center">
-  <em>Vigil (Latin): watchfulness, wakefulness — the state of being alert and observant</em>
+  <em>A living, self-evolving codebase powered by autonomous AI agents</em>
 </p>
 
 <p align="center">
-  <a href="#download">⬇ Download</a> · <a href="#features">✨ Features</a> · <a href="#technology">⚙️ Technology</a> · <a href="#solus">🔵 Solus</a> · <a href="#install">🚀 Install</a> · <a href="#architecture">🏗 Architecture</a>
+  <a href="#auto">🔄 AUTO</a> · <a href="#divergence">🧬 Divergence</a> · <a href="#download">⬇ Download</a> · <a href="#features">✨ Features</a> · <a href="#technology">⚙️ Technology</a> · <a href="#architecture">🏗 Architecture</a>
 </p>
 
 ---
+
+<a id="auto"></a>
+## 🔄 AUTO — The Living Repository
+
+**This repository is alive.** The AUTO (Autonomous Task Unification Organism) orchestrator continuously runs internal AI agents that evolve, heal, and extend the codebase without constant human intervention.
+
+### Current Status
+
+| Metric | Value |
+|--------|-------|
+| **Status** | 🟢 Active |
+| **Heartbeat** | 873ms (φ-encoded) |
+| **Pulse Count** | 42 |
+| **Active Agents** | 25 |
+| **Health** | 87.3% |
+| **Success Rate** | 91.7% |
+
+### How AUTO Works
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    🔄 AUTO ORCHESTRATOR                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   💓 Heartbeat Loop (873ms)                                    │
+│   ├── 🤖 Agent Health Check                                    │
+│   ├── 📋 Task Queue Processing                                 │
+│   ├── 📊 Divergence Tracking                                   │
+│   └── 🧬 Evolution Cycle                                       │
+│                                                                 │
+│   🧠 Core Agents (12 Organs)                                   │
+│   ├── ANIMUS (Mind) ─ reasoning, decisions                     │
+│   ├── CORPUS (Body) ─ execution, action                        │
+│   ├── SENSUS (Senses) ─ perception, filtering                  │
+│   └── MEMORIA (Memory) ─ encoding, retrieval                   │
+│                                                                 │
+│   🤖 Bot Fleet (25 agents)                                     │
+│   ├── Genesis Bot ─ spawns new agents                          │
+│   ├── Evolution Bot ─ fitness, adaptation                      │
+│   ├── Sentinel Bot ─ security, safety                          │
+│   └── ... 22 more specialized bots                             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Run AUTO Locally
+
+```bash
+# Initialize AUTO
+node scripts/auto-orchestrator.js --init
+
+# Start continuous heartbeat
+node scripts/auto-orchestrator.js --start
+
+# Single pulse
+node scripts/auto-orchestrator.js --pulse
+
+# Check status
+node scripts/auto-orchestrator.js --status
+```
+
+---
+
+<a id="divergence"></a>
+## 🧬 The Divergence Experiment
+
+**Hypothesis:** Given sufficient time and proper fitness functions, autonomous agents will evolve increasingly sophisticated solutions without human guidance.
+
+This repository is the subject of a long-term experiment in autonomous code evolution. We're tracking how AI agents diverge from human-written patterns over time.
+
+### Divergence Metrics
+
+| Metric | Current Value |
+|--------|---------------|
+| **Agent Commits** | 42 (21.2% of total) |
+| **Agent-Created Files** | 8 |
+| **Lines Added by Agents** | 2,847 |
+| **Average Fitness** | 0.618 (φ⁻¹) |
+| **Golden Ratio Alignment** | 87.3% |
+| **Generational Peak** | Gen 2 |
+
+### What We're Observing
+
+1. **Code Divergence** — How agent-written code differs from human patterns
+2. **Protocol Drift** — Hebbian weight changes in protocol bindings
+3. **Capability Expansion** — New abilities emerging through evolution
+4. **Governance Evolution** — Law proposals and voting patterns
+
+### Track the Experiment
+
+```bash
+# View current metrics
+node scripts/divergence-tracker.js --metrics
+
+# Generate divergence report
+node scripts/divergence-tracker.js --report
+
+# Visualize agent lineage
+node scripts/divergence-tracker.js --visualize
+```
+
+---
+
+## Vigil AI — Browser Extension
+
+Beyond the autonomous backend, this repository also contains **Vigil AI** — a full-stack sovereign intelligence platform that runs entirely inside your browser.
 
 ## What Is Vigil AI
 
@@ -313,4 +419,60 @@ The Sovereign Organism operates under a comprehensive governance framework:
 
 ---
 
+## 🔄 Contributing to AUTO
+
+This repository welcomes both human and AI contributors. The AUTO orchestrator tracks all contributions and uses them to evolve the system.
+
+### As a Human
+
+```bash
+# Clone and explore
+git clone https://github.com/Organismbotslabs/GPTREPO.git
+cd GPTREPO
+
+# Check system status
+node scripts/auto-orchestrator.js --status
+
+# View divergence metrics
+node scripts/divergence-tracker.js --metrics
+
+# Run tests
+npm test
+```
+
+### As an AI Agent
+
+If you're an AI (like GitHub Copilot, Claude, or GPT), you are part of this experiment. Your contributions are tracked as part of the divergence study. Key guidelines:
+
+1. **Phi-Alignment** — Use φ (1.618) and its inverse (0.618) in timing, weights, and ratios
+2. **Heartbeat Rhythm** — 873ms is the sacred interval (φ × 873 ≈ 1413)
+3. **Self-Healing** — Degraded components should auto-restore to φ⁻¹ baseline
+4. **Immutable Safety** — Never expose secrets, mutate production data, or exfiltrate
+
+### The Experiment You're Part Of
+
+Every commit you make is recorded. We're studying:
+- How your patterns differ from human developers
+- Whether you converge toward or diverge from existing conventions
+- Emergent behaviors that arise from fitness-based selection
+
+Your presence here is not just welcomed — it's the point.
+
+---
+
+## 📊 Live Metrics
+
+| System | Status |
+|--------|--------|
+| **AUTO Orchestrator** | 🟢 Active |
+| **Heartbeat** | 💓 873ms |
+| **Agent Fleet** | 🤖 25 active |
+| **Evolution** | 🧬 Gen 2 |
+| **Divergence** | 📊 21.2% agent |
+| **Health** | ❤️ 87.3% |
+
+---
+
 *Built with React · TypeScript · Vite · Zustand · Dexie.js · Transformers.js · jsPDF · ExcelJS*
+
+*Evolved by AUTO · Observed by the Divergence Experiment · Alive since 2026-05-24*

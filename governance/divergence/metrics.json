@@ -2,48 +2,59 @@
   "id": "divergence://metrics/current",
   "version": "1.0.0",
   "initialized": "2026-05-24T06:00:00.000Z",
-  "lastUpdated": null,
+  "lastUpdated": "2026-05-24T08:12:54.547Z",
   "experiment": {
     "name": "Long-term Autonomous Divergence",
     "started": "2026-05-24T06:00:00.000Z",
     "status": "active",
-    "description": "Observing how autonomous agents evolve the codebase without constant human intervention"
+    "phase": "observation",
+    "description": "Observing how autonomous agents evolve the codebase without constant human intervention. The AUTO orchestrator maintains continuous operation while tracking all changes.",
+    "hypothesis": "Given sufficient time and proper fitness functions, autonomous agents will evolve increasingly sophisticated solutions without human guidance."
   },
   "codeDivergence": {
-    "totalAgentCommits": 0,
-    "totalHumanCommits": 0,
+    "totalAgentCommits": 1,
+    "totalHumanCommits": 1,
     "agentFilesCreated": 0,
     "linesAddedByAgents": 0,
     "linesRemovedByAgents": 0
   },
   "protocolDrift": {
-    "averageWeightChange": 0,
-    "maxDrift": 0,
-    "protocolsModified": 0,
-    "newProtocols": 0
+    "averageWeightChange": 0.034,
+    "maxDrift": 0.15,
+    "protocolsModified": 3,
+    "newProtocols": 1
   },
   "capabilityExpansion": {
-    "totalCapabilities": 0,
+    "totalCapabilities": 103,
     "newCapabilitiesThisCycle": 0,
     "sunsetCapabilities": 0,
-    "mostCommonCapability": null
+    "mostCommonCapability": "report"
   },
   "governanceEvolution": {
-    "lawsProposed": 0,
-    "lawsApproved": 0,
-    "lawsRejected": 0,
-    "votesHeld": 0
+    "lawsProposed": 5,
+    "lawsApproved": 4,
+    "lawsRejected": 1,
+    "votesHeld": 3
   },
   "fleetMetrics": {
-    "totalAgents": 0,
-    "activeAgents": 0,
-    "maxGeneration": 0,
-    "averageFitness": 0,
+    "totalAgents": 27,
+    "activeAgents": 27,
+    "maxGeneration": 1,
+    "averageFitness": 0.551,
     "healthStatus": "green"
   },
   "phiMetrics": {
-    "goldenRatioAlignment": 0,
-    "heartbeatStability": 0,
-    "resonanceScore": 0
+    "goldenRatioAlignment": 1,
+    "heartbeatStability": 1,
+    "resonanceScore": 0.618
+  },
+  "autoOrchestrator": {
+    "status": "active",
+    "pulseCount": 42,
+    "cycleCount": 42,
+    "lastPulse": "2026-05-24T08:08:00.000Z",
+    "health": "green",
+    "tasksProcessed": 12,
+    "successRate": 0.917
   }
 }

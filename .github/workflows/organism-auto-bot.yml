@@ -1,0 +1,396 @@
+# ============================================================================
+# AUTO ORCHESTRATOR — Self-Sustaining Agent Runtime
+#
+# The AUTO (Autonomous Task Unification Organism) workflow maintains
+# continuous operation of all internal AI agents:
+#   1. Phi-encoded heartbeat monitoring (873ms rhythm)
+#   2. Agent health checks and self-healing
+#   3. Task queue processing
+#   4. Divergence tracking and evolution
+#   5. Automatic capability expansion
+#
+# Part of the Divergence Experiment: observing autonomous code evolution
+#
+# References:
+#   Script: scripts/auto-orchestrator.js
+#   State:  governance/auto/state.json
+#   Queue:  governance/auto/task-queue.json
+#
+# Identity: organism-auto-bot <organism-auto-bot@users.noreply.github.com>
+# ============================================================================
+
+name: "🔄 AUTO Orchestrator"
+
+on:
+  schedule:
+    # Continuous heartbeat: every 15 minutes
+    - cron: '*/15 * * * *'
+  
+  # Triggered by other workflows completing
+  workflow_run:
+    workflows: [
+      "🧬 Genesis Bot",
+      "🧬 Evolution Bot",
+      "🛡️ Sentinel Scan",
+      "🧪 Test Bot"
+    ]
+    types: [completed]
+  
+  # Manual dispatch
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'pulse'
+        type: choice
+        options:
+          - pulse
+          - status
+          - metrics
+          - sync
+          - evolve
+          - full-cycle
+      
+      force_evolve:
+        description: 'Force evolution cycle even if not scheduled'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # HEARTBEAT PULSE — The core rhythm of the organism
+  # ═══════════════════════════════════════════════════════════════════════════
+  heartbeat-pulse:
+    name: "💓 Heartbeat Pulse"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'pulse')
+
+    outputs:
+      health_status: ${{ steps.pulse.outputs.health_status }}
+      pulse_count: ${{ steps.pulse.outputs.pulse_count }}
+      agents_active: ${{ steps.pulse.outputs.agents_active }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "💓 Execute pulse"
+        id: pulse
+        run: |
+          node scripts/auto-orchestrator.js --pulse
+          
+          # Extract metrics for outputs
+          if [ -f governance/auto/state.json ]; then
+            HEALTH=$(cat governance/auto/state.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).health?.status || 'unknown'")
+            PULSES=$(cat governance/auto/state.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).pulseCount || 0")
+            AGENTS=$(cat governance/auto/state.json | node -p "Object.keys(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).agents || {}).length")
+            
+            echo "health_status=$HEALTH" >> $GITHUB_OUTPUT
+            echo "pulse_count=$PULSES" >> $GITHUB_OUTPUT
+            echo "agents_active=$AGENTS" >> $GITHUB_OUTPUT
+          fi
+
+      - name: "📊 Update divergence metrics"
+        run: |
+          node scripts/divergence-tracker.js --update 2>/dev/null || echo "Divergence tracker not ready"
+
+      - name: Commit state
+        run: |
+          git config user.name "organism-auto-bot"
+          git config user.email "organism-auto-bot@users.noreply.github.com"
+          
+          git add governance/auto/ governance/divergence/ || true
+          
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🔄 AUTO: pulse #$(cat governance/auto/state.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).pulseCount || 0")"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # STATUS CHECK — Monitor organism health
+  # ═══════════════════════════════════════════════════════════════════════════
+  status-check:
+    name: "📊 Status Check"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'status'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "📊 Display status"
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🔄 AUTO ORCHESTRATOR STATUS"
+          echo "═══════════════════════════════════════════════════════"
+          node scripts/auto-orchestrator.js --status
+          
+          echo ""
+          echo "═══════════════════════════════════════════════════════"
+          echo "  📋 TASK QUEUE"
+          echo "═══════════════════════════════════════════════════════"
+          node scripts/auto-orchestrator.js --queue
+          
+          echo ""
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🤖 AGENTS"
+          echo "═══════════════════════════════════════════════════════"
+          node scripts/auto-orchestrator.js --agents
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # METRICS — Display divergence and evolution metrics
+  # ═══════════════════════════════════════════════════════════════════════════
+  metrics-report:
+    name: "📈 Metrics Report"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'metrics'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "📈 Generate metrics"
+        run: |
+          node scripts/divergence-tracker.js --metrics
+          
+          echo ""
+          echo "═══════════════════════════════════════════════════════"
+          echo "  📊 AUTO METRICS"  
+          echo "═══════════════════════════════════════════════════════"
+          node scripts/auto-orchestrator.js --status
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SYNC — Synchronize state across all subsystems
+  # ═══════════════════════════════════════════════════════════════════════════
+  sync-state:
+    name: "🔄 Sync State"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "🔄 Sync all subsystems"
+        run: |
+          # Add sync task
+          node scripts/auto-orchestrator.js --add=sync
+          
+          # Execute pulse to process
+          node scripts/auto-orchestrator.js --pulse
+          
+          # Update divergence
+          node scripts/divergence-tracker.js --update 2>/dev/null || true
+          
+          # Run genesis census
+          node scripts/genesis-agent.js --census
+
+      - name: Commit sync
+        run: |
+          git config user.name "organism-auto-bot"
+          git config user.email "organism-auto-bot@users.noreply.github.com"
+          
+          git add governance/ || true
+          
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "🔄 AUTO: sync complete"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # EVOLVE — Trigger evolution cycle
+  # ═══════════════════════════════════════════════════════════════════════════
+  evolution-cycle:
+    name: "🧬 Evolution Cycle"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'evolve'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "🧬 Run evolution"
+        run: |
+          # Add evolve task
+          node scripts/auto-orchestrator.js --add=evolve
+          
+          # Process
+          node scripts/auto-orchestrator.js --pulse
+          
+          # Generate divergence report
+          node scripts/divergence-tracker.js --report
+
+      - name: Commit evolution
+        run: |
+          git config user.name "organism-auto-bot"
+          git config user.email "organism-auto-bot@users.noreply.github.com"
+          
+          git add governance/ docs/ || true
+          
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "🧬 AUTO: evolution cycle"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FULL CYCLE — Complete orchestration cycle
+  # ═══════════════════════════════════════════════════════════════════════════
+  full-cycle:
+    name: "⚡ Full Cycle"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'full-cycle'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "⚡ Phase 1 — Sync"
+        run: |
+          echo "🔄 Syncing state..."
+          node scripts/auto-orchestrator.js --add=sync
+          node scripts/auto-orchestrator.js --pulse
+
+      - name: "⚡ Phase 2 — Observe"
+        run: |
+          echo "👁️ Observing agents..."
+          node scripts/auto-orchestrator.js --add=observe
+          node scripts/auto-orchestrator.js --pulse
+
+      - name: "⚡ Phase 3 — Evolve"
+        run: |
+          echo "🧬 Running evolution..."
+          node scripts/auto-orchestrator.js --add=evolve
+          node scripts/auto-orchestrator.js --pulse
+
+      - name: "⚡ Phase 4 — Divergence"
+        run: |
+          echo "📊 Tracking divergence..."
+          node scripts/auto-orchestrator.js --add=diverge
+          node scripts/auto-orchestrator.js --pulse
+          node scripts/divergence-tracker.js --update
+
+      - name: "⚡ Phase 5 — Commit"
+        run: |
+          echo "📝 Committing ledger..."
+          node scripts/auto-orchestrator.js --add=commit
+          node scripts/auto-orchestrator.js --pulse
+
+      - name: "⚡ Phase 6 — Report"
+        run: |
+          echo "📈 Generating reports..."
+          node scripts/divergence-tracker.js --report
+          node scripts/auto-orchestrator.js --status
+
+      - name: Commit full cycle
+        run: |
+          git config user.name "organism-auto-bot"
+          git config user.email "organism-auto-bot@users.noreply.github.com"
+          
+          git add governance/ docs/ || true
+          
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "⚡ AUTO: full orchestration cycle complete"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # WORKFLOW RUN HANDLER — React to other workflows
+  # ═══════════════════════════════════════════════════════════════════════════
+  workflow-handler:
+    name: "🔗 Workflow Handler"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_run'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "🔗 Record workflow completion"
+        run: |
+          WORKFLOW="${{ github.event.workflow_run.name }}"
+          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          
+          echo "📋 Workflow: $WORKFLOW"
+          echo "📊 Conclusion: $CONCLUSION"
+          
+          # Add observation task
+          node scripts/auto-orchestrator.js --add=observe
+          
+          # Pulse
+          node scripts/auto-orchestrator.js --pulse
+          
+          # Record to ledger
+          echo "{\"type\":\"workflow_complete\",\"workflow\":\"$WORKFLOW\",\"conclusion\":\"$CONCLUSION\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" >> governance/auto/ledger.jsonl
+
+      - name: "🧬 Check for evolution trigger"
+        if: github.event.workflow_run.conclusion == 'success'
+        run: |
+          # Successful workflows contribute to fitness
+          echo "✅ Success recorded — considering for fitness update"
+
+      - name: Commit handler
+        run: |
+          git config user.name "organism-auto-bot"
+          git config user.email "organism-auto-bot@users.noreply.github.com"
+          
+          git add governance/auto/ || true
+          
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "🔗 AUTO: recorded ${{ github.event.workflow_run.name }} completion"
+            git push
+          fi
