@@ -50,6 +50,39 @@ const EXTENSIONS = [
   { id: 'EXT-040', slug: 'signal-relay-adapter', name: 'Signal Relay Adapter', engines: ['SynapseBinding', 'KuramotoRelay', 'PhiPulse', 'CrossSubstrate'], ring: 'Sovereign Ring', wire: 'intelligence-wire/relay', userExperience: 'Internal intelligence adapter — the nervous system relay. Captures intelligence signals from all active extensions and relays them through the organism synapse binding engine via phi-pulse (873ms × φ). Cross-substrate routing: browser ↔ organism ↔ edge. Wire your extension ecosystem.' }
 ];
 
+const ECOSYSTEM_SETS = [
+  {
+    id: 'SET-CORE-SOVEREIGN',
+    name: 'Core Sovereign Stack',
+    description: 'Foundational sovereign intelligence surface for core routing, memory, monitoring, and system control.',
+    extensionIds: ['EXT-001', 'EXT-014', 'EXT-016', 'EXT-020', 'EXT-036', 'EXT-040']
+  },
+  {
+    id: 'SET-SECURITY-COMPLIANCE',
+    name: 'Security + Compliance Mesh',
+    description: 'Hardened package for threat detection, encryption, boundary governance, and contract validation.',
+    extensionIds: ['EXT-002', 'EXT-007', 'EXT-015', 'EXT-021', 'EXT-038']
+  },
+  {
+    id: 'SET-RESEARCH-KNOWLEDGE',
+    name: 'Research + Knowledge Fabric',
+    description: 'End-to-end research and memory pipeline for discovery, extraction, graphing, and knowledge synchronization.',
+    extensionIds: ['EXT-003', 'EXT-008', 'EXT-010', 'EXT-017', 'EXT-023', 'EXT-039']
+  },
+  {
+    id: 'SET-CREATOR-MULTIMODAL',
+    name: 'Creator Multimodal Studio',
+    description: 'Modular multimodal composition stack for image, video, voice, and creative synthesis workflows.',
+    extensionIds: ['EXT-004', 'EXT-009', 'EXT-011', 'EXT-019']
+  },
+  {
+    id: 'SET-OPS-AUTONOMY',
+    name: 'Operations + Autonomy',
+    description: 'Automation-first package for coding, orchestration, protocol bridging, and screen-level execution.',
+    extensionIds: ['EXT-005', 'EXT-018', 'EXT-022', 'EXT-024', 'EXT-025', 'EXT-026', 'EXT-037']
+  }
+];
+
 /**
  * Look up an extension by its ID (e.g. "EXT-001").
  * @param {string} id
@@ -86,4 +119,44 @@ function getExtensionsByEngine(engine) {
   return EXTENSIONS.filter(e => e.engines.some(eng => eng.toLowerCase().includes(engine.toLowerCase())));
 }
 
-export { EXTENSIONS, getExtensionById, getExtensionBySlug, getExtensionsByRing, getExtensionsByEngine };
+/**
+ * List all modular ecosystem sets.
+ * @returns {Object[]}
+ */
+function listEcosystemSets() {
+  return ECOSYSTEM_SETS.slice();
+}
+
+/**
+ * Look up an ecosystem set by ID (e.g. "SET-CORE-SOVEREIGN").
+ * @param {string} id
+ * @returns {Object|undefined}
+ */
+function getEcosystemSetById(id) {
+  return ECOSYSTEM_SETS.find((set) => set.id === id);
+}
+
+/**
+ * Resolve all extension objects for a given ecosystem set.
+ * @param {string} setId
+ * @returns {Object[]}
+ */
+function getExtensionsByEcosystemSet(setId) {
+  const set = getEcosystemSetById(setId);
+  if (!set) return [];
+  return set.extensionIds
+    .map((id) => getExtensionById(id))
+    .filter(Boolean);
+}
+
+export {
+  EXTENSIONS,
+  ECOSYSTEM_SETS,
+  getExtensionById,
+  getExtensionBySlug,
+  getExtensionsByRing,
+  getExtensionsByEngine,
+  listEcosystemSets,
+  getEcosystemSetById,
+  getExtensionsByEcosystemSet,
+};
