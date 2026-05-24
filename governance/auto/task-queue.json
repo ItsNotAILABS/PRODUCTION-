@@ -1,0 +1,49 @@
+{
+  "tasks": [
+    {
+      "id": "task-bootstrap-002",
+      "type": "observe",
+      "payload": {
+        "priority": 2
+      },
+      "createdAt": "2026-05-24T08:00:01.000Z",
+      "priority": 2
+    },
+    {
+      "id": "task-bootstrap-003",
+      "type": "diverge",
+      "payload": {
+        "priority": 1
+      },
+      "createdAt": "2026-05-24T08:00:02.000Z",
+      "priority": 1
+    }
+  ],
+  "processed": [
+    {
+      "id": "task-init-000",
+      "type": "sync",
+      "payload": {},
+      "createdAt": "2026-05-24T06:00:00.000Z",
+      "processedAt": "2026-05-24T06:00:01.000Z",
+      "result": {
+        "success": true,
+        "message": "Initial sync complete"
+      }
+    },
+    {
+      "id": "task-bootstrap-001",
+      "type": "sync",
+      "payload": {
+        "priority": 3
+      },
+      "createdAt": "2026-05-24T08:00:00.000Z",
+      "priority": 3,
+      "processedAt": "2026-05-24T08:12:49.792Z",
+      "result": {
+        "success": true,
+        "message": "Synced 27 agents"
+      }
+    }
+  ]
+}
