@@ -7,7 +7,28 @@
   "exports": {
     ".": "./src/index.js"
   },
-  "keywords": ["alpha-tools", "organism", "sdk", "phi", "adapters", "plugins"],
+  "keywords": [
+    "alpha-tools",
+    "organism",
+    "sdk",
+    "phi",
+    "adapters",
+    "plugins"
+  ],
   "author": "Medina",
-  "license": "UNLICENSED"
+  "license": "MIT",
+  "files": [
+    "src/"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FreddyCreates/potential-succotash.git",
+    "directory": "sdk/alpha-tools"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }
