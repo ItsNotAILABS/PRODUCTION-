@@ -452,23 +452,23 @@ jobs:
           fetch-depth: 0
 
       - name: "🎫 Create branch from issue"
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          LABEL_NAME: ${{ github.event.label.name }}
         run: |
           git config user.name "organism-branch-bot"
           git config user.email "organism-branch-bot@users.noreply.github.com"
           
-          ISSUE_NUMBER="${{ github.event.issue.number }}"
-          ISSUE_TITLE="${{ github.event.issue.title }}"
-          LABEL="${{ github.event.label.name }}"
-          
-          # Determine branch type from label
-          case "$LABEL" in
+          # Determine branch type from label (use env var for safety)
+          case "$LABEL_NAME" in
             "create-face") TYPE="face" ;;
             "create-feature") TYPE="feature" ;;
             *) TYPE="feature" ;;
           esac
           
-          # Create branch name from issue
-          SAFE_NAME=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-50)
+          # Create branch name from issue (sanitize user input via env var)
+          SAFE_NAME=$(printf '%s' "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-50)
           FULL_BRANCH="${TYPE}/${ISSUE_NUMBER}-${SAFE_NAME}"
           
           echo "═══════════════════════════════════════════════════════"
@@ -486,20 +486,23 @@ jobs:
           # Create new branch
           git checkout -b "$FULL_BRANCH"
           
-          # Add branch metadata
+          # Add branch metadata (escape issue title for JSON safety)
           mkdir -p .branch-metadata
-          echo "{
-            \"branch\": \"$FULL_BRANCH\",
-            \"type\": \"$TYPE\",
-            \"issue_number\": $ISSUE_NUMBER,
-            \"issue_title\": \"$ISSUE_TITLE\",
-            \"source_branch\": \"main\",
-            \"source_sha\": \"$(git rev-parse HEAD)\",
-            \"created_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
-            \"created_by\": \"organism-branch-bot\",
-            \"auto_created\": true,
-            \"workflow_run\": \"${{ github.run_id }}\"
-          }" > .branch-metadata/info.json
+          ESCAPED_TITLE=$(printf '%s' "$ISSUE_TITLE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed 's/\t/\\t/g' | tr '\n' ' ')
+          cat > .branch-metadata/info.json << EOF
+          {
+            "branch": "$FULL_BRANCH",
+            "type": "$TYPE",
+            "issue_number": $ISSUE_NUMBER,
+            "issue_title": "$ESCAPED_TITLE",
+            "source_branch": "main",
+            "source_sha": "$(git rev-parse HEAD)",
+            "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "created_by": "organism-branch-bot",
+            "auto_created": true,
+            "workflow_run": "${{ github.run_id }}"
+          }
+          EOF
           
           git add .branch-metadata/
           git commit -m "🎫 Branch-bot: created $FULL_BRANCH for issue #$ISSUE_NUMBER"
