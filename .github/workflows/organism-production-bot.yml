@@ -1,0 +1,503 @@
+# ============================================================================
+# organism-production-bot — Production Branch Promotion & Deployment Manager
+#
+# Automates the process of promoting code from main to production branches.
+# Handles validation, testing, and safe branch promotion with rollback support.
+#
+# Supported production branches:
+#   - production (stable release)
+#   - staging (pre-production testing)
+#   - release/* (versioned releases)
+#
+# Identity: organism-production-bot <organism-production-bot@users.noreply.github.com>
+# ============================================================================
+
+name: "🏭 Production Branch Manager"
+
+on:
+  # Manual promotion trigger
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'promote-staging'
+        type: choice
+        options:
+          - promote-staging
+          - promote-production
+          - create-release
+          - rollback
+          - status
+      
+      source_branch:
+        description: 'Source branch to promote from (default: main)'
+        required: false
+        default: 'main'
+      
+      target_branch:
+        description: 'Target production branch (for create-release use release/vX.Y.Z format)'
+        required: false
+        default: ''
+      
+      version:
+        description: 'Version tag for release branches (e.g., 1.2.0)'
+        required: false
+        default: ''
+      
+      skip_tests:
+        description: 'Skip validation tests (use with caution)'
+        required: false
+        default: false
+        type: boolean
+
+  # Auto-promote on successful release tags
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  NODE_VERSION: '20'
+  PRODUCTION_BRANCH: 'production'
+  STAGING_BRANCH: 'staging'
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PRE-FLIGHT VALIDATION — Ensure everything is ready for promotion
+  # ═══════════════════════════════════════════════════════════════════════════
+  preflight:
+    name: "🔍 Pre-flight Validation"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action != 'status'
+    
+    outputs:
+      source_sha: ${{ steps.validate.outputs.source_sha }}
+      can_proceed: ${{ steps.validate.outputs.can_proceed }}
+      validation_report: ${{ steps.validate.outputs.validation_report }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.source_branch || 'main' }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "🔍 Validate source branch"
+        id: validate
+        run: |
+          SOURCE_BRANCH="${{ github.event.inputs.source_branch || 'main' }}"
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🔍 PRE-FLIGHT VALIDATION"
+          echo "═══════════════════════════════════════════════════════"
+          echo "Source Branch: $SOURCE_BRANCH"
+          echo "Source SHA: $(git rev-parse HEAD)"
+          
+          # Store source SHA
+          echo "source_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          
+          # Check branch exists
+          if ! git rev-parse --verify "$SOURCE_BRANCH" > /dev/null 2>&1; then
+            echo "❌ Source branch '$SOURCE_BRANCH' does not exist"
+            echo "can_proceed=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "can_proceed=true" >> $GITHUB_OUTPUT
+          echo "validation_report=Source branch validated successfully" >> $GITHUB_OUTPUT
+
+      - name: "🧪 Run validation tests"
+        if: github.event.inputs.skip_tests != 'true'
+        run: |
+          echo "Running lint validation..."
+          node scripts/lint-manifests.js || exit 1
+          
+          echo "Running test suite..."
+          node --test test/**/*.test.js || exit 1
+          
+          echo "✅ All validations passed"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PROMOTE TO STAGING — Safe promotion to staging branch
+  # ═══════════════════════════════════════════════════════════════════════════
+  promote-staging:
+    name: "🎭 Promote to Staging"
+    runs-on: ubuntu-latest
+    needs: preflight
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      github.event.inputs.action == 'promote-staging' &&
+      needs.preflight.outputs.can_proceed == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.source_branch || 'main' }}
+
+      - name: "🎭 Create/Update staging branch"
+        run: |
+          git config user.name "organism-production-bot"
+          git config user.email "organism-production-bot@users.noreply.github.com"
+          
+          SOURCE_SHA="${{ needs.preflight.outputs.source_sha }}"
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🎭 PROMOTING TO STAGING"
+          echo "═══════════════════════════════════════════════════════"
+          echo "Source SHA: $SOURCE_SHA"
+          
+          # Create or update staging branch
+          git checkout -B ${{ env.STAGING_BRANCH }}
+          
+          # Add promotion metadata
+          echo "{
+            \"promoted_from\": \"${{ github.event.inputs.source_branch || 'main' }}\",
+            \"promoted_sha\": \"$SOURCE_SHA\",
+            \"promoted_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+            \"promoted_by\": \"${{ github.actor }}\",
+            \"workflow_run\": \"${{ github.run_id }}\"
+          }" > .promotion-metadata.json
+          
+          git add .promotion-metadata.json
+          git commit -m "🎭 Production-bot: promoted to staging from ${{ github.event.inputs.source_branch || 'main' }} ($SOURCE_SHA)"
+          git push origin ${{ env.STAGING_BRANCH }} --force
+          
+          echo "✅ Staging branch updated successfully"
+
+      - name: "📋 Create staging deployment summary"
+        run: |
+          echo "## 🎭 Staging Promotion Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Source Branch | \`${{ github.event.inputs.source_branch || 'main' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Target Branch | \`${{ env.STAGING_BRANCH }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Source SHA | \`${{ needs.preflight.outputs.source_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Promoted By | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Timestamp | $(date -u +%Y-%m-%dT%H:%M:%SZ) |" >> $GITHUB_STEP_SUMMARY
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PROMOTE TO PRODUCTION — Safe promotion to production branch
+  # ═══════════════════════════════════════════════════════════════════════════
+  promote-production:
+    name: "🏭 Promote to Production"
+    runs-on: ubuntu-latest
+    needs: preflight
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      github.event.inputs.action == 'promote-production' &&
+      needs.preflight.outputs.can_proceed == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.source_branch || 'main' }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "🔒 Production safety checks"
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🔒 PRODUCTION SAFETY CHECKS"
+          echo "═══════════════════════════════════════════════════════"
+          
+          # Final validation
+          node scripts/lint-manifests.js || exit 1
+          node --test test/**/*.test.js || exit 1
+          
+          echo "✅ All production safety checks passed"
+
+      - name: "🏭 Create/Update production branch"
+        run: |
+          git config user.name "organism-production-bot"
+          git config user.email "organism-production-bot@users.noreply.github.com"
+          
+          SOURCE_SHA="${{ needs.preflight.outputs.source_sha }}"
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🏭 PROMOTING TO PRODUCTION"
+          echo "═══════════════════════════════════════════════════════"
+          echo "Source SHA: $SOURCE_SHA"
+          
+          # Backup current production SHA for rollback
+          CURRENT_PROD_SHA=""
+          if git rev-parse --verify origin/${{ env.PRODUCTION_BRANCH }} > /dev/null 2>&1; then
+            CURRENT_PROD_SHA=$(git rev-parse origin/${{ env.PRODUCTION_BRANCH }})
+          fi
+          
+          # Create or update production branch
+          git checkout -B ${{ env.PRODUCTION_BRANCH }}
+          
+          # Add promotion metadata with rollback info
+          echo "{
+            \"promoted_from\": \"${{ github.event.inputs.source_branch || 'main' }}\",
+            \"promoted_sha\": \"$SOURCE_SHA\",
+            \"previous_production_sha\": \"$CURRENT_PROD_SHA\",
+            \"promoted_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+            \"promoted_by\": \"${{ github.actor }}\",
+            \"workflow_run\": \"${{ github.run_id }}\"
+          }" > .promotion-metadata.json
+          
+          git add .promotion-metadata.json
+          git commit -m "🏭 Production-bot: promoted to production from ${{ github.event.inputs.source_branch || 'main' }} ($SOURCE_SHA)"
+          git push origin ${{ env.PRODUCTION_BRANCH }} --force
+          
+          echo "✅ Production branch updated successfully"
+          echo "📋 Previous SHA (for rollback): $CURRENT_PROD_SHA"
+
+      - name: "📋 Create production deployment summary"
+        run: |
+          echo "## 🏭 Production Promotion Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Source Branch | \`${{ github.event.inputs.source_branch || 'main' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Target Branch | \`${{ env.PRODUCTION_BRANCH }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Source SHA | \`${{ needs.preflight.outputs.source_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Promoted By | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Timestamp | $(date -u +%Y-%m-%dT%H:%M:%SZ) |" >> $GITHUB_STEP_SUMMARY
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CREATE RELEASE BRANCH — Create versioned release branch
+  # ═══════════════════════════════════════════════════════════════════════════
+  create-release:
+    name: "📦 Create Release Branch"
+    runs-on: ubuntu-latest
+    needs: preflight
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      github.event.inputs.action == 'create-release' &&
+      needs.preflight.outputs.can_proceed == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.source_branch || 'main' }}
+
+      - name: "📦 Create release branch"
+        run: |
+          git config user.name "organism-production-bot"
+          git config user.email "organism-production-bot@users.noreply.github.com"
+          
+          VERSION="${{ github.event.inputs.version }}"
+          TARGET="${{ github.event.inputs.target_branch }}"
+          SOURCE_SHA="${{ needs.preflight.outputs.source_sha }}"
+          
+          # Determine release branch name
+          if [ -n "$TARGET" ]; then
+            RELEASE_BRANCH="$TARGET"
+          elif [ -n "$VERSION" ]; then
+            RELEASE_BRANCH="release/v$VERSION"
+          else
+            # Auto-generate version from date
+            VERSION="$(date +%Y.%m.%d)"
+            RELEASE_BRANCH="release/v$VERSION"
+          fi
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  📦 CREATING RELEASE BRANCH"
+          echo "═══════════════════════════════════════════════════════"
+          echo "Release Branch: $RELEASE_BRANCH"
+          echo "Source SHA: $SOURCE_SHA"
+          
+          # Create release branch
+          git checkout -B "$RELEASE_BRANCH"
+          
+          # Add release metadata
+          echo "{
+            \"release_branch\": \"$RELEASE_BRANCH\",
+            \"version\": \"$VERSION\",
+            \"created_from\": \"${{ github.event.inputs.source_branch || 'main' }}\",
+            \"created_sha\": \"$SOURCE_SHA\",
+            \"created_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+            \"created_by\": \"${{ github.actor }}\",
+            \"workflow_run\": \"${{ github.run_id }}\"
+          }" > .release-metadata.json
+          
+          git add .release-metadata.json
+          git commit -m "📦 Production-bot: created release branch $RELEASE_BRANCH"
+          git push origin "$RELEASE_BRANCH"
+          
+          echo "✅ Release branch '$RELEASE_BRANCH' created successfully"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ROLLBACK — Emergency rollback to previous production state
+  # ═══════════════════════════════════════════════════════════════════════════
+  rollback:
+    name: "⏪ Rollback Production"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'rollback'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.PRODUCTION_BRANCH }}
+
+      - name: "⏪ Perform rollback"
+        run: |
+          git config user.name "organism-production-bot"
+          git config user.email "organism-production-bot@users.noreply.github.com"
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  ⏪ PRODUCTION ROLLBACK"
+          echo "═══════════════════════════════════════════════════════"
+          
+          # Read rollback SHA from metadata
+          if [ -f .promotion-metadata.json ]; then
+            ROLLBACK_SHA=$(cat .promotion-metadata.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).previous_production_sha || ''")
+            
+            if [ -n "$ROLLBACK_SHA" ] && [ "$ROLLBACK_SHA" != "null" ]; then
+              echo "Rolling back to: $ROLLBACK_SHA"
+              
+              git reset --hard "$ROLLBACK_SHA"
+              
+              # Update metadata to reflect rollback
+              echo "{
+                \"rollback_from\": \"$(git rev-parse HEAD)\",
+                \"rollback_to\": \"$ROLLBACK_SHA\",
+                \"rollback_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+                \"rollback_by\": \"${{ github.actor }}\",
+                \"workflow_run\": \"${{ github.run_id }}\"
+              }" > .rollback-metadata.json
+              
+              git add .rollback-metadata.json
+              git commit -m "⏪ Production-bot: emergency rollback to $ROLLBACK_SHA"
+              git push origin ${{ env.PRODUCTION_BRANCH }} --force
+              
+              echo "✅ Rollback completed successfully"
+            else
+              echo "❌ No previous production SHA found for rollback"
+              exit 1
+            fi
+          else
+            echo "❌ No promotion metadata found"
+            exit 1
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # STATUS — Display current production branch status
+  # ═══════════════════════════════════════════════════════════════════════════
+  status:
+    name: "📊 Production Status"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'status'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "📊 Display production status"
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  📊 PRODUCTION BRANCH STATUS"
+          echo "═══════════════════════════════════════════════════════"
+          
+          echo ""
+          echo "📌 Main Branch:"
+          echo "   SHA: $(git rev-parse origin/main 2>/dev/null || echo 'N/A')"
+          echo "   Date: $(git log -1 --format=%ci origin/main 2>/dev/null || echo 'N/A')"
+          
+          echo ""
+          echo "🎭 Staging Branch:"
+          if git rev-parse --verify origin/${{ env.STAGING_BRANCH }} > /dev/null 2>&1; then
+            echo "   SHA: $(git rev-parse origin/${{ env.STAGING_BRANCH }})"
+            echo "   Date: $(git log -1 --format=%ci origin/${{ env.STAGING_BRANCH }})"
+            echo "   Commits behind main: $(git rev-list --count origin/${{ env.STAGING_BRANCH }}..origin/main)"
+          else
+            echo "   Status: Not created"
+          fi
+          
+          echo ""
+          echo "🏭 Production Branch:"
+          if git rev-parse --verify origin/${{ env.PRODUCTION_BRANCH }} > /dev/null 2>&1; then
+            echo "   SHA: $(git rev-parse origin/${{ env.PRODUCTION_BRANCH }})"
+            echo "   Date: $(git log -1 --format=%ci origin/${{ env.PRODUCTION_BRANCH }})"
+            echo "   Commits behind main: $(git rev-list --count origin/${{ env.PRODUCTION_BRANCH }}..origin/main)"
+          else
+            echo "   Status: Not created"
+          fi
+          
+          echo ""
+          echo "📦 Release Branches:"
+          git branch -r | grep "origin/release/" | while read branch; do
+            BRANCH_NAME=$(echo "$branch" | sed 's/origin\///')
+            echo "   - $BRANCH_NAME ($(git rev-parse --short $branch))"
+          done || echo "   None found"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # AUTO PROMOTION ON TAG — Automatically promote when release tag is pushed
+  # ═══════════════════════════════════════════════════════════════════════════
+  auto-promote-on-tag:
+    name: "🏷️ Auto-Promote on Tag"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "🧪 Validate before promotion"
+        run: |
+          node scripts/lint-manifests.js || exit 1
+          node --test test/**/*.test.js || exit 1
+
+      - name: "🏷️ Auto-promote to production"
+        run: |
+          git config user.name "organism-production-bot"
+          git config user.email "organism-production-bot@users.noreply.github.com"
+          
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          SOURCE_SHA=$(git rev-parse HEAD)
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🏷️ AUTO-PROMOTING TAG TO PRODUCTION"
+          echo "═══════════════════════════════════════════════════════"
+          echo "Tag: $TAG_NAME"
+          echo "SHA: $SOURCE_SHA"
+          
+          # Create production branch from tag
+          git checkout -B ${{ env.PRODUCTION_BRANCH }}
+          
+          echo "{
+            \"promoted_from_tag\": \"$TAG_NAME\",
+            \"promoted_sha\": \"$SOURCE_SHA\",
+            \"promoted_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+            \"auto_promoted\": true,
+            \"workflow_run\": \"${{ github.run_id }}\"
+          }" > .promotion-metadata.json
+          
+          git add .promotion-metadata.json
+          git commit -m "🏷️ Production-bot: auto-promoted $TAG_NAME to production"
+          git push origin ${{ env.PRODUCTION_BRANCH }} --force
+          
+          echo "✅ Auto-promotion complete"

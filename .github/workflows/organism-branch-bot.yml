@@ -1,0 +1,601 @@
+# ============================================================================
+# organism-branch-bot — Feature Branch Factory & Manager
+#
+# Creates and manages feature branches ("faces") for the organism.
+# Each branch represents a distinct feature or capability being developed.
+# Handles branch lifecycle: creation, synchronization, cleanup, and merging.
+#
+# Branch naming conventions:
+#   - feature/{name}  — New features
+#   - face/{name}     — Organism capability faces
+#   - fix/{name}      — Bug fixes
+#   - exp/{name}      — Experiments
+#
+# Identity: organism-branch-bot <organism-branch-bot@users.noreply.github.com>
+# ============================================================================
+
+name: "🌿 Branch Factory"
+
+on:
+  # Manual branch operations
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'create'
+        type: choice
+        options:
+          - create
+          - sync
+          - cleanup
+          - list
+          - protect
+          - merge-request
+      
+      branch_type:
+        description: 'Branch type (for create action)'
+        required: false
+        default: 'feature'
+        type: choice
+        options:
+          - feature
+          - face
+          - fix
+          - exp
+          - release
+      
+      branch_name:
+        description: 'Branch name (without type prefix)'
+        required: false
+        default: ''
+      
+      source_branch:
+        description: 'Source branch to create from (default: main)'
+        required: false
+        default: 'main'
+      
+      description:
+        description: 'Brief description of the branch purpose'
+        required: false
+        default: ''
+      
+      auto_sync:
+        description: 'Enable auto-sync from source branch'
+        required: false
+        default: true
+        type: boolean
+      
+      stale_days:
+        description: 'Days before branch is considered stale (for cleanup)'
+        required: false
+        default: '30'
+
+  # Scheduled branch maintenance
+  schedule:
+    # Weekly branch health check
+    - cron: '0 6 * * 0'
+
+  # Trigger on issue creation with specific labels
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CREATE BRANCH — Spawn a new feature branch (face)
+  # ═══════════════════════════════════════════════════════════════════════════
+  create-branch:
+    name: "🌱 Create Branch"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'create'
+
+    outputs:
+      branch_name: ${{ steps.create.outputs.branch_name }}
+      branch_sha: ${{ steps.create.outputs.branch_sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.source_branch || 'main' }}
+
+      - name: "🌱 Create new branch"
+        id: create
+        run: |
+          git config user.name "organism-branch-bot"
+          git config user.email "organism-branch-bot@users.noreply.github.com"
+          
+          TYPE="${{ github.event.inputs.branch_type }}"
+          NAME="${{ github.event.inputs.branch_name }}"
+          SOURCE="${{ github.event.inputs.source_branch || 'main' }}"
+          DESCRIPTION="${{ github.event.inputs.description }}"
+          
+          # Validate branch name
+          if [ -z "$NAME" ]; then
+            echo "❌ Branch name is required"
+            exit 1
+          fi
+          
+          # Sanitize branch name
+          SAFE_NAME=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//')
+          FULL_BRANCH="${TYPE}/${SAFE_NAME}"
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🌱 CREATING NEW BRANCH"
+          echo "═══════════════════════════════════════════════════════"
+          echo "Type: $TYPE"
+          echo "Name: $SAFE_NAME"
+          echo "Full Branch: $FULL_BRANCH"
+          echo "Source: $SOURCE"
+          
+          # Check if branch already exists
+          if git rev-parse --verify "origin/$FULL_BRANCH" > /dev/null 2>&1; then
+            echo "⚠️ Branch '$FULL_BRANCH' already exists"
+            echo "branch_name=$FULL_BRANCH" >> $GITHUB_OUTPUT
+            echo "branch_sha=$(git rev-parse origin/$FULL_BRANCH)" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Create new branch
+          git checkout -b "$FULL_BRANCH"
+          
+          # Add branch metadata
+          mkdir -p .branch-metadata
+          echo "{
+            \"branch\": \"$FULL_BRANCH\",
+            \"type\": \"$TYPE\",
+            \"name\": \"$SAFE_NAME\",
+            \"description\": \"$DESCRIPTION\",
+            \"source_branch\": \"$SOURCE\",
+            \"source_sha\": \"$(git rev-parse HEAD)\",
+            \"created_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+            \"created_by\": \"${{ github.actor }}\",
+            \"auto_sync\": ${{ github.event.inputs.auto_sync }},
+            \"workflow_run\": \"${{ github.run_id }}\"
+          }" > .branch-metadata/info.json
+          
+          git add .branch-metadata/
+          git commit -m "🌱 Branch-bot: initialized $FULL_BRANCH from $SOURCE"
+          git push origin "$FULL_BRANCH"
+          
+          echo "branch_name=$FULL_BRANCH" >> $GITHUB_OUTPUT
+          echo "branch_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          
+          echo "✅ Branch '$FULL_BRANCH' created successfully"
+
+      - name: "📋 Create branch summary"
+        run: |
+          echo "## 🌱 Branch Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch Name | \`${{ steps.create.outputs.branch_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch SHA | \`${{ steps.create.outputs.branch_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Source Branch | \`${{ github.event.inputs.source_branch || 'main' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Created By | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Timestamp | $(date -u +%Y-%m-%dT%H:%M:%SZ) |" >> $GITHUB_STEP_SUMMARY
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SYNC BRANCH — Synchronize feature branch with source
+  # ═══════════════════════════════════════════════════════════════════════════
+  sync-branch:
+    name: "🔄 Sync Branch"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "🔄 Sync branch with source"
+        run: |
+          git config user.name "organism-branch-bot"
+          git config user.email "organism-branch-bot@users.noreply.github.com"
+          
+          TYPE="${{ github.event.inputs.branch_type }}"
+          NAME="${{ github.event.inputs.branch_name }}"
+          SOURCE="${{ github.event.inputs.source_branch || 'main' }}"
+          
+          if [ -z "$NAME" ]; then
+            echo "❌ Branch name is required for sync"
+            exit 1
+          fi
+          
+          SAFE_NAME=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')
+          FULL_BRANCH="${TYPE}/${SAFE_NAME}"
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🔄 SYNCING BRANCH"
+          echo "═══════════════════════════════════════════════════════"
+          echo "Branch: $FULL_BRANCH"
+          echo "Source: $SOURCE"
+          
+          # Fetch latest
+          git fetch origin
+          
+          # Check if branch exists
+          if ! git rev-parse --verify "origin/$FULL_BRANCH" > /dev/null 2>&1; then
+            echo "❌ Branch '$FULL_BRANCH' does not exist"
+            exit 1
+          fi
+          
+          # Checkout feature branch
+          git checkout "$FULL_BRANCH"
+          
+          # Check commits behind
+          BEHIND=$(git rev-list --count HEAD..origin/$SOURCE)
+          
+          if [ "$BEHIND" -eq 0 ]; then
+            echo "✅ Branch is already up to date with $SOURCE"
+            exit 0
+          fi
+          
+          echo "📊 Branch is $BEHIND commits behind $SOURCE"
+          
+          # Merge source into feature branch
+          git merge "origin/$SOURCE" -m "🔄 Branch-bot: synced with $SOURCE"
+          git push origin "$FULL_BRANCH"
+          
+          echo "✅ Branch synced successfully"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LIST BRANCHES — Display all organism branches
+  # ═══════════════════════════════════════════════════════════════════════════
+  list-branches:
+    name: "📋 List Branches"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'list'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "📋 List all branches"
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  📋 ORGANISM BRANCHES"
+          echo "═══════════════════════════════════════════════════════"
+          
+          # Fetch all branches
+          git fetch origin
+          
+          echo ""
+          echo "🌿 Feature Branches:"
+          git branch -r | grep "origin/feature/" | while read branch; do
+            BRANCH_NAME=$(echo "$branch" | sed 's/origin\///')
+            LAST_COMMIT=$(git log -1 --format="%cr" $branch 2>/dev/null || echo "unknown")
+            echo "   - $BRANCH_NAME (last commit: $LAST_COMMIT)"
+          done || echo "   None found"
+          
+          echo ""
+          echo "😊 Face Branches:"
+          git branch -r | grep "origin/face/" | while read branch; do
+            BRANCH_NAME=$(echo "$branch" | sed 's/origin\///')
+            LAST_COMMIT=$(git log -1 --format="%cr" $branch 2>/dev/null || echo "unknown")
+            echo "   - $BRANCH_NAME (last commit: $LAST_COMMIT)"
+          done || echo "   None found"
+          
+          echo ""
+          echo "🔧 Fix Branches:"
+          git branch -r | grep "origin/fix/" | while read branch; do
+            BRANCH_NAME=$(echo "$branch" | sed 's/origin\///')
+            LAST_COMMIT=$(git log -1 --format="%cr" $branch 2>/dev/null || echo "unknown")
+            echo "   - $BRANCH_NAME (last commit: $LAST_COMMIT)"
+          done || echo "   None found"
+          
+          echo ""
+          echo "🧪 Experiment Branches:"
+          git branch -r | grep "origin/exp/" | while read branch; do
+            BRANCH_NAME=$(echo "$branch" | sed 's/origin\///')
+            LAST_COMMIT=$(git log -1 --format="%cr" $branch 2>/dev/null || echo "unknown")
+            echo "   - $BRANCH_NAME (last commit: $LAST_COMMIT)"
+          done || echo "   None found"
+          
+          echo ""
+          echo "📦 Release Branches:"
+          git branch -r | grep "origin/release/" | while read branch; do
+            BRANCH_NAME=$(echo "$branch" | sed 's/origin\///')
+            LAST_COMMIT=$(git log -1 --format="%cr" $branch 2>/dev/null || echo "unknown")
+            echo "   - $BRANCH_NAME (last commit: $LAST_COMMIT)"
+          done || echo "   None found"
+          
+          echo ""
+          echo "═══════════════════════════════════════════════════════"
+          TOTAL=$(git branch -r | grep -E "origin/(feature|face|fix|exp|release)/" | wc -l)
+          echo "  Total managed branches: $TOTAL"
+          echo "═══════════════════════════════════════════════════════"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CLEANUP STALE BRANCHES — Remove old, merged, or abandoned branches
+  # ═══════════════════════════════════════════════════════════════════════════
+  cleanup-branches:
+    name: "🧹 Cleanup Stale Branches"
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'cleanup') ||
+      github.event_name == 'schedule'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "🧹 Identify stale branches"
+        id: stale
+        run: |
+          git config user.name "organism-branch-bot"
+          git config user.email "organism-branch-bot@users.noreply.github.com"
+          
+          STALE_DAYS="${{ github.event.inputs.stale_days || '30' }}"
+          CUTOFF_DATE=$(date -d "$STALE_DAYS days ago" +%s)
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🧹 BRANCH CLEANUP SCAN"
+          echo "═══════════════════════════════════════════════════════"
+          echo "Stale threshold: $STALE_DAYS days"
+          echo ""
+          
+          # Fetch all branches
+          git fetch origin --prune
+          
+          STALE_LIST=""
+          
+          # Check feature/face/fix/exp branches
+          for pattern in "feature" "face" "fix" "exp"; do
+            git branch -r | grep "origin/${pattern}/" | while read branch; do
+              BRANCH_NAME=$(echo "$branch" | sed 's/origin\///')
+              LAST_COMMIT_DATE=$(git log -1 --format="%ct" $branch 2>/dev/null || echo "0")
+              
+              if [ "$LAST_COMMIT_DATE" -lt "$CUTOFF_DATE" ]; then
+                LAST_COMMIT_AGE=$(git log -1 --format="%cr" $branch 2>/dev/null || echo "unknown")
+                
+                # Check if merged to main
+                if git merge-base --is-ancestor $branch origin/main 2>/dev/null; then
+                  echo "🗑️ MERGED & STALE: $BRANCH_NAME (merged, last commit: $LAST_COMMIT_AGE)"
+                else
+                  echo "⏰ STALE: $BRANCH_NAME (last commit: $LAST_COMMIT_AGE)"
+                fi
+              fi
+            done
+          done
+          
+          echo ""
+          echo "═══════════════════════════════════════════════════════"
+          echo "Note: This is a dry-run. Manual deletion required for safety."
+          echo "═══════════════════════════════════════════════════════"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # MERGE REQUEST — Create PR for branch merge
+  # ═══════════════════════════════════════════════════════════════════════════
+  merge-request:
+    name: "🔀 Create Merge Request"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'merge-request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "🔀 Prepare merge request"
+        run: |
+          TYPE="${{ github.event.inputs.branch_type }}"
+          NAME="${{ github.event.inputs.branch_name }}"
+          TARGET="${{ github.event.inputs.source_branch || 'main' }}"
+          
+          if [ -z "$NAME" ]; then
+            echo "❌ Branch name is required"
+            exit 1
+          fi
+          
+          SAFE_NAME=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')
+          FULL_BRANCH="${TYPE}/${SAFE_NAME}"
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🔀 MERGE REQUEST PREPARATION"
+          echo "═══════════════════════════════════════════════════════"
+          echo "Source Branch: $FULL_BRANCH"
+          echo "Target Branch: $TARGET"
+          
+          # Check if branch exists
+          if ! git rev-parse --verify "origin/$FULL_BRANCH" > /dev/null 2>&1; then
+            echo "❌ Branch '$FULL_BRANCH' does not exist"
+            exit 1
+          fi
+          
+          # Calculate diff stats
+          COMMITS=$(git rev-list --count "origin/$TARGET..origin/$FULL_BRANCH" 2>/dev/null || echo "0")
+          FILES=$(git diff --stat "origin/$TARGET..origin/$FULL_BRANCH" | tail -1 | grep -oP '\d+ files?' || echo "0 files")
+          
+          echo ""
+          echo "📊 Merge Statistics:"
+          echo "   Commits to merge: $COMMITS"
+          echo "   Files changed: $FILES"
+          echo ""
+          echo "✅ Branch is ready for merge"
+          echo ""
+          echo "To create a Pull Request, please go to:"
+          echo "   https://github.com/${{ github.repository }}/compare/$TARGET...$FULL_BRANCH"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # AUTO-CREATE BRANCH FROM ISSUE — Create branch when issue is labeled
+  # ═══════════════════════════════════════════════════════════════════════════
+  auto-create-from-issue:
+    name: "🎫 Auto-Create from Issue"
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'issues' && 
+      github.event.action == 'labeled' &&
+      (github.event.label.name == 'create-branch' || 
+       github.event.label.name == 'create-face' ||
+       github.event.label.name == 'create-feature')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "🎫 Create branch from issue"
+        run: |
+          git config user.name "organism-branch-bot"
+          git config user.email "organism-branch-bot@users.noreply.github.com"
+          
+          ISSUE_NUMBER="${{ github.event.issue.number }}"
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          LABEL="${{ github.event.label.name }}"
+          
+          # Determine branch type from label
+          case "$LABEL" in
+            "create-face") TYPE="face" ;;
+            "create-feature") TYPE="feature" ;;
+            *) TYPE="feature" ;;
+          esac
+          
+          # Create branch name from issue
+          SAFE_NAME=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-50)
+          FULL_BRANCH="${TYPE}/${ISSUE_NUMBER}-${SAFE_NAME}"
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🎫 CREATING BRANCH FROM ISSUE"
+          echo "═══════════════════════════════════════════════════════"
+          echo "Issue: #$ISSUE_NUMBER - $ISSUE_TITLE"
+          echo "Branch: $FULL_BRANCH"
+          
+          # Check if branch already exists
+          if git rev-parse --verify "origin/$FULL_BRANCH" > /dev/null 2>&1; then
+            echo "⚠️ Branch '$FULL_BRANCH' already exists"
+            exit 0
+          fi
+          
+          # Create new branch
+          git checkout -b "$FULL_BRANCH"
+          
+          # Add branch metadata
+          mkdir -p .branch-metadata
+          echo "{
+            \"branch\": \"$FULL_BRANCH\",
+            \"type\": \"$TYPE\",
+            \"issue_number\": $ISSUE_NUMBER,
+            \"issue_title\": \"$ISSUE_TITLE\",
+            \"source_branch\": \"main\",
+            \"source_sha\": \"$(git rev-parse HEAD)\",
+            \"created_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+            \"created_by\": \"organism-branch-bot\",
+            \"auto_created\": true,
+            \"workflow_run\": \"${{ github.run_id }}\"
+          }" > .branch-metadata/info.json
+          
+          git add .branch-metadata/
+          git commit -m "🎫 Branch-bot: created $FULL_BRANCH for issue #$ISSUE_NUMBER"
+          git push origin "$FULL_BRANCH"
+          
+          echo "✅ Branch created successfully"
+
+      - name: "💬 Comment on issue"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = context.issue.number;
+            const issueTitle = context.payload.issue.title;
+            const label = context.payload.label.name;
+            
+            const type = label === 'create-face' ? 'face' : 'feature';
+            const safeName = issueTitle.toLowerCase()
+              .replace(/[^a-z0-9]/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '')
+              .substring(0, 50);
+            const branchName = `${type}/${issueNumber}-${safeName}`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `🌱 **Branch Created**\n\nA new branch has been automatically created for this issue:\n\n\`\`\`\n${branchName}\n\`\`\`\n\nTo start working on this branch:\n\`\`\`bash\ngit fetch origin\ngit checkout ${branchName}\n\`\`\`\n\nWhen ready, create a pull request to merge your changes.`
+            });
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # BRANCH HEALTH CHECK — Weekly scheduled maintenance
+  # ═══════════════════════════════════════════════════════════════════════════
+  health-check:
+    name: "🏥 Branch Health Check"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "🏥 Generate health report"
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🏥 WEEKLY BRANCH HEALTH REPORT"
+          echo "  $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "═══════════════════════════════════════════════════════"
+          
+          # Fetch all branches
+          git fetch origin --prune
+          
+          # Statistics
+          TOTAL_BRANCHES=$(git branch -r | grep -E "origin/(feature|face|fix|exp)/" | wc -l)
+          STALE_COUNT=0
+          MERGED_COUNT=0
+          CONFLICT_COUNT=0
+          
+          CUTOFF_DATE=$(date -d "30 days ago" +%s)
+          
+          echo ""
+          echo "📊 Branch Statistics:"
+          echo "   Total managed branches: $TOTAL_BRANCHES"
+          
+          for branch in $(git branch -r | grep -E "origin/(feature|face|fix|exp)/" | sed 's/origin\///'); do
+            LAST_COMMIT_DATE=$(git log -1 --format="%ct" "origin/$branch" 2>/dev/null || echo "0")
+            
+            # Check stale
+            if [ "$LAST_COMMIT_DATE" -lt "$CUTOFF_DATE" ]; then
+              STALE_COUNT=$((STALE_COUNT + 1))
+            fi
+            
+            # Check merged
+            if git merge-base --is-ancestor "origin/$branch" origin/main 2>/dev/null; then
+              MERGED_COUNT=$((MERGED_COUNT + 1))
+            fi
+            
+            # Check conflicts (would need to attempt merge)
+          done
+          
+          echo "   Stale branches (>30 days): $STALE_COUNT"
+          echo "   Already merged to main: $MERGED_COUNT"
+          echo ""
+          echo "═══════════════════════════════════════════════════════"
+          
+          # Summary in step summary
+          {
+            echo "## 🏥 Weekly Branch Health Report"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|--------|-------|"
+            echo "| Total Branches | $TOTAL_BRANCHES |"
+            echo "| Stale (>30 days) | $STALE_COUNT |"
+            echo "| Merged to Main | $MERGED_COUNT |"
+            echo ""
+            echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> $GITHUB_STEP_SUMMARY
