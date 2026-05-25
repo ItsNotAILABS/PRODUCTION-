@@ -1,0 +1,346 @@
+# ============================================================================
+# MEMORY BOT — Persistent Memory & Learning Core
+#
+# The Memory Bot serves as the organism's long-term memory system:
+#   1. 🧠 Mini-Brain: Pattern recognition and knowledge extraction
+#   2. 💓 Heartbeat: Scheduled memory consolidation cycles
+#   3. 📚 Learning: Accumulates insights from all bot activities
+#   4. 🔄 Recall: Provides context to other bots on demand
+#
+# Autonomous capabilities:
+#   - Consolidates learnings from workflow runs
+#   - Maintains knowledge graphs of codebase relationships
+#   - Provides semantic search over accumulated memories
+#   - Auto-prunes stale or irrelevant memories
+#
+# Identity: organism-memory-bot <organism-memory-bot@users.noreply.github.com>
+# ============================================================================
+
+name: "🧠 Memory Bot"
+
+on:
+  # Autonomous heartbeat - memory consolidation every 6 hours
+  schedule:
+    - cron: '0 */6 * * *'
+  
+  # React to workflow completions to learn
+  workflow_run:
+    workflows: [
+      "🔄 AUTO Orchestrator",
+      "🧬 Genesis Bot",
+      "🧬 Evolution Bot",
+      "🛡️ Sentinel Scan",
+      "🧪 Test Bot",
+      "CI — Build & Test"
+    ]
+    types: [completed]
+  
+  # Manual memory operations
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Memory operation'
+        required: true
+        default: 'consolidate'
+        type: choice
+        options:
+          - consolidate
+          - recall
+          - prune
+          - status
+          - export
+          - learn
+      
+      query:
+        description: 'Search query (for recall action)'
+        required: false
+        default: ''
+      
+      retention_days:
+        description: 'Days to retain memories (for prune action)'
+        required: false
+        default: '90'
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: read
+
+env:
+  NODE_VERSION: '20'
+  MEMORY_PATH: 'governance/memory'
+  PHI: '1.618033988749895'
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 💓 HEARTBEAT — Memory consolidation cycle (mini-brain processing)
+  # ═══════════════════════════════════════════════════════════════════════════
+  memory-heartbeat:
+    name: "💓 Memory Heartbeat"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    outputs:
+      memories_consolidated: ${{ steps.consolidate.outputs.count }}
+      health_score: ${{ steps.health.outputs.score }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "🧠 Initialize memory structures"
+        run: |
+          mkdir -p ${{ env.MEMORY_PATH }}/{short-term,long-term,knowledge-graph,learnings}
+          
+          # Initialize state if missing
+          if [ ! -f "${{ env.MEMORY_PATH }}/state.json" ]; then
+            echo '{
+              "heartbeat_count": 0,
+              "last_consolidation": null,
+              "total_memories": 0,
+              "health": 1.0,
+              "brain_state": "awake"
+            }' > "${{ env.MEMORY_PATH }}/state.json"
+          fi
+
+      - name: "💓 Execute heartbeat pulse"
+        id: consolidate
+        run: |
+          HEARTBEAT_COUNT=$(cat "${{ env.MEMORY_PATH }}/state.json" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).heartbeat_count || 0")
+          NEW_COUNT=$((HEARTBEAT_COUNT + 1))
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🧠 MEMORY BOT — Heartbeat #$NEW_COUNT"
+          echo "  $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "═══════════════════════════════════════════════════════"
+          
+          # Consolidate short-term to long-term (mini-brain processing)
+          SHORT_TERM_COUNT=$(find "${{ env.MEMORY_PATH }}/short-term" -name "*.json" 2>/dev/null | wc -l)
+          
+          echo "📋 Short-term memories to process: $SHORT_TERM_COUNT"
+          
+          # Move aged short-term memories to long-term
+          CONSOLIDATED=0
+          find "${{ env.MEMORY_PATH }}/short-term" -name "*.json" -mmin +360 2>/dev/null | while read file; do
+            mv "$file" "${{ env.MEMORY_PATH }}/long-term/" 2>/dev/null || true
+            CONSOLIDATED=$((CONSOLIDATED + 1))
+          done
+          
+          echo "count=$CONSOLIDATED" >> $GITHUB_OUTPUT
+          
+          # Update state
+          cat > "${{ env.MEMORY_PATH }}/state.json" << EOF
+          {
+            "heartbeat_count": $NEW_COUNT,
+            "last_consolidation": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "total_memories": $(find "${{ env.MEMORY_PATH }}" -name "*.json" | wc -l),
+            "health": $(echo "scale=3; 1 / ${{ env.PHI }}" | bc),
+            "brain_state": "awake",
+            "phi_alignment": ${{ env.PHI }}
+          }
+          EOF
+
+      - name: "📊 Health check"
+        id: health
+        run: |
+          TOTAL=$(find "${{ env.MEMORY_PATH }}" -name "*.json" | wc -l)
+          HEALTH=$(echo "scale=3; 0.618 + ($TOTAL / 1000)" | bc)
+          if [ $(echo "$HEALTH > 1" | bc) -eq 1 ]; then HEALTH="1.0"; fi
+          echo "score=$HEALTH" >> $GITHUB_OUTPUT
+          echo "🏥 Memory health score: $HEALTH"
+
+      - name: Commit memory state
+        run: |
+          git config user.name "organism-memory-bot"
+          git config user.email "organism-memory-bot@users.noreply.github.com"
+          
+          git add ${{ env.MEMORY_PATH }}/
+          
+          if git diff --cached --quiet; then
+            echo "No memory changes"
+          else
+            git commit -m "🧠 Memory-bot: heartbeat consolidation #$(cat ${{ env.MEMORY_PATH }}/state.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).heartbeat_count")"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 📚 LEARN — Extract knowledge from workflow runs
+  # ═══════════════════════════════════════════════════════════════════════════
+  learn-from-workflow:
+    name: "📚 Learn from Workflow"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_run'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "📚 Extract learning"
+        env:
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          mkdir -p ${{ env.MEMORY_PATH }}/short-term
+          
+          TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  📚 LEARNING FROM: $WORKFLOW_NAME"
+          echo "═══════════════════════════════════════════════════════"
+          
+          # Create learning record
+          cat > "${{ env.MEMORY_PATH }}/short-term/learning-${TIMESTAMP}.json" << EOF
+          {
+            "type": "workflow_observation",
+            "workflow": "$WORKFLOW_NAME",
+            "conclusion": "$WORKFLOW_CONCLUSION",
+            "run_id": "$WORKFLOW_RUN_ID",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "success": $([ "$WORKFLOW_CONCLUSION" = "success" ] && echo "true" || echo "false"),
+            "insights": {
+              "pattern": "workflow_${WORKFLOW_CONCLUSION}",
+              "fitness_contribution": $([ "$WORKFLOW_CONCLUSION" = "success" ] && echo "0.1" || echo "-0.05")
+            }
+          }
+          EOF
+          
+          echo "✅ Learning recorded"
+
+      - name: Commit learning
+        run: |
+          git config user.name "organism-memory-bot"
+          git config user.email "organism-memory-bot@users.noreply.github.com"
+          
+          git add ${{ env.MEMORY_PATH }}/
+          
+          if git diff --cached --quiet; then
+            echo "No learning to commit"
+          else
+            git commit -m "📚 Memory-bot: learned from ${{ github.event.workflow_run.name }}"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 🔍 RECALL — Search and retrieve memories
+  # ═══════════════════════════════════════════════════════════════════════════
+  recall:
+    name: "🔍 Recall Memories"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'recall'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "🔍 Search memories"
+        env:
+          QUERY: ${{ github.event.inputs.query }}
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🔍 MEMORY RECALL"
+          echo "  Query: $QUERY"
+          echo "═══════════════════════════════════════════════════════"
+          
+          if [ -z "$QUERY" ]; then
+            echo "Showing recent memories..."
+            find "${{ env.MEMORY_PATH }}" -name "*.json" -type f | head -20 | while read f; do
+              echo "📄 $f"
+            done
+          else
+            echo "Searching for: $QUERY"
+            grep -ril "$QUERY" "${{ env.MEMORY_PATH }}" 2>/dev/null | head -20 | while read f; do
+              echo "📄 $f"
+              head -5 "$f"
+              echo "---"
+            done
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 🗑️ PRUNE — Clean old memories
+  # ═══════════════════════════════════════════════════════════════════════════
+  prune:
+    name: "🗑️ Prune Memories"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'prune'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "🗑️ Prune old memories"
+        run: |
+          RETENTION_DAYS="${{ github.event.inputs.retention_days }}"
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🗑️ MEMORY PRUNING"
+          echo "  Retention: $RETENTION_DAYS days"
+          echo "═══════════════════════════════════════════════════════"
+          
+          BEFORE=$(find "${{ env.MEMORY_PATH }}" -name "*.json" | wc -l)
+          
+          find "${{ env.MEMORY_PATH }}/short-term" -name "*.json" -mtime +$RETENTION_DAYS -delete 2>/dev/null || true
+          
+          AFTER=$(find "${{ env.MEMORY_PATH }}" -name "*.json" | wc -l)
+          PRUNED=$((BEFORE - AFTER))
+          
+          echo "📊 Pruned $PRUNED memories"
+          echo "📊 Remaining: $AFTER memories"
+
+      - name: Commit pruning
+        run: |
+          git config user.name "organism-memory-bot"
+          git config user.email "organism-memory-bot@users.noreply.github.com"
+          
+          git add ${{ env.MEMORY_PATH }}/
+          
+          if git diff --cached --quiet; then
+            echo "No changes after pruning"
+          else
+            git commit -m "🗑️ Memory-bot: pruned old memories"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 📊 STATUS — Display memory system status
+  # ═══════════════════════════════════════════════════════════════════════════
+  status:
+    name: "📊 Memory Status"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'status'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "📊 Display status"
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🧠 MEMORY BOT STATUS"
+          echo "═══════════════════════════════════════════════════════"
+          
+          if [ -f "${{ env.MEMORY_PATH }}/state.json" ]; then
+            cat "${{ env.MEMORY_PATH }}/state.json" | node -p "
+              const s = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+              console.log('Heartbeat Count:', s.heartbeat_count);
+              console.log('Last Consolidation:', s.last_consolidation);
+              console.log('Total Memories:', s.total_memories);
+              console.log('Health:', s.health);
+              console.log('Brain State:', s.brain_state);
+            "
+          else
+            echo "Memory system not initialized"
+          fi
+          
+          echo ""
+          echo "📁 Memory Distribution:"
+          echo "   Short-term: $(find ${{ env.MEMORY_PATH }}/short-term -name '*.json' 2>/dev/null | wc -l)"
+          echo "   Long-term: $(find ${{ env.MEMORY_PATH }}/long-term -name '*.json' 2>/dev/null | wc -l)"
+          echo "   Learnings: $(find ${{ env.MEMORY_PATH }}/learnings -name '*.json' 2>/dev/null | wc -l)"

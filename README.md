@@ -13,7 +13,11 @@
 </p>
 
 <p align="center">
-  <a href="#auto">🔄 AUTO</a> · <a href="#divergence">🧬 Divergence</a> · <a href="#download">⬇ Download</a> · <a href="#features">✨ Features</a> · <a href="#technology">⚙️ Technology</a> · <a href="#architecture">🏗 Architecture</a>
+  <strong>⚠️ PRIVATE REPOSITORY — PROPRIETARY & CONFIDENTIAL</strong>
+</p>
+
+<p align="center">
+  <a href="#auto">🔄 AUTO</a> · <a href="#bots">🤖 Bots</a> · <a href="#divergence">🧬 Divergence</a> · <a href="#download">⬇ Download</a> · <a href="#features">✨ Features</a> · <a href="#technology">⚙️ Technology</a> · <a href="#architecture">🏗 Architecture</a>
 </p>
 
 ---
@@ -30,11 +34,88 @@
 | **Status** | 🟢 Active |
 | **Heartbeat** | 873ms (φ-encoded) |
 | **Pulse Count** | 42 |
-| **Active Agents** | 25 |
+| **Active Agents** | 35+ |
 | **Health** | 87.3% |
 | **Success Rate** | 91.7% |
 
-### How AUTO Works
+---
+
+<a id="bots"></a>
+## 🤖 Autonomous Bot Fleet
+
+The organism is powered by a fleet of autonomous bots, each with their own **mini-brain** (decision logic) and **heartbeat** (scheduled operations).
+
+### Core Organ Bots
+
+| Bot | Function | Heartbeat | Mini-Brain |
+|-----|----------|-----------|------------|
+| 🧠 **Memory Bot** | Long-term memory & learning | Every 6 hours | Pattern recognition, knowledge consolidation |
+| 💓 **Pulse Bot** | Central heartbeat & health | Every 15 min | Health assessment, rhythm analysis |
+| ⚡ **Reflex Bot** | Automatic event responses | On events | Pattern matching, response selection |
+| 💭 **Dreamer Bot** | Background optimization | Nightly (3 AM) | Code analysis, insight generation |
+| 🛡️ **Guardian Bot** | Security & integrity | Every 4 hours | Threat detection, vulnerability scanning |
+
+### Infrastructure Bots
+
+| Bot | Function | Trigger |
+|-----|----------|---------|
+| 🏭 **Production Bot** | Production branch management | Manual/tags |
+| 🌿 **Branch Bot** | Feature branch factory | Manual/issues |
+| 🚀 **Release Bot** | Release management | Tags (v*) |
+| 🌐 **Deploy Bot** | ICP & Pages deployment | Push to main |
+
+### Evolution Bots
+
+| Bot | Function | Trigger |
+|-----|----------|---------|
+| 🧬 **Genesis Bot** | Spawns new agents | Scheduled |
+| 🧬 **Evolution Bot** | Fitness & adaptation | Scheduled |
+| 🛡️ **Sentinel Bot** | Security scanning | Push/PR |
+| 🧪 **Test Bot** | Automated testing | Push/PR |
+
+### How Each Bot Works
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    🤖 AUTONOMOUS BOT ANATOMY                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   🧠 Mini-Brain (Decision Engine)                              │
+│   ├── Pattern Recognition                                       │
+│   ├── State Assessment                                          │
+│   ├── Action Selection                                          │
+│   └── Learning Integration                                      │
+│                                                                 │
+│   💓 Heartbeat (Life Cycle)                                    │
+│   ├── Scheduled Pulses (cron)                                   │
+│   ├── Event Triggers (workflow_run)                             │
+│   ├── Health Monitoring                                         │
+│   └── State Persistence                                         │
+│                                                                 │
+│   📊 Governance (Memory)                                        │
+│   ├── governance/{bot}/state.json                               │
+│   ├── governance/{bot}/ledger.jsonl                             │
+│   └── governance/{bot}/...                                      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Run Bots Manually
+
+```bash
+# Trigger any bot via GitHub Actions UI or CLI:
+gh workflow run "🧠 Memory Bot" --field action=consolidate
+gh workflow run "💓 Pulse Bot" --field action=beat
+gh workflow run "⚡ Reflex Bot" --field action=status
+gh workflow run "💭 Dreamer Bot" --field action=dream
+gh workflow run "🛡️ Guardian Bot" --field action=scan
+gh workflow run "🏭 Production Branch Manager" --field action=status
+gh workflow run "🌿 Branch Factory" --field action=list
+```
+
+---
+
+### AUTO Orchestrator Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -53,11 +134,16 @@
 │   ├── SENSUS (Senses) ─ perception, filtering                  │
 │   └── MEMORIA (Memory) ─ encoding, retrieval                   │
 │                                                                 │
-│   🤖 Bot Fleet (25 agents)                                     │
+│   🤖 Bot Fleet (35+ agents)                                    │
+│   ├── Memory Bot ─ learning persistence                        │
+│   ├── Pulse Bot ─ heartbeat coordination                       │
+│   ├── Reflex Bot ─ automatic responses                         │
+│   ├── Dreamer Bot ─ background optimization                    │
+│   ├── Guardian Bot ─ security monitoring                       │
 │   ├── Genesis Bot ─ spawns new agents                          │
 │   ├── Evolution Bot ─ fitness, adaptation                      │
 │   ├── Sentinel Bot ─ security, safety                          │
-│   └── ... 22 more specialized bots                             │
+│   └── ... 27+ more specialized bots                            │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```

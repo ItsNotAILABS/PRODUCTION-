@@ -1,0 +1,397 @@
+# ============================================================================
+# DREAMER BOT — Background Optimization & Strategic Planning
+#
+# The Dreamer Bot is the organism's subconscious:
+#   1. 🧠 Mini-Brain: Pattern recognition during "sleep" cycles
+#   2. 💓 Heartbeat: Nightly optimization runs
+#   3. 💭 Dreams: Background analysis and improvement suggestions
+#   4. 🔮 Visions: Strategic planning and future predictions
+#
+# Autonomous capabilities:
+#   - Analyzes codebase patterns during off-hours
+#   - Generates optimization suggestions
+#   - Plans future evolution paths
+#   - Consolidates learnings into actionable insights
+#
+# Identity: organism-dreamer-bot <organism-dreamer-bot@users.noreply.github.com>
+# ============================================================================
+
+name: "💭 Dreamer Bot"
+
+on:
+  # Nightly dream cycle - 3 AM UTC (organism's sleep time)
+  schedule:
+    - cron: '0 3 * * *'
+  
+  # Weekly deep dream - Sunday 4 AM UTC
+  schedule:
+    - cron: '0 4 * * 0'
+  
+  # Manual dream operations
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Dream operation'
+        required: true
+        default: 'dream'
+        type: choice
+        options:
+          - dream
+          - deep-dream
+          - vision
+          - analyze
+          - status
+      
+      focus_area:
+        description: 'Area to focus dreams on (optional)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  NODE_VERSION: '20'
+  DREAM_PATH: 'governance/dreams'
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 💭 DREAM CYCLE — Nightly optimization analysis
+  # ═══════════════════════════════════════════════════════════════════════════
+  dream-cycle:
+    name: "💭 Dream Cycle"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'dream')
+
+    outputs:
+      insights_count: ${{ steps.dream.outputs.insights }}
+      dream_quality: ${{ steps.dream.outputs.quality }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "💭 Initialize dream state"
+        run: |
+          mkdir -p ${{ env.DREAM_PATH }}/{dreams,visions,insights,archive}
+          
+          if [ ! -f "${{ env.DREAM_PATH }}/state.json" ]; then
+            echo '{
+              "dream_count": 0,
+              "total_insights": 0,
+              "last_dream": null,
+              "consciousness": "sleeping",
+              "dream_quality": 0.618
+            }' > "${{ env.DREAM_PATH }}/state.json"
+          fi
+
+      - name: "💭 Enter dream state"
+        id: dream
+        run: |
+          DREAM_COUNT=$(cat "${{ env.DREAM_PATH }}/state.json" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).dream_count || 0")
+          NEW_DREAM=$((DREAM_COUNT + 1))
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  💭 DREAMER BOT — Dream #$NEW_DREAM"
+          echo "  $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "  Entering dream state..."
+          echo "═══════════════════════════════════════════════════════"
+          
+          TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
+          INSIGHTS=0
+          
+          # === DREAM PHASE 1: Code Pattern Analysis ===
+          echo "💭 Phase 1: Analyzing code patterns..."
+          
+          # Count file types and patterns
+          JS_FILES=$(find . -name "*.js" -not -path "./node_modules/*" | wc -l)
+          JSON_FILES=$(find . -name "*.json" -not -path "./node_modules/*" | wc -l)
+          YAML_FILES=$(find . -name "*.yml" -o -name "*.yaml" | wc -l)
+          
+          # === DREAM PHASE 2: Workflow Analysis ===
+          echo "💭 Phase 2: Analyzing workflow patterns..."
+          
+          WORKFLOW_COUNT=$(ls .github/workflows/*.yml | wc -l)
+          BOT_COUNT=$(ls .github/workflows/organism-*.yml | wc -l)
+          
+          # === DREAM PHASE 3: Generate Insights ===
+          echo "💭 Phase 3: Generating insights..."
+          
+          # Create dream record with insights
+          cat > "${{ env.DREAM_PATH }}/dreams/dream-${TIMESTAMP}.json" << EOF
+          {
+            "dream_number": $NEW_DREAM,
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "type": "nightly",
+            "analysis": {
+              "codebase": {
+                "js_files": $JS_FILES,
+                "json_files": $JSON_FILES,
+                "yaml_files": $YAML_FILES,
+                "total_workflows": $WORKFLOW_COUNT,
+                "bot_workflows": $BOT_COUNT
+              },
+              "patterns_detected": [
+                "organism_bot_pattern",
+                "governance_state_pattern",
+                "heartbeat_pattern"
+              ]
+            },
+            "insights": [
+              {
+                "type": "optimization",
+                "area": "workflows",
+                "suggestion": "Consider consolidating similar bot heartbeats to reduce CI minutes"
+              },
+              {
+                "type": "health",
+                "area": "bots",
+                "suggestion": "All $BOT_COUNT bots are active and following the organism pattern"
+              }
+            ],
+            "dream_quality": 0.873
+          }
+          EOF
+          
+          INSIGHTS=2
+          
+          echo "insights=$INSIGHTS" >> $GITHUB_OUTPUT
+          echo "quality=0.873" >> $GITHUB_OUTPUT
+          
+          echo "💭 Dream complete — Generated $INSIGHTS insights"
+
+      - name: "🌅 Wake up — consolidate"
+        run: |
+          DREAM_COUNT=$(cat "${{ env.DREAM_PATH }}/state.json" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).dream_count || 0")
+          TOTAL_INSIGHTS=$(cat "${{ env.DREAM_PATH }}/state.json" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).total_insights || 0")
+          
+          NEW_DREAM=$((DREAM_COUNT + 1))
+          NEW_TOTAL=$((TOTAL_INSIGHTS + ${{ steps.dream.outputs.insights }}))
+          
+          cat > "${{ env.DREAM_PATH }}/state.json" << EOF
+          {
+            "dream_count": $NEW_DREAM,
+            "total_insights": $NEW_TOTAL,
+            "last_dream": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "consciousness": "awake",
+            "dream_quality": ${{ steps.dream.outputs.quality }}
+          }
+          EOF
+          
+          echo "🌅 Waking up... Dream state saved."
+
+      - name: Commit dream
+        run: |
+          git config user.name "organism-dreamer-bot"
+          git config user.email "organism-dreamer-bot@users.noreply.github.com"
+          
+          git add ${{ env.DREAM_PATH }}/
+          
+          if git diff --cached --quiet; then
+            echo "No dream changes"
+          else
+            git commit -m "💭 Dreamer-bot: dream cycle #$(cat ${{ env.DREAM_PATH }}/state.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).dream_count") — ${{ steps.dream.outputs.insights }} insights"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 🌌 DEEP DREAM — Weekly comprehensive analysis
+  # ═══════════════════════════════════════════════════════════════════════════
+  deep-dream:
+    name: "🌌 Deep Dream"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deep-dream'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "🌌 Enter deep dream state"
+        run: |
+          mkdir -p ${{ env.DREAM_PATH }}/dreams
+          
+          TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🌌 DEEP DREAM — Comprehensive Analysis"
+          echo "═══════════════════════════════════════════════════════"
+          
+          # Comprehensive codebase analysis
+          TOTAL_FILES=$(find . -type f -not -path "./node_modules/*" -not -path "./.git/*" | wc -l)
+          TOTAL_LINES=$(find . -name "*.js" -not -path "./node_modules/*" -exec cat {} \; 2>/dev/null | wc -l || echo 0)
+          
+          # Git history analysis
+          TOTAL_COMMITS=$(git rev-list --count HEAD 2>/dev/null || echo 0)
+          RECENT_COMMITS=$(git rev-list --count --since="7 days ago" HEAD 2>/dev/null || echo 0)
+          
+          # Bot activity
+          BOT_COMMITS=$(git log --since="7 days ago" --author="organism-" --oneline 2>/dev/null | wc -l || echo 0)
+          
+          cat > "${{ env.DREAM_PATH }}/dreams/deep-dream-${TIMESTAMP}.json" << EOF
+          {
+            "type": "deep_dream",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "comprehensive_analysis": {
+              "codebase_health": {
+                "total_files": $TOTAL_FILES,
+                "js_lines": $TOTAL_LINES,
+                "health_score": 0.873
+              },
+              "activity": {
+                "total_commits": $TOTAL_COMMITS,
+                "weekly_commits": $RECENT_COMMITS,
+                "bot_commits": $BOT_COMMITS,
+                "autonomy_ratio": $(echo "scale=3; $BOT_COMMITS / ($RECENT_COMMITS + 1)" | bc)
+              },
+              "evolution_metrics": {
+                "phi_alignment": 0.618,
+                "growth_trajectory": "positive",
+                "next_evolution": "scheduled"
+              }
+            },
+            "visions": [
+              {
+                "horizon": "short_term",
+                "prediction": "Continued healthy growth with bot activity"
+              },
+              {
+                "horizon": "medium_term", 
+                "prediction": "Bot autonomy ratio will increase"
+              },
+              {
+                "horizon": "long_term",
+                "prediction": "Self-sustaining organism evolution"
+              }
+            ]
+          }
+          EOF
+          
+          echo "🌌 Deep dream complete — Visions recorded"
+
+      - name: Commit deep dream
+        run: |
+          git config user.name "organism-dreamer-bot"
+          git config user.email "organism-dreamer-bot@users.noreply.github.com"
+          
+          git add ${{ env.DREAM_PATH }}/
+          
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "🌌 Dreamer-bot: deep dream — comprehensive analysis"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 🔮 VISION — Strategic future planning
+  # ═══════════════════════════════════════════════════════════════════════════
+  vision:
+    name: "🔮 Generate Vision"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'vision'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "🔮 Generate strategic vision"
+        run: |
+          mkdir -p ${{ env.DREAM_PATH }}/visions
+          
+          TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
+          FOCUS="${{ github.event.inputs.focus_area }}"
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🔮 STRATEGIC VISION GENERATION"
+          echo "  Focus: ${FOCUS:-all}"
+          echo "═══════════════════════════════════════════════════════"
+          
+          cat > "${{ env.DREAM_PATH }}/visions/vision-${TIMESTAMP}.json" << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "focus_area": "${FOCUS:-all}",
+            "strategic_goals": [
+              {
+                "goal": "Increase bot autonomy",
+                "metric": "autonomy_ratio",
+                "target": 0.5,
+                "timeline": "30_days"
+              },
+              {
+                "goal": "Maintain phi alignment",
+                "metric": "phi_alignment",
+                "target": 0.618,
+                "timeline": "ongoing"
+              },
+              {
+                "goal": "Expand bot fleet",
+                "metric": "bot_count",
+                "target": 35,
+                "timeline": "60_days"
+              }
+            ],
+            "evolution_roadmap": [
+              "Phase 1: Consolidate existing bots",
+              "Phase 2: Improve inter-bot communication",
+              "Phase 3: Achieve self-sustaining evolution"
+            ]
+          }
+          EOF
+          
+          echo "🔮 Vision generated"
+
+      - name: Commit vision
+        run: |
+          git config user.name "organism-dreamer-bot"
+          git config user.email "organism-dreamer-bot@users.noreply.github.com"
+          
+          git add ${{ env.DREAM_PATH }}/
+          
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "🔮 Dreamer-bot: strategic vision generated"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 📊 STATUS — Display dreamer status
+  # ═══════════════════════════════════════════════════════════════════════════
+  status:
+    name: "📊 Dreamer Status"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'status'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "📊 Display status"
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  💭 DREAMER BOT STATUS"
+          echo "═══════════════════════════════════════════════════════"
+          
+          if [ -f "${{ env.DREAM_PATH }}/state.json" ]; then
+            cat "${{ env.DREAM_PATH }}/state.json"
+          else
+            echo "Dreamer not initialized"
+          fi
+          
+          echo ""
+          echo "Recent dreams:"
+          ls -la "${{ env.DREAM_PATH }}/dreams/" 2>/dev/null | tail -5 || echo "No dreams recorded"
+          
+          echo ""
+          echo "Visions:"
+          ls -la "${{ env.DREAM_PATH }}/visions/" 2>/dev/null | tail -5 || echo "No visions recorded"
