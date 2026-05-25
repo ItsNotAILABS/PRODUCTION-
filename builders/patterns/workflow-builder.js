@@ -522,9 +522,10 @@ class WorkflowBuilder {
       // Check if string needs quoting
       if (value.includes(':') || value.includes('#') || value.includes("'") ||
           value.includes('"') || value.includes('\n') || value.includes('${{') ||
-          value.match(/^[0-9]+$/) || value === 'true' || value === 'false') {
+          value.includes('\\') || value.match(/^[0-9]+$/) || value === 'true' || value === 'false') {
         if (value.includes("'")) {
-          return `"${value.replace(/"/g, '\\"')}"`;
+          // Escape both backslashes and double quotes for proper YAML escaping
+          return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         }
         return `'${value}'`;
       }
