@@ -88,7 +88,6 @@ describe('Protocols index', () => {
     return [...content.matchAll(/export\s*\{[^}]+\}\s*from\s+'(\.\/[^']+)'/g)].map((m) => m[1]);
   }
 
-  it('should export protocol modules', () => {
   it('should export protocol definitions', () => {
     const indexPath = path.join(SDK_ROOT, '..', 'protocols', 'index.js');
     assert.ok(fs.existsSync(indexPath));
@@ -108,6 +107,8 @@ describe('Protocols index', () => {
       const protocolPath = path.join(SDK_ROOT, '..', 'protocols', target.replace('./', ''));
       assert.ok(fs.existsSync(protocolPath), `Missing exported protocol file: ${target}`);
     }
+  });
+
   it('should reference every protocol implementation file exported by the index', () => {
     const indexPath = path.join(SDK_ROOT, '..', 'protocols', 'index.js');
     const content = fs.readFileSync(indexPath, 'utf8');
