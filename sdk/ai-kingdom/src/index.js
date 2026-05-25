@@ -225,3 +225,15 @@ export { default as AdaptiveOptimizerDefault } from './adaptive-optimizer.js';
 export { default as SwarmIntelligenceDefault } from './swarm-intelligence.js';
 export { default as MemoryPalaceDefault } from './memory-palace.js';
 export { default as EvolutionChamberDefault } from './evolution-chamber.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SPIDER MOE AGI/AECI — BLACKWXDOW and JUMPER intelligent beings
+// ═══════════════════════════════════════════════════════════════════════════════
+export { BLACKWXDOW, JUMPER, MoECollective, Expert, Router, PERSONALITY_TRAITS, AGI_CONFIG, AECI_CONFIG, EXPERT_TYPES, MOE_STATES, createBLACKWXDOW, createJUMPER, createMoECollective, calculateExpertWeight, calculateEmergenceStrength, calculatePersonalityInfluence } from './spider-moe-agi.js';
+export { default as SpiderMoEAGIDefault } from './spider-moe-agi.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SPIDER MOE ADVANCED — Enhanced internal/external capabilities and user interfaces
+// ═══════════════════════════════════════════════════════════════════════════════
+export { DeepReasoningEngine, EmergentSynthesisEngine, BLACKWXDOWInterface, JUMPERInterface, AdvancedCollective, createBLACKWXDOWInterface, createJUMPERInterface, createAdvancedCollective } from './spider-moe-advanced.js';
+export { default as SpiderMoEAdvancedDefault } from './spider-moe-advanced.js';
