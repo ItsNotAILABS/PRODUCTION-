@@ -1,6 +1,11 @@
 {
-  "timestamp": "2026-05-02T21:58:53.937Z",
-  "mode": "placeholder",
+  "timestamp": "2026-05-26T07:44:27.596Z",
+  "mode": "playwright",
+  "viewports": [
+    "desktop",
+    "tablet",
+    "mobile"
+  ],
   "pages": [
     {
       "name": "index",
@@ -11,6 +16,16 @@
       "name": "download",
       "type": "page",
       "file": "download.html"
+    },
+    {
+      "name": "ext-api-mesh-adapter-popup",
+      "type": "extension",
+      "file": "extensions/api-mesh-adapter/popup.html"
+    },
+    {
+      "name": "ext-api-mesh-adapter-sidepanel",
+      "type": "extension",
+      "file": "extensions/api-mesh-adapter/sidepanel.html"
     },
     {
       "name": "ext-cipher-shield-popup",
@@ -31,6 +46,16 @@
       "name": "ext-code-sovereign-sidepanel",
       "type": "extension",
       "file": "extensions/code-sovereign/sidepanel.html"
+    },
+    {
+      "name": "ext-context-bridge-adapter-popup",
+      "type": "extension",
+      "file": "extensions/context-bridge-adapter/popup.html"
+    },
+    {
+      "name": "ext-context-bridge-adapter-sidepanel",
+      "type": "extension",
+      "file": "extensions/context-bridge-adapter/sidepanel.html"
     },
     {
       "name": "ext-contract-forge-popup",
@@ -148,6 +173,16 @@
       "file": "extensions/knowledge-cartographer/sidepanel.html"
     },
     {
+      "name": "ext-knowledge-sync-adapter-popup",
+      "type": "extension",
+      "file": "extensions/knowledge-sync-adapter/popup.html"
+    },
+    {
+      "name": "ext-knowledge-sync-adapter-sidepanel",
+      "type": "extension",
+      "file": "extensions/knowledge-sync-adapter/sidepanel.html"
+    },
+    {
       "name": "ext-logic-prover-popup",
       "type": "extension",
       "file": "extensions/logic-prover/popup.html"
@@ -176,6 +211,16 @@
       "name": "ext-memory-palace-sidepanel",
       "type": "extension",
       "file": "extensions/memory-palace/sidepanel.html"
+    },
+    {
+      "name": "ext-model-router-adapter-popup",
+      "type": "extension",
+      "file": "extensions/model-router-adapter/popup.html"
+    },
+    {
+      "name": "ext-model-router-adapter-sidepanel",
+      "type": "extension",
+      "file": "extensions/model-router-adapter/sidepanel.html"
     },
     {
       "name": "ext-organism-dashboard-popup",
@@ -256,6 +301,16 @@
       "name": "ext-sentinel-watch-sidepanel",
       "type": "extension",
       "file": "extensions/sentinel-watch/sidepanel.html"
+    },
+    {
+      "name": "ext-signal-relay-adapter-popup",
+      "type": "extension",
+      "file": "extensions/signal-relay-adapter/popup.html"
+    },
+    {
+      "name": "ext-signal-relay-adapter-sidepanel",
+      "type": "extension",
+      "file": "extensions/signal-relay-adapter/sidepanel.html"
     },
     {
       "name": "ext-social-cortex-popup",
