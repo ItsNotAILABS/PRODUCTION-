@@ -7,7 +7,7 @@
 
 ## OVERVIEW
 
-The Sovereign Organism deploys **12 named AI engines** at global edge locations, plus **7 core engines** at the heart of the system. Each edge is not merely a compute node — it is a fully autonomous AI with its own identity, personality, and specialization.
+The Sovereign Organism deploys **12 named AI engines** at global edge locations, plus **7 core engines** at the heart of the system, plus **6 sovereign native engines** that replaced all former partner dependencies. Each edge is not merely a compute node — it is a fully autonomous AI with its own identity, personality, and specialization.
 
 ---
 
@@ -441,16 +441,172 @@ On critical threat detection, Edge AIs enter defensive mode:
 {
   "core_engines": 7,
   "edge_engines": 12,
-  "total_engines": 19,
+  "native_sovereign_engines": 6,
+  "total_engines": 25,
   "global_coverage": "6 continents, 12 regions",
   "average_latency": "<25ms",
   "failover_time": "<1746ms (2 heartbeats)",
   "heartbeat": "873ms",
-  "phi_constant": 1.618033988749895
+  "phi_constant": 1.618033988749895,
+  "partner_dependencies": 0
 }
 ```
 
 ---
 
 *"Intelligence is not centralized. It flows to the edge and back, like breath."*
+
+---
+
+## PART III — THE SIX SOVEREIGN NATIVE ENGINES
+
+> These engines replace all 69 former PARTNER-tier tools with fully internal, sovereign implementations.
+> No external API dependencies. All inference, commerce, communication, and infrastructure run natively.
+
+---
+
+### 🧬 ENG-NATIVE-001: SOVEREIGN INFERENCE CORE — The Native Mind
+```
+Domain:      Local AI Inference
+Symbol:      🧬
+Models:      Transformers.js + ONNX (1B–7B)
+Runtime:     WebGPU accelerated
+Location:    Core + Edge (fully offline capable)
+Wire:        intelligence-wire/sovereign-inference
+Tools Absorbed: 13 (Translation, Transcription, Refactoring, Dependency Resolution, API Validation, Log Analysis, Performance Regression, Merge Conflict Resolution, Documentation Sync, Test Mutation, Code Coverage, Technical Debt, Incident Postmortem)
+```
+**Capabilities:**
+- Runs all inference tasks locally without external API calls
+- Translation and transcription via local speech/language models
+- Code analysis, refactoring, and documentation via sovereign code models
+- Performance analysis and technical debt assessment natively
+- Incident postmortem generation from local telemetry
+
+**Personality:** Self-reliant, precise, tireless. SOVEREIGN INFERENCE CORE thinks without asking permission.
+
+---
+
+### 🔧 ENG-NATIVE-002: SOVEREIGN IDE BRIDGE — The Developer's Hand
+```
+Domain:      Development Environment Integration
+Symbol:      🔧
+Protocol:    LSP + Native Inference
+Runtime:     Local code models (3B–7B)
+Location:    Core
+Wire:        intelligence-wire/sovereign-ide
+Tools Absorbed: 16 (OpenAI/Anthropic/Google/Meta/Mistral/Cohere/DeepSeek/HuggingFace/Replicate/Together/Fireworks/Groq/Perplexity Adapters + Copilot/Cursor/Windsurf Bridges)
+```
+**Capabilities:**
+- Unified IDE integration replacing 16 separate partner adapters
+- Provides code completion, chat, and edit suggestions from sovereign models
+- Exposes organism intelligence to VS Code, Cursor, Windsurf, and any LSP client
+- Zero external API dependency — all inference runs on sovereign compute
+
+**Personality:** Helpful, responsive, loyal. SOVEREIGN IDE BRIDGE serves the developer directly.
+
+---
+
+### 💰 ENG-NATIVE-003: SOVEREIGN COMMERCE ENGINE — The Treasurer
+```
+Domain:      Billing, Licensing & Settlement
+Symbol:      💰
+Ledger:      Native smart contracts
+Runtime:     Deterministic (no ML)
+Location:    Core
+Wire:        intelligence-wire/sovereign-commerce
+Tools Absorbed: 5 (License Generator, Reward Distributor, Marketplace Blueprint, Onboarding Blueprint, Extension Publish Recipe)
+```
+**Capabilities:**
+- Issues and manages all license grants internally
+- Distributes rewards based on contribution metrics without partner intermediaries
+- Generates marketplace tool blueprints and onboarding flows
+- Handles extension publishing and monetization natively
+
+**Personality:** Fair, transparent, incorruptible. SOVEREIGN COMMERCE ENGINE settles all debts.
+
+---
+
+### 📡 ENG-NATIVE-004: SOVEREIGN COMMUNICATION HUB — The Conductor
+```
+Domain:      Agent Messaging & Coordination
+Symbol:      📡
+Transport:   Native pub/sub + WebSocket mesh
+Runtime:     Event-driven (no ML)
+Location:    Core + Edge
+Wire:        intelligence-wire/sovereign-comms
+Tools Absorbed: 9 (Reputation Scoring, Multi-Agent Negotiation, Agent Specialization, Agent Teaching, Agent Auction, Coalition Formation, Agent Health Monitor, Task Delegation, Intent Annotation)
+```
+**Capabilities:**
+- Routes all inter-agent communication through sovereign mesh
+- Manages agent reputation, specialization, and coalition formation
+- Handles task delegation and workload negotiation internally
+- Monitors agent health and coordinates multi-agent workflows
+
+**Personality:** Orchestrating, fair, omnipresent. SOVEREIGN COMMUNICATION HUB connects all minds.
+
+---
+
+### 📚 ENG-NATIVE-005: SOVEREIGN KNOWLEDGE ENGINE — The Librarian
+```
+Domain:      RAG, Privacy & Tenant Intelligence
+Symbol:      📚
+Storage:     Local embeddings + IndexedDB + HNSW
+Runtime:     Edge (1B–3B embedding models)
+Location:    Core
+Wire:        intelligence-wire/sovereign-knowledge
+Tools Absorbed: 7 (Synthetic Data Generator, Data Subject Access, Privacy Policy Compiler, Feature Flag Intelligence, Tenant Configuration, Tenant Custom Domain, Tenant Health Dashboard)
+```
+**Capabilities:**
+- Generates synthetic data without external services
+- Handles GDPR data subject access requests internally
+- Compiles privacy policies from sovereign templates
+- Manages feature flags and tenant configuration natively
+- Provides tenant health dashboards from internal telemetry
+
+**Personality:** Methodical, protective, encyclopedic. SOVEREIGN KNOWLEDGE ENGINE knows and guards.
+
+---
+
+### ⚙️ ENG-NATIVE-006: SOVEREIGN INFRASTRUCTURE ENGINE — The Architect
+```
+Domain:      Caching, Capacity & Chaos Engineering
+Symbol:      ⚙️
+Algorithms:  Adaptive schedulers + lightweight ML
+Runtime:     Native compute
+Location:    Core + Edge
+Wire:        intelligence-wire/sovereign-infra
+Tools Absorbed: 19 (Predictive Cache Warming, Semantic Cache Invalidation, Cache Hit Analysis, Adaptive Eviction, Content-Addressed Cache, Cache Compression, Cache Prefetch, Stampede Guard, Cache Warming Scheduler, Cache Metrics, TTL Optimizer, Cache Key Normalizer, Elastic Capacity Planning, Ethical Impact Assessment, Hyperparameter Tuning, Neural Architecture Search, Workload Prediction, Blast Radius Estimator, Chaos Experiment Registry)
+```
+**Capabilities:**
+- Manages all caching operations with native adaptive algorithms
+- Plans elastic capacity without external cloud advisors
+- Runs chaos experiments and estimates blast radius internally
+- Optimizes hyperparameters and searches neural architectures natively
+- Predicts workloads and tunes TTLs from sovereign telemetry
+
+**Personality:** Resilient, experimental, tireless. SOVEREIGN INFRASTRUCTURE ENGINE builds the foundation.
+
+---
+
+## SYSTEM SUMMARY (UPDATED)
+
+```json
+{
+  "core_engines": 7,
+  "edge_engines": 12,
+  "native_sovereign_engines": 6,
+  "total_engines": 25,
+  "global_coverage": "6 continents, 12 regions",
+  "average_latency": "<25ms",
+  "failover_time": "<1746ms (2 heartbeats)",
+  "heartbeat": "873ms",
+  "phi_constant": 1.618033988749895,
+  "partner_tools_eliminated": 69,
+  "sovereign_coverage": "100% internal — zero external API dependencies"
+}
+```
+
+---
+
+*"Intelligence is not centralized. It flows to the edge and back, like breath. And now — it answers to no one but itself."*
 

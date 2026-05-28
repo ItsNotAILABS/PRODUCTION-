@@ -283,6 +283,68 @@
     "file": "Phantom_Blockchain_Model_Register.csv",
     "totalFamilies": 8
   },
+  "nativeModelFamilies": {
+    "register": "Native_Model_Families_Register.csv",
+    "totalFamilies": 6,
+    "description": "Consolidated native sovereign model families replacing all 69 former PARTNER tools with internal implementations",
+    "partnerToolsAbsorbed": 69,
+    "families": [
+      {
+        "id": "NMF-001",
+        "name": "Sovereign Inference Core",
+        "sdk": "@medina/ai-model-engines",
+        "wire": "intelligence-wire/sovereign-inference",
+        "runtime": "Transformers.js + ONNX + WebGPU",
+        "toolsAbsorbed": 13,
+        "capabilities": ["translation", "transcription", "code-refactoring", "dependency-resolution", "api-validation", "log-analysis", "performance-regression", "merge-conflict-resolution", "documentation-sync", "test-mutation", "code-coverage", "technical-debt", "incident-postmortem"]
+      },
+      {
+        "id": "NMF-002",
+        "name": "Sovereign IDE Bridge",
+        "sdk": "@medina/ai-model-engines",
+        "wire": "intelligence-wire/sovereign-ide",
+        "runtime": "Local inference + LSP protocol",
+        "toolsAbsorbed": 16,
+        "capabilities": ["openai-inference", "anthropic-inference", "google-inference", "meta-inference", "mistral-inference", "cohere-inference", "deepseek-inference", "huggingface-inference", "replicate-inference", "together-inference", "fireworks-inference", "groq-inference", "perplexity-inference", "copilot-bridge", "cursor-bridge", "windsurf-bridge"]
+      },
+      {
+        "id": "NMF-003",
+        "name": "Sovereign Commerce Engine",
+        "sdk": "@medina/organism-runtime-sdk",
+        "wire": "intelligence-wire/sovereign-commerce",
+        "runtime": "Native ledger + smart contracts",
+        "toolsAbsorbed": 5,
+        "capabilities": ["license-generation", "reward-distribution", "marketplace-blueprint", "onboarding", "extension-publishing"]
+      },
+      {
+        "id": "NMF-004",
+        "name": "Sovereign Communication Hub",
+        "sdk": "@medina/organism-runtime-sdk",
+        "wire": "intelligence-wire/sovereign-comms",
+        "runtime": "Native pub/sub + WebSocket mesh",
+        "toolsAbsorbed": 9,
+        "capabilities": ["reputation-scoring", "multi-agent-negotiation", "agent-specialization", "agent-teaching", "agent-auction", "coalition-formation", "agent-health-monitoring", "task-delegation", "intent-annotation"]
+      },
+      {
+        "id": "NMF-005",
+        "name": "Sovereign Knowledge Engine",
+        "sdk": "@medina/sovereign-memory-sdk",
+        "wire": "intelligence-wire/sovereign-knowledge",
+        "runtime": "Local embeddings + IndexedDB + HNSW",
+        "toolsAbsorbed": 7,
+        "capabilities": ["synthetic-data-generation", "data-subject-access", "privacy-policy-compilation", "feature-flag-intelligence", "tenant-configuration", "tenant-custom-domain", "tenant-health-dashboard"]
+      },
+      {
+        "id": "NMF-006",
+        "name": "Sovereign Infrastructure Engine",
+        "sdk": "@medina/organism-runtime-sdk",
+        "wire": "intelligence-wire/sovereign-infra",
+        "runtime": "Native schedulers + adaptive algorithms",
+        "toolsAbsorbed": 19,
+        "capabilities": ["predictive-cache-warming", "semantic-cache-invalidation", "cache-hit-analysis", "adaptive-eviction", "content-addressed-cache", "cache-compression", "cache-prefetch", "stampede-guard", "cache-warming-scheduling", "cache-metrics", "ttl-optimization", "cache-key-normalization", "elastic-capacity-planning", "ethical-impact-assessment", "hyperparameter-tuning", "neural-architecture-search", "workload-prediction", "blast-radius-estimation", "chaos-experiment-registry"]
+      }
+    ]
+  },
   "wiring": {
     "principle": "Every frontend model maps to a primitive function, every primitive maps to a sovereign SDK module, every SDK enforces architectural laws, and every law traces back to the organism",
     "flowDirection": "Fracture → Primitive → Sovereign → Organism → Doctrine",
