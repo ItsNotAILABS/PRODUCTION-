@@ -215,3 +215,9 @@ export { OrganismArmInvocationProtocol, ARM_PROTOCOL_STATES, ARM_TYPES, MESSAGE_
 
 // PROTO-254: Spider MoE AGI/AECI — BLACKWXDOW and JUMPER intelligent beings with personalities
 export { SpiderMoEProtocol, MOE_PROTOCOL_STATES, INTELLIGENCE_TYPES, MESSAGE_TYPES as MOE_MESSAGE_TYPES, MOE_PROTOCOL_CONFIG, calculateExpertActivation, calculateEmergenceScore, calculateCollaborationScore, calculatePersonalityWeight } from './spider-moe-protocol.js';
+
+// PROTO-255: Alpha Orchestrator — Master workflow coordination, multi-agent sequencing, φ-backoff recovery
+export { AlphaOrchestratorProtocol, ORCHESTRATOR_CONFIG, MESSAGE_TYPES as ORCHESTRATOR_MESSAGE_TYPES, ORCHESTRATOR_STATES as ORCHESTRATOR_PROTOCOL_STATES, EXECUTION_MODES, ORCHESTRATOR_TYPES, calculateOrchestrationPriority, calculatePhiBackoff, calculateLoadPartition, calculateWorkflowHealth, calculateAllocationScore } from './alpha-orchestrator-protocol.js';
+
+// PROTO-256: Alpha Conductor — Signal routing, ensemble direction, harmonic coordination, tempo management
+export { AlphaConductorProtocol, CONDUCTOR_CONFIG, MESSAGE_TYPES as CONDUCTOR_MESSAGE_TYPES, CONDUCTOR_STATES as CONDUCTOR_PROTOCOL_STATES, CONDUCTOR_TYPES, ENSEMBLE_ROLES, SIGNAL_TYPES as CONDUCTOR_SIGNAL_TYPES, calculateSignalStrength, calculateHarmony, calculateOptimalTempo, calculateDissonance, calculateRoleWeight } from './alpha-conductor-protocol.js';

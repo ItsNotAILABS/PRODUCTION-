@@ -237,3 +237,15 @@ export { default as SpiderMoEAGIDefault } from './spider-moe-agi.js';
 // ═══════════════════════════════════════════════════════════════════════════════
 export { DeepReasoningEngine, EmergentSynthesisEngine, BLACKWXDOWInterface, JUMPERInterface, AdvancedCollective, createBLACKWXDOWInterface, createJUMPERInterface, createAdvancedCollective } from './spider-moe-advanced.js';
 export { default as SpiderMoEAdvancedDefault } from './spider-moe-advanced.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ALPHA ORCHESTRATOR — Master workflow coordination
+// ═══════════════════════════════════════════════════════════════════════════════
+export { AlphaOrchestrator, OrchestrationNetwork, ORCHESTRATOR_STATES, ORCHESTRATOR_TYPES, WORKFLOW_STATES, EXECUTION_MODES, createSovereignOrchestrator, createDomainOrchestrator, createTacticalOrchestrator, createOrchestrationNetwork, calculateOrchestrationPriority, calculatePhiBackoff, calculateLoadPartition } from './alpha-orchestrator.js';
+export { default as AlphaOrchestratorDefault } from './alpha-orchestrator.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ALPHA CONDUCTOR — Signal routing and ensemble direction
+// ═══════════════════════════════════════════════════════════════════════════════
+export { AlphaConductor, ConductorEnsemble, CONDUCTOR_STATES, CONDUCTOR_TYPES, SIGNAL_TYPES, ENSEMBLE_ROLES, DYNAMICS, createMaestroConductor, createSectionConductor, createSoloistConductor, createImproviserConductor, createConductorEnsemble, calculateSignalStrength, calculateHarmony, calculateOptimalTempo } from './alpha-conductor.js';
+export { default as AlphaConductorDefault } from './alpha-conductor.js';
