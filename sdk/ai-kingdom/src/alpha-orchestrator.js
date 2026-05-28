@@ -106,6 +106,7 @@ export class AlphaOrchestrator {
     };
     this.eventHandlers = new Map();
     this._heartbeat = null;
+    this._startTime = Date.now();
   }
 
   // ─── LIFECYCLE ───────────────────────────────────────────────────────────────
@@ -203,7 +204,8 @@ export class AlphaOrchestrator {
       context: { ...context },
       results: [],
       startTime: Date.now(),
-      currentStep: 0
+      currentStep: 0,
+      retryCount: 0
     };
 
     this.activeWorkflows.set(execution.id, execution);

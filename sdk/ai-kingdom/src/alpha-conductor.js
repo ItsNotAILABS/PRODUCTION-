@@ -501,7 +501,6 @@ export class ConductorEnsemble {
   }
 
   synchronize() {
-    const timestamp = Date.now();
     for (const [_, conductor] of this.conductors) {
       conductor.syncPulse();
     }
