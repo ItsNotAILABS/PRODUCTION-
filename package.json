@@ -16,6 +16,7 @@
     "test:sdk": "node --test test/sdk/*.test.js",
     "test:extensions": "node --test test/extensions/*.test.js",
     "test:cli": "node --test test/cli/*.test.js",
+    "test:builders": "node --test test/builders/*.test.js",
     "lint": "node scripts/lint-manifests.js",
     "validate": "node organism-cli validate",
     "list": "node organism-cli list",
@@ -23,7 +24,10 @@
     "install-extensions": "node organism-cli install",
     "bundle": "node scripts/bundle-release.js",
     "prepare-sdks": "node scripts/prepare-sdks.js",
-    "clean": "rm -rf dist/"
+    "clean": "rm -rf dist/",
+    "create:extension": "node builders/cli/create-extension.js",
+    "create:sdk": "node builders/cli/create-sdk.js",
+    "create:workflow": "node builders/cli/create-workflow.js"
   },
   "keywords": [
     "ai",

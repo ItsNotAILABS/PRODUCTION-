@@ -1,80 +1,31 @@
 {
-  "tasks": [],
-  "processed": [
+  "tasks": [
     {
-      "id": "task-init-000",
-      "type": "sync",
-      "payload": {},
-      "createdAt": "2026-05-24T06:00:00.000Z",
-      "processedAt": "2026-05-24T06:00:01.000Z",
-      "result": {
-        "success": true,
-        "message": "Initial sync complete"
-      }
-    },
-    {
-      "id": "task-bootstrap-001",
+      "id": "task-1779669210923-ldpnhj0k9e",
       "type": "sync",
       "payload": {
         "priority": 3
       },
-      "createdAt": "2026-05-24T08:00:00.000Z",
-      "priority": 3,
-      "processedAt": "2026-05-24T08:12:49.792Z",
-      "result": {
-        "success": true,
-        "message": "Synced 27 agents"
-      }
+      "createdAt": "2026-05-25T00:33:30.923Z",
+      "priority": 3
     },
     {
-      "id": "task-bootstrap-002",
+      "id": "task-1779669210923-qp1l1faz7op",
       "type": "observe",
       "payload": {
         "priority": 2
       },
-      "createdAt": "2026-05-24T08:00:01.000Z",
-      "priority": 2,
-      "processedAt": "2026-05-24T08:16:13.869Z",
-      "result": {
-        "success": true,
-        "message": "Observed 27 agents",
-        "agents": [
-          "geometry-lock",
-          "organism-alpha-bot",
-          "organism-build-bot",
-          "organism-cloud-bot",
-          "organism-commit-bot",
-          "organism-coordinator-bot",
-          "organism-crawler-bot",
-          "organism-cyber-bot",
-          "organism-deploy-bot",
-          "organism-deps-bot",
-          "organism-docs-bot",
-          "organism-economy-bot",
-          "organism-evolution-bot",
-          "organism-genesis-bot",
-          "organism-governance-bot",
-          "organism-intel-bot",
-          "organism-issue-bot",
-          "organism-learning-bot",
-          "organism-neural-bot",
-          "organism-protocol-bot",
-          "organism-release-bot",
-          "organism-runtime-bot",
-          "organism-sandcastle-bot",
-          "organism-sdk-bot",
-          "organism-sentinel-bot",
-          "organism-test-bot",
-          "organism-visual-bot"
-        ]
-      }
+      "createdAt": "2026-05-25T00:33:30.923Z",
+      "priority": 2
     },
     {
-      "id": "task-bootstrap-003",
+      "id": "task-1779669210923-af5zvn4bekl",
       "type": "diverge",
       "payload": {
         "priority": 1
       },
+      "createdAt": "2026-05-25T00:33:30.923Z",
+      "priority": 1
       "createdAt": "2026-05-24T08:00:02.000Z",
       "priority": 1,
       "processedAt": "2026-05-24T08:35:56.045Z",
@@ -1027,5 +978,6 @@
         ]
       }
     }
-  ]
+  ],
+  "processed": []
 }

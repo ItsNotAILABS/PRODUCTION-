@@ -44,8 +44,8 @@ function scanProtocols() {
       const content = fs.readFileSync(fullPath, 'utf8');
       const name = file.replace('.js', '');
 
-      // Check for module.exports or exports
-      const hasExports = /module\.exports\s*=/.test(content) || /exports\./.test(content);
+      // Check for module.exports, exports, or ES6 export
+      const hasExports = /module\.exports\s*=/.test(content) || /exports\./.test(content) || /export\s+(?:const|let|var|function|class|default|\{)/.test(content);
       // Check for class or function definitions
       const hasClass = /class\s+\w+/.test(content);
       const hasFunction = /function\s+\w+/.test(content);
@@ -84,7 +84,7 @@ function scanAgents() {
   for (const file of files) {
     try {
       const content = fs.readFileSync(path.join(AGENTS, file), 'utf8');
-      if (content.length > 0 && (/class\s+\w+/.test(content) || /module\.exports/.test(content))) {
+      if (content.length > 0 && (/class\s+\w+/.test(content) || /module\.exports/.test(content) || /export\s+(?:const|let|var|function|class|default|\{)/.test(content))) {
         valid++;
       } else {
         invalid++;

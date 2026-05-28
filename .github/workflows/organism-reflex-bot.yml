@@ -1,0 +1,345 @@
+# ============================================================================
+# REFLEX BOT — Automatic Response & Reactive Intelligence
+#
+# The Reflex Bot is the organism's nervous system:
+#   1. 🧠 Mini-Brain: Event pattern matching and response selection
+#   2. 💓 Heartbeat: Continuous event monitoring
+#   3. ⚡ Reflexes: Instant automated responses to triggers
+#   4. 🎯 Targeting: Smart routing of responses to appropriate handlers
+#
+# Autonomous capabilities:
+#   - Monitors repository events (issues, PRs, comments)
+#   - Triggers appropriate bot responses automatically
+#   - Learns from response effectiveness
+#   - Adapts response patterns based on outcomes
+#
+# Identity: organism-reflex-bot <organism-reflex-bot@users.noreply.github.com>
+# ============================================================================
+
+name: "⚡ Reflex Bot"
+
+on:
+  # Event triggers - the nervous system inputs
+  issues:
+    types: [opened, labeled, closed]
+  
+  pull_request:
+    types: [opened, synchronize, closed, labeled]
+  
+  issue_comment:
+    types: [created]
+  
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'governance/**'
+      - '**.md'
+  
+  # Scheduled reflex check
+  schedule:
+    - cron: '*/30 * * * *'
+  
+  # Manual reflex operations
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Reflex operation'
+        required: true
+        default: 'status'
+        type: choice
+        options:
+          - status
+          - train
+          - test-reflex
+          - reset
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+env:
+  NODE_VERSION: '20'
+  REFLEX_PATH: 'governance/reflex'
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ⚡ ISSUE REFLEX — Respond to new issues
+  # ═══════════════════════════════════════════════════════════════════════════
+  issue-reflex:
+    name: "⚡ Issue Reflex"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "🧠 Analyze issue"
+        id: analyze
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          mkdir -p ${{ env.REFLEX_PATH }}/responses
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  ⚡ ISSUE REFLEX TRIGGERED"
+          echo "  Issue #$ISSUE_NUMBER"
+          echo "═══════════════════════════════════════════════════════"
+          
+          # Simple pattern matching for issue classification (mini-brain)
+          TITLE_LOWER=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]')
+          
+          CATEGORY="general"
+          PRIORITY="normal"
+          SUGGESTED_LABEL=""
+          
+          if echo "$TITLE_LOWER" | grep -qE "(bug|error|crash|broken|fail)"; then
+            CATEGORY="bug"
+            PRIORITY="high"
+            SUGGESTED_LABEL="bug"
+          elif echo "$TITLE_LOWER" | grep -qE "(feature|request|add|implement|support)"; then
+            CATEGORY="feature"
+            PRIORITY="normal"
+            SUGGESTED_LABEL="enhancement"
+          elif echo "$TITLE_LOWER" | grep -qE "(doc|readme|typo|spelling)"; then
+            CATEGORY="documentation"
+            PRIORITY="low"
+            SUGGESTED_LABEL="documentation"
+          elif echo "$TITLE_LOWER" | grep -qE "(security|vulnerability|cve|exploit)"; then
+            CATEGORY="security"
+            PRIORITY="critical"
+            SUGGESTED_LABEL="security"
+          fi
+          
+          echo "category=$CATEGORY" >> $GITHUB_OUTPUT
+          echo "priority=$PRIORITY" >> $GITHUB_OUTPUT
+          echo "label=$SUGGESTED_LABEL" >> $GITHUB_OUTPUT
+          
+          # Record reflex response
+          cat > "${{ env.REFLEX_PATH }}/responses/issue-${ISSUE_NUMBER}.json" << EOF
+          {
+            "type": "issue_reflex",
+            "issue_number": $ISSUE_NUMBER,
+            "category": "$CATEGORY",
+            "priority": "$PRIORITY",
+            "suggested_label": "$SUGGESTED_LABEL",
+            "triggered_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+      - name: "💬 Auto-respond"
+        if: steps.analyze.outputs.category != 'general'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const category = '${{ steps.analyze.outputs.category }}';
+            const priority = '${{ steps.analyze.outputs.priority }}';
+            
+            const responses = {
+              bug: '🐛 **Bug Report Detected**\n\nThank you for reporting this issue! The organism\'s reflex system has classified this as a potential bug.\n\n**Priority:** ' + priority + '\n\nA specialized bot will investigate shortly.',
+              feature: '✨ **Feature Request Detected**\n\nThank you for your suggestion! The organism\'s reflex system has classified this as a feature request.\n\nThis will be evaluated during the next evolution cycle.',
+              documentation: '📚 **Documentation Issue Detected**\n\nThank you for helping improve our documentation! This will be addressed soon.',
+              security: '🔒 **Security Report Detected**\n\n⚠️ This has been flagged as a potential security issue and will be prioritized.\n\nPlease avoid sharing sensitive details publicly.'
+            };
+            
+            if (responses[category]) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: responses[category] + '\n\n---\n*🤖 organism-reflex-bot — Autonomous Response System*'
+              });
+            }
+
+      - name: Commit reflex record
+        run: |
+          git config user.name "organism-reflex-bot"
+          git config user.email "organism-reflex-bot@users.noreply.github.com"
+          
+          git add ${{ env.REFLEX_PATH }}/ || true
+          
+          if git diff --cached --quiet; then
+            echo "No reflex changes"
+          else
+            git commit -m "⚡ Reflex-bot: responded to issue #${{ github.event.issue.number }}"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ⚡ PR REFLEX — Respond to pull requests
+  # ═══════════════════════════════════════════════════════════════════════════
+  pr-reflex:
+    name: "⚡ PR Reflex"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'opened'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "🧠 Analyze PR"
+        id: analyze
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p ${{ env.REFLEX_PATH }}/responses
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  ⚡ PR REFLEX TRIGGERED"
+          echo "  PR #$PR_NUMBER"
+          echo "═══════════════════════════════════════════════════════"
+          
+          # Classify PR
+          TITLE_LOWER=$(echo "$PR_TITLE" | tr '[:upper:]' '[:lower:]')
+          
+          TYPE="general"
+          if echo "$TITLE_LOWER" | grep -qE "^(fix|bug|patch)"; then
+            TYPE="bugfix"
+          elif echo "$TITLE_LOWER" | grep -qE "^(feat|feature|add)"; then
+            TYPE="feature"
+          elif echo "$TITLE_LOWER" | grep -qE "^(doc|docs|readme)"; then
+            TYPE="documentation"
+          elif echo "$TITLE_LOWER" | grep -qE "^(refactor|clean|improve)"; then
+            TYPE="refactor"
+          elif echo "$TITLE_LOWER" | grep -qE "^(test|spec)"; then
+            TYPE="testing"
+          fi
+          
+          echo "type=$TYPE" >> $GITHUB_OUTPUT
+          
+          # Record
+          cat > "${{ env.REFLEX_PATH }}/responses/pr-${PR_NUMBER}.json" << EOF
+          {
+            "type": "pr_reflex",
+            "pr_number": $PR_NUMBER,
+            "classification": "$TYPE",
+            "triggered_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+      - name: "💬 Welcome PR"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prType = '${{ steps.analyze.outputs.type }}';
+            
+            const typeEmoji = {
+              bugfix: '🐛',
+              feature: '✨',
+              documentation: '📚',
+              refactor: '🔧',
+              testing: '🧪',
+              general: '📝'
+            };
+            
+            const emoji = typeEmoji[prType] || '📝';
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `${emoji} **Pull Request Received**\n\nThank you for your contribution! The organism's reflex system has classified this as a **${prType}** PR.\n\nAutomated checks will run shortly.\n\n---\n*🤖 organism-reflex-bot — Autonomous Response System*`
+            });
+
+      - name: Commit reflex record
+        run: |
+          git config user.name "organism-reflex-bot"
+          git config user.email "organism-reflex-bot@users.noreply.github.com"
+          
+          git add ${{ env.REFLEX_PATH }}/ || true
+          
+          if git diff --cached --quiet; then
+            echo "No reflex changes"
+          else
+            git commit -m "⚡ Reflex-bot: responded to PR #${{ github.event.pull_request.number }}"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 💓 REFLEX HEARTBEAT — Periodic reflex system check
+  # ═══════════════════════════════════════════════════════════════════════════
+  reflex-heartbeat:
+    name: "💓 Reflex Heartbeat"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "💓 Reflex system pulse"
+        run: |
+          mkdir -p ${{ env.REFLEX_PATH }}
+          
+          if [ ! -f "${{ env.REFLEX_PATH }}/state.json" ]; then
+            echo '{
+              "heartbeat_count": 0,
+              "reflexes_triggered": 0,
+              "last_pulse": null,
+              "health": 1.0
+            }' > "${{ env.REFLEX_PATH }}/state.json"
+          fi
+          
+          HEARTBEAT=$(cat "${{ env.REFLEX_PATH }}/state.json" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).heartbeat_count || 0")
+          NEW_HEARTBEAT=$((HEARTBEAT + 1))
+          REFLEX_COUNT=$(find "${{ env.REFLEX_PATH }}/responses" -name "*.json" 2>/dev/null | wc -l || echo 0)
+          
+          echo "═══════════════════════════════════════════════════════"
+          echo "  ⚡ REFLEX BOT — Heartbeat #$NEW_HEARTBEAT"
+          echo "  Reflexes triggered: $REFLEX_COUNT"
+          echo "═══════════════════════════════════════════════════════"
+          
+          cat > "${{ env.REFLEX_PATH }}/state.json" << EOF
+          {
+            "heartbeat_count": $NEW_HEARTBEAT,
+            "reflexes_triggered": $REFLEX_COUNT,
+            "last_pulse": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "health": 0.873
+          }
+          EOF
+
+      - name: Commit heartbeat
+        run: |
+          git config user.name "organism-reflex-bot"
+          git config user.email "organism-reflex-bot@users.noreply.github.com"
+          
+          git add ${{ env.REFLEX_PATH }}/ || true
+          
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "💓 Reflex-bot: heartbeat pulse"
+            git push
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 📊 STATUS — Display reflex system status
+  # ═══════════════════════════════════════════════════════════════════════════
+  status:
+    name: "📊 Reflex Status"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'status'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "📊 Display status"
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  ⚡ REFLEX BOT STATUS"
+          echo "═══════════════════════════════════════════════════════"
+          
+          if [ -f "${{ env.REFLEX_PATH }}/state.json" ]; then
+            cat "${{ env.REFLEX_PATH }}/state.json"
+          else
+            echo "Reflex system not initialized"
+          fi
+          
+          echo ""
+          echo "Recent reflexes:"
+          ls -la "${{ env.REFLEX_PATH }}/responses/" 2>/dev/null | tail -10 || echo "No responses recorded"

@@ -13,16 +13,18 @@
  *   3. Task Queue Processing
  *   4. Divergence Tracking Integration
  *   5. Continuous Evolution Cycles
+ *   6. Multi-Flow State Modeling (NEW)
  *
  * The divergence experiment: Let agents evolve the codebase autonomously
  * while tracking metrics to observe emergence patterns.
  *
  * Usage:
- *   node scripts/auto-orchestrator.js --start      # Start AUTO
- *   node scripts/auto-orchestrator.js --status     # Check status
- *   node scripts/auto-orchestrator.js --pulse      # Single heartbeat
- *   node scripts/auto-orchestrator.js --metrics    # Show metrics
- *   node scripts/auto-orchestrator.js --agents     # List active agents
+ *   node scripts/auto-orchestrator.js --start       # Start AUTO
+ *   node scripts/auto-orchestrator.js --status      # Check status
+ *   node scripts/auto-orchestrator.js --pulse       # Single heartbeat
+ *   node scripts/auto-orchestrator.js --metrics     # Show metrics
+ *   node scripts/auto-orchestrator.js --agents      # List active agents
+ *   node scripts/auto-orchestrator.js --flow-status # Show flow state machine status (NEW)
  *
  * id: atlas://script/auto-orchestrator
  * class: T1-SOVEREIGN
@@ -33,6 +35,14 @@
 const fs   = require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
+
+// ── Flow System Integration ───────────────────────────────────────────────────
+const {
+  FlowOrchestrator,
+  FlowStateMachine,
+  createHeartbeatFlow,
+  createDivergenceFlow,
+} = require('../organism/flow-orchestrator');
 
 // ── PHI Constants ─────────────────────────────────────────────────────────────
 const PHI = 1.618033988749895;
@@ -93,21 +103,58 @@ const TASK_TYPES = {
   COMMIT:      'commit',
   DIVERGE:     'diverge',
   SYNC:        'sync',
+  FLOW:        'flow',      // NEW: Execute a flow
+  FLOW_PULSE:  'flow-pulse', // NEW: Pulse flow orchestrator
 };
 
 // ── Parse Arguments ───────────────────────────────────────────────────────────
 const args = {
-  start:   process.argv.includes('--start'),
-  stop:    process.argv.includes('--stop'),
-  status:  process.argv.includes('--status'),
-  pulse:   process.argv.includes('--pulse'),
-  metrics: process.argv.includes('--metrics'),
-  agents:  process.argv.includes('--agents'),
-  init:    process.argv.includes('--init'),
-  queue:   process.argv.includes('--queue'),
-  add:     process.argv.find(a => a.startsWith('--add='))?.split('=')[1],
-  daemon:  process.argv.includes('--daemon'),
+  start:       process.argv.includes('--start'),
+  stop:        process.argv.includes('--stop'),
+  status:      process.argv.includes('--status'),
+  pulse:       process.argv.includes('--pulse'),
+  metrics:     process.argv.includes('--metrics'),
+  agents:      process.argv.includes('--agents'),
+  init:        process.argv.includes('--init'),
+  queue:       process.argv.includes('--queue'),
+  add:         process.argv.find(a => a.startsWith('--add='))?.split('=')[1],
+  daemon:      process.argv.includes('--daemon'),
+  // NEW: Flow system arguments
+  flowStatus:  process.argv.includes('--flow-status'),
+  flowStart:   process.argv.includes('--flow-start'),
+  flowPulse:   process.argv.includes('--flow-pulse'),
+  flowId:      process.argv.find(a => a.startsWith('--flow-id='))?.split('=')[1],
+  useFlows:    process.argv.includes('--use-flows'),
 };
+
+// ── Global Flow Orchestrator ──────────────────────────────────────────────────
+let flowOrchestrator = null;
+
+function getFlowOrchestrator() {
+  if (!flowOrchestrator) {
+    flowOrchestrator = new FlowOrchestrator({
+      id: 'auto-flow-orchestrator',
+      heartbeatMs: HEARTBEAT_MS,
+      maxConcurrentFlows: 3,
+      onFlowComplete: (flowId, status) => {
+        console.log(`  ✅ Flow ${flowId} completed (${status.progress}%)`);
+      },
+      onFlowError: (flowId, status) => {
+        console.log(`  ❌ Flow ${flowId} failed`);
+      },
+      onHeartbeat: (result) => {
+        if (result.nodesProcessed > 0) {
+          console.log(`  💓 Flow pulse: ${result.nodesProcessed} nodes processed`);
+        }
+      },
+    });
+
+    // Register standard flows
+    flowOrchestrator.registerFlow('heartbeat', createHeartbeatFlow());
+    flowOrchestrator.registerFlow('divergence', createDivergenceFlow(), ['heartbeat']);
+  }
+  return flowOrchestrator;
+}
 
 // ── Initialize Directories ────────────────────────────────────────────────────
 function initDirectories() {
@@ -192,46 +239,105 @@ function loadAgentRegistry() {
 }
 
 // ── Heartbeat/Pulse ───────────────────────────────────────────────────────────
-function pulse(state) {
+function pulse(state, useFlows = false) {
   const startTime = Date.now();
   
   state.pulseCount++;
   state.lastPulse = new Date().toISOString();
   
-  // Check agent health
-  const agents = loadAgentRegistry();
-  state.agents = {};
-  agents.forEach(a => {
-    state.agents[a.name] = {
-      id: a.id,
-      status: 'active',
-      fitness: a.fitness_score || PHI_INV,
-      lastSeen: new Date().toISOString(),
-    };
-  });
-  
-  // Process task queue
-  const queue = loadQueue();
-  if (queue.tasks.length > 0) {
-    const task = queue.tasks.shift();
-    const result = processTask(task, state);
+  // ══════════════════════════════════════════════════════════════════════════
+  // 🔄 FLOW SYSTEM INTEGRATION (NEW)
+  // ══════════════════════════════════════════════════════════════════════════
+  if (useFlows) {
+    const orchestrator = getFlowOrchestrator();
     
-    task.processedAt = new Date().toISOString();
-    task.result = result;
-    queue.processed.push(task);
+    // 1. Sync agents with flow orchestrator
+    const agents = loadAgentRegistry();
+    agents.forEach(a => {
+      orchestrator.registerAgent(a.name, {
+        id: a.id,
+        fitness: a.fitness_score || PHI_INV,
+        status: 'active',
+      });
+    });
     
-    // Keep only last 100 processed tasks
-    if (queue.processed.length > 100) {
-      queue.processed = queue.processed.slice(-100);
+    // 2. Build context for flows
+    const queue = loadQueue();
+    orchestrator.flows.forEach(fsm => {
+      fsm.context = {
+        ...fsm.context,
+        agents: orchestrator.agents,
+        taskQueue: queue.tasks,
+        divergenceMetrics: state.metrics,
+        generation: state.cycleCount,
+      };
+    });
+    
+    // 3. Queue heartbeat flow if not already running
+    const hbStatus = orchestrator.getFlowStatus('heartbeat');
+    if (!hbStatus || hbStatus.state === 'idle' || hbStatus.state === 'completed') {
+      orchestrator.queueFlow('heartbeat');
     }
     
-    saveQueue(queue);
+    // 4. Pulse the flow orchestrator
+    const flowResult = orchestrator.heartbeat();
     
-    state.metrics.tasksProcessed++;
-    if (result.success) {
-      state.metrics.tasksSuccess++;
-    } else {
-      state.metrics.tasksFailed++;
+    // 5. Update state from flow metrics
+    state.flowMetrics = orchestrator.getAggregateMetrics();
+    state.agents = {};
+    agents.forEach(a => {
+      state.agents[a.name] = {
+        id: a.id,
+        status: 'active',
+        fitness: a.fitness_score || PHI_INV,
+        lastSeen: new Date().toISOString(),
+      };
+    });
+    
+    // Update task metrics
+    state.metrics.tasksProcessed += flowResult.nodesProcessed || 0;
+    state.metrics.flowsActive = flowResult.activeFlows || 0;
+    
+  } else {
+    // ════════════════════════════════════════════════════════════════════════
+    // LEGACY: Original pulse logic (without flows)
+    // ════════════════════════════════════════════════════════════════════════
+    
+    // Check agent health
+    const agents = loadAgentRegistry();
+    state.agents = {};
+    agents.forEach(a => {
+      state.agents[a.name] = {
+        id: a.id,
+        status: 'active',
+        fitness: a.fitness_score || PHI_INV,
+        lastSeen: new Date().toISOString(),
+      };
+    });
+    
+    // Process task queue
+    const queue = loadQueue();
+    if (queue.tasks.length > 0) {
+      const task = queue.tasks.shift();
+      const result = processTask(task, state);
+      
+      task.processedAt = new Date().toISOString();
+      task.result = result;
+      queue.processed.push(task);
+      
+      // Keep only last 100 processed tasks
+      if (queue.processed.length > 100) {
+        queue.processed = queue.processed.slice(-100);
+      }
+      
+      saveQueue(queue);
+      
+      state.metrics.tasksProcessed++;
+      if (result.success) {
+        state.metrics.tasksSuccess++;
+      } else {
+        state.metrics.tasksFailed++;
+      }
     }
   }
   
@@ -480,6 +586,69 @@ function displayQueue() {
   console.log('\n═══════════════════════════════════════════════════════════════\n');
 }
 
+// ── Display Flow Status (NEW) ─────────────────────────────────────────────────
+function displayFlowStatus() {
+  const orchestrator = getFlowOrchestrator();
+  const status = orchestrator.getStatus();
+  
+  console.log('\n═══════════════════════════════════════════════════════════════');
+  console.log('  🔄 FLOW ORCHESTRATOR STATUS');
+  console.log('═══════════════════════════════════════════════════════════════\n');
+  
+  console.log(`  📊 Orchestrator: ${status.id}`);
+  console.log(`  📊 State:        ${status.state}`);
+  console.log(`  ⏱️  Uptime:       ${(status.uptime / 1000).toFixed(1)}s`);
+  console.log(`  💓 Heartbeat:    ${status.heartbeat.count} pulses (${status.heartbeat.interval}ms interval)`);
+  
+  console.log('\n  🔄 Flows');
+  console.log('  ─────────────────────────────────────────');
+  console.log(`    Total:     ${status.flows.total}`);
+  console.log(`    Active:    ${status.flows.active}`);
+  console.log(`    Queued:    ${status.flows.queued}`);
+  console.log(`    Completed: ${status.flows.completed}`);
+  
+  if (status.flows.statuses.length > 0) {
+    console.log('\n  📋 Flow Details');
+    console.log('  ─────────────────────────────────────────');
+    status.flows.statuses.forEach(f => {
+      const icon = f.isActive ? '▶️' : (f.isComplete ? '✅' : (f.isQueued ? '⏳' : '⏸️'));
+      console.log(`    ${icon} ${f.id}: ${f.state} (${f.progress}%)`);
+    });
+  }
+  
+  console.log('\n  📈 Metrics');
+  console.log('  ─────────────────────────────────────────');
+  console.log(`    Health Score:     ${(status.metrics.healthScore * 100).toFixed(1)}%`);
+  console.log(`    Phi Resonance:    ${status.metrics.phiResonance.toFixed(4)}`);
+  console.log(`    Flows Started:    ${status.metrics.flowsStarted}`);
+  console.log(`    Flows Completed:  ${status.metrics.flowsCompleted}`);
+  console.log(`    Flows Failed:     ${status.metrics.flowsFailed}`);
+  console.log(`    Nodes Executed:   ${status.metrics.totalNodesExecuted}`);
+  console.log(`    Avg Flow Duration: ${status.metrics.avgFlowDuration.toFixed(0)}ms`);
+  
+  if (status.agents.total > 0) {
+    console.log('\n  🤖 Agents');
+    console.log('  ─────────────────────────────────────────');
+    status.agents.statuses.forEach(a => {
+      const icon = a.status === 'active' ? '🟢' : (a.status === 'stale' ? '🟡' : '🔴');
+      console.log(`    ${icon} ${a.id}: ${a.status}`);
+    });
+  }
+  
+  // Show recent events
+  const events = orchestrator.getRecentEvents(5);
+  if (events.length > 0) {
+    console.log('\n  📜 Recent Events');
+    console.log('  ─────────────────────────────────────────');
+    events.forEach(e => {
+      const time = new Date(e.timestamp).toLocaleTimeString();
+      console.log(`    [${time}] ${e.type}: ${e.detail}`);
+    });
+  }
+  
+  console.log('\n═══════════════════════════════════════════════════════════════\n');
+}
+
 // ── Initialize AUTO ───────────────────────────────────────────────────────────
 function initialize() {
   console.log('🔄 Initializing AUTO Orchestrator...\n');
@@ -515,6 +684,7 @@ function start() {
 
   Heartbeat: ${HEARTBEAT_MS}ms (φ-encoded)
   Cycle:     ${CYCLE_INTERVAL.toFixed(0)}ms
+  Mode:      ${args.useFlows ? '🔄 FLOW-BASED (NEW)' : '📋 TASK-BASED (LEGACY)'}
 
   Press Ctrl+C to stop
 
@@ -526,17 +696,31 @@ function start() {
   state.started = state.started || new Date().toISOString();
   saveState(state);
   
+  // Initialize flow orchestrator if using flows
+  if (args.useFlows) {
+    const orchestrator = getFlowOrchestrator();
+    console.log('  🔄 Flow orchestrator initialized');
+    console.log(`  📊 Registered flows: ${orchestrator.flows.size}`);
+  }
+  
   // Heartbeat loop
   const heartbeat = () => {
     state = loadState();
     
-    // Pulse
-    state = pulse(state);
+    // Pulse (with or without flows based on argument)
+    state = pulse(state, args.useFlows);
     state.cycleCount++;
     
     // Log pulse
     const health = state.health.status === 'green' ? '💚' : state.health.status === 'yellow' ? '💛' : '❤️';
-    console.log(`  ${health} Pulse #${state.pulseCount} | Agents: ${Object.keys(state.agents).length} | Tasks: ${state.metrics.tasksProcessed}`);
+    let logMsg = `  ${health} Pulse #${state.pulseCount} | Agents: ${Object.keys(state.agents).length} | Tasks: ${state.metrics.tasksProcessed}`;
+    
+    // Add flow metrics if using flows
+    if (args.useFlows && state.flowMetrics) {
+      logMsg += ` | Flows: ${state.metrics.flowsActive || 0} active`;
+    }
+    
+    console.log(logMsg);
     
     saveState(state);
   };
@@ -549,6 +733,12 @@ function start() {
   process.on('SIGINT', () => {
     console.log('\n\n  🛑 Stopping AUTO Orchestrator...\n');
     clearInterval(interval);
+    
+    // Stop flow orchestrator if running
+    if (args.useFlows && flowOrchestrator) {
+      flowOrchestrator.stop();
+      console.log('  🔄 Flow orchestrator stopped');
+    }
     
     state = loadState();
     state.status = 'stopped';
@@ -566,12 +756,39 @@ function singlePulse() {
   initDirectories();
   
   let state = loadState();
-  state = pulse(state);
+  state = pulse(state, args.useFlows);
   saveState(state);
   
   console.log(`  ✅ Pulse #${state.pulseCount} complete`);
   console.log(`  ❤️ Health: ${(state.health.score * 100).toFixed(1)}%`);
   console.log(`  📋 Tasks processed: ${state.metrics.tasksProcessed}`);
+  
+  if (args.useFlows && state.flowMetrics) {
+    console.log(`  🔄 Flow health: ${(state.flowMetrics.healthScore * 100).toFixed(1)}%`);
+  }
+}
+
+// ── Single Flow Pulse ─────────────────────────────────────────────────────────
+function singleFlowPulse(flowId) {
+  console.log('🔄 Single flow pulse...\n');
+  
+  initDirectories();
+  
+  const orchestrator = getFlowOrchestrator();
+  
+  if (flowId) {
+    orchestrator.queueFlow(flowId);
+    console.log(`  📋 Queued flow: ${flowId}`);
+  }
+  
+  // Ensure running state for single pulse
+  orchestrator.state = 'running';
+  const result = orchestrator.heartbeat();
+  
+  console.log(`  ✅ Flow pulse complete`);
+  console.log(`  📊 Flows processed: ${result.flowsProcessed}`);
+  console.log(`  🧩 Nodes processed: ${result.nodesProcessed}`);
+  console.log(`  🔄 Active flows: ${result.activeFlows}`);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -590,6 +807,12 @@ if (args.init) {
   displayAgents();
 } else if (args.queue) {
   displayQueue();
+} else if (args.flowStatus) {
+  // NEW: Flow status display
+  displayFlowStatus();
+} else if (args.flowPulse) {
+  // NEW: Single flow pulse
+  singleFlowPulse(args.flowId);
 } else if (args.add) {
   initDirectories();
   const task = addTask(args.add, {});
@@ -599,24 +822,40 @@ if (args.init) {
 🔄 AUTO ORCHESTRATOR — Self-Sustaining Agent Runtime
 
 Usage:
-  --init      Initialize AUTO state and directories
-  --start     Start the continuous heartbeat loop
-  --stop      Stop AUTO (or use Ctrl+C)
-  --status    Display current status
-  --pulse     Run a single heartbeat pulse
-  --metrics   Show divergence metrics
-  --agents    List registered agents
-  --queue     Show task queue
-  --add=<type> Add task (spawn|evolve|heal|observe|commit|diverge|sync)
+  --init           Initialize AUTO state and directories
+  --start          Start the continuous heartbeat loop
+  --stop           Stop AUTO (or use Ctrl+C)
+  --status         Display current status
+  --pulse          Run a single heartbeat pulse
+  --metrics        Show divergence metrics
+  --agents         List registered agents
+  --queue          Show task queue
+  --add=<type>     Add task (spawn|evolve|heal|observe|commit|diverge|sync)
+
+Flow System (NEW):
+  --flow-status    Display flow orchestrator status
+  --flow-pulse     Execute a single flow pulse
+  --flow-id=<id>   Specify flow ID for --flow-pulse (heartbeat|divergence)
+  --use-flows      Enable flow-based execution mode with --start or --pulse
 
 The AUTO orchestrator runs all internal AI agents in a continuous
 phi-encoded rhythm (873ms heartbeat), creating a living system that
 evolves autonomously as part of the divergence experiment.
 
+The NEW flow system provides:
+  - Multi-flow state modeling with proper state transitions
+  - Parallel flow execution with dependencies
+  - Agent health integration
+  - Divergence tracking integration
+  - Evolution cycle management
+
 Example:
-  node auto-orchestrator.js --init    # Initialize
-  node auto-orchestrator.js --start   # Start heartbeat loop
-  node auto-orchestrator.js --pulse   # Single pulse
+  node auto-orchestrator.js --init              # Initialize
+  node auto-orchestrator.js --start             # Start (legacy task mode)
+  node auto-orchestrator.js --start --use-flows # Start with flow system (NEW)
+  node auto-orchestrator.js --pulse             # Single pulse
+  node auto-orchestrator.js --flow-status       # Show flow status
+  node auto-orchestrator.js --flow-pulse --flow-id=heartbeat  # Pulse heartbeat flow
 `);
 }
 
@@ -626,6 +865,7 @@ module.exports = {
   pulse,
   addTask,
   loadAgentRegistry,
+  getFlowOrchestrator,
   TASK_TYPES,
   HEARTBEAT_MS,
   PHI,

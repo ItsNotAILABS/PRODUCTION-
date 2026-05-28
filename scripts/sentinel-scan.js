@@ -52,7 +52,8 @@ const SECRET_PATTERNS = [
   { name: 'AWS Key', pattern: /AKIA[0-9A-Z]{16}/g },
   { name: 'Private Key', pattern: /-----BEGIN (?:RSA )?PRIVATE KEY-----/g },
   { name: 'Bearer Token', pattern: /Bearer\s+[A-Za-z0-9_\-\.]{20,}/g },
-  { name: 'Password', pattern: /(?:password|passwd|pwd)\s*[:=]\s*['"][^'"]{8,}['"]/gi },
+  // Exclude GitHub Actions secrets syntax (${{ secrets.* }}) from password detection
+  { name: 'Password', pattern: /(?:password|passwd|pwd)\s*[:=]\s*['"](?!\$\{\{\s*secrets\.)[^'"]{8,}['"]/gi },
 ];
 
 function auditPermissions() {
