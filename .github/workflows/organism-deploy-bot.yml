@@ -5,6 +5,10 @@
 # GitHub Pages stays in sync. Validates dfx.json, deploys canisters,
 # captures canister URLs, and updates the deployment manifest.
 #
+# FIXED: Added concurrency group, [skip ci] in commit message, pull-before-push
+# error handling, and conditional deployment to prevent race conditions from
+# high-velocity auto-agent commits.
+#
 # Identity: organism-deploy-bot <organism-deploy-bot@users.noreply.github.com>
 # ============================================================================
 
@@ -19,6 +23,8 @@ on:
       - 'organism/web/**'
       - 'index.html'
       - 'download.html'
+  schedule:
+    - cron: '0 */12 * * *'  # Every 12 hours for periodic validation
   workflow_dispatch:
     inputs:
       network:
@@ -35,14 +41,26 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: organism-deploy-bot
+  cancel-in-progress: false
+
 jobs:
   validate-deployment:
     name: Validate Deployment Config
     runs-on: ubuntu-latest
+    # Skip if this is a bot-generated commit (prevent cascading)
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[bot-report]') &&
+      !contains(github.event.head_commit.author.name, '-bot')
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -67,6 +85,8 @@ jobs:
           if git diff --cached --quiet; then
             echo "No deployment changes to commit"
           else
-            git commit -m "🌐 Deploy-bot: deployment config validated & manifest updated"
-            git push
+            git commit -m "🌐 Deploy-bot: deployment config validated & manifest updated [skip ci]"
+            # Pull latest to avoid non-fast-forward errors from concurrent bot pushes
+            git pull --rebase origin main || true
+            git push || echo "⚠️ Push failed — another bot may have pushed. Skipping."
           fi

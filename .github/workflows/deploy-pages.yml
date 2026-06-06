@@ -1,11 +1,12 @@
 # ============================================================================
-# Deploy to GitHub Pages — Autonomous Production Hosting
+# Deploy Sonic Ninja Lab Pages — Autonomous Production Hosting
 #
 # Deploys the download page, download worker, and all extension source files
 # to GitHub Pages. The download page becomes a live, permanent, self-hosted
-# download portal at: https://freddycreates.github.io/potential-succotash/
+# download portal.
 #
-# Runs on every push to main. Fully autonomous — 24/7 from second one.
+# FIXED: Added concurrency control, bot-commit filtering, and path filters
+# to prevent cascading CI/CD failures from high-velocity auto-agent commits.
 # ============================================================================
 
 name: Deploy Pages
@@ -13,6 +14,33 @@ name: Deploy Pages
 on:
   push:
     branches: [main]
+    paths:
+      - 'index.html'
+      - 'download.html'
+      - 'docs.html'
+      - 'documents.html'
+      - 'tools.html'
+      - 'protocols.html'
+      - 'sandbox-labs.html'
+      - 'alpha-tools.html'
+      - 'research/**'
+      - 'dist/extensions/**'
+      - 'dist/webapp/**'
+      - 'dist/download.html'
+      - 'assets/**'
+      - 'CNAME'
+      - 'robots.txt'
+    paths-ignore:
+      - 'docs/fleet-report.md'
+      - 'docs/runtime-report.md'
+      - 'docs/crawler-report.md'
+      - 'docs/security-report.md'
+      - 'docs/intel-picture.md'
+      - 'docs/cloud-report.md'
+      - 'docs/governance-report.md'
+      - 'dist/governance/**'
+      - 'dist/recordings/**'
+      - 'dist/screenshots/**'
   workflow_dispatch:
 
 permissions:
@@ -21,13 +49,17 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-deploy
+  cancel-in-progress: true
 
 jobs:
   deploy:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
+    # Skip deployment if commit is from auto-agent bots
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[bot-report]')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
