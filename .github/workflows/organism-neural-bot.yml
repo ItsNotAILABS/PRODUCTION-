@@ -30,6 +30,11 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: organism-neural-bot
+  cancel-in-progress: true
+
+
 jobs:
   validate-neural-graph:
     name: Validate Neural Protocol Graph
@@ -59,6 +64,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No neural architecture changes to commit"
           else
-            git commit -m "🧠 Neural-bot: protocol graph validated & architecture report updated"
-            git push
+            git commit -m "🧠 Neural-bot: protocol graph validated & architecture report updated [skip ci]"
+            git pull --rebase origin main || true
+            git push || echo "⚠️ Push failed — skipping (concurrent bot conflict)"
           fi

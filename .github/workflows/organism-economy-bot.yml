@@ -27,6 +27,11 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: organism-economy-bot
+  cancel-in-progress: true
+
+
 jobs:
   economy-scan:
     name: "💰 Economy Dashboard"
@@ -59,6 +64,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No economy report changes to commit"
           else
-            git commit -m "💰 Economy-bot: marketplace analytics dashboard updated"
-            git push
+            git commit -m "💰 Economy-bot: marketplace analytics dashboard updated [skip ci]"
+            git pull --rebase origin main || true
+            git push || echo "⚠️ Push failed — skipping (concurrent bot conflict)"
           fi

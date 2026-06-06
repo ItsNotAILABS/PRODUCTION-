@@ -26,6 +26,11 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: organism-docs-bot
+  cancel-in-progress: true
+
+
 jobs:
   generate-docs:
     name: Generate Documentation
@@ -60,6 +65,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No documentation changes to commit"
           else
-            git commit -m "📚 Docs-bot: documentation regenerated from source"
-            git push
+            git commit -m "📚 Docs-bot: documentation regenerated from source [skip ci]"
+            git pull --rebase origin main || true
+            git push || echo "⚠️ Push failed — skipping (concurrent bot conflict)"
           fi
