@@ -25,6 +25,11 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: organism-intel-bot
+  cancel-in-progress: true
+
+
 jobs:
   intel-gather:
     name: "🔭 Intelligence Cycle"
@@ -60,6 +65,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No intel report changes"
           else
-            git commit -m "🔭 Intel-bot: organism intelligence picture updated"
-            git push
+            git commit -m "🔭 Intel-bot: organism intelligence picture updated [skip ci]"
+            git pull --rebase origin main || true
+            git push || echo "⚠️ Push failed — skipping (concurrent bot conflict)"
           fi

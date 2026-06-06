@@ -26,6 +26,11 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: organism-cloud-bot
+  cancel-in-progress: true
+
+
 jobs:
   cloud-orchestrate:
     name: "☁️ Edge Compute Cycle"
@@ -61,6 +66,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No cloud report changes"
           else
-            git commit -m "☁️ Cloud-bot: edge compute report updated"
-            git push
+            git commit -m "☁️ Cloud-bot: edge compute report updated [skip ci]"
+            git pull --rebase origin main || true
+            git push || echo "⚠️ Push failed — skipping (concurrent bot conflict)"
           fi
