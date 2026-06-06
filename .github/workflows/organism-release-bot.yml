@@ -24,6 +24,11 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: organism-release-bot
+  cancel-in-progress: true
+
+
 jobs:
   build-release:
     name: Build Production Release
@@ -80,6 +85,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No release artifacts to commit"
           else
-            git commit -m "🚀 Release-bot: production release $(git describe --tags --abbrev=0 2>/dev/null || echo 'latest')"
-            git push origin HEAD:main || true
+            git commit -m "🚀 Release-bot: production release $(git describe --tags --abbrev=0 2>/dev/null || echo 'latest') [skip ci]"
+            git push origin HEAD:main || echo "⚠️ Push failed — skipping (concurrent bot conflict)"
           fi

@@ -24,6 +24,11 @@ permissions:
   pull-requests: write
   issues: write
 
+concurrency:
+  group: organism-sandcastle-bot
+  cancel-in-progress: true
+
+
 jobs:
   sandcastle-build:
     name: "🏰 Full Sandcastle Build"
@@ -95,6 +100,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No sandcastle report changes to commit"
           else
-            git commit -m "🏰 Sandcastle-bot: full build-test-land report updated"
-            git push
+            git commit -m "🏰 Sandcastle-bot: full build-test-land report updated [skip ci]"
+            git pull --rebase origin main || true
+            git push || echo "⚠️ Push failed — skipping (concurrent bot conflict)"
           fi
