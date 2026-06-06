@@ -38,6 +38,11 @@ permissions:
   actions: write
   issues: write
 
+concurrency:
+  group: organism-alpha-bot
+  cancel-in-progress: true
+
+
 jobs:
   alpha-command:
     name: "👑 Fleet Command Center"
@@ -102,6 +107,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No fleet report changes to commit"
           else
-            git commit -m "👑 Alpha-bot: fleet census & health report updated"
-            git push
+            git commit -m "👑 Alpha-bot: fleet census & health report updated [skip ci]"
+            git pull --rebase origin main || true
+            git push || echo "⚠️ Push failed — skipping (concurrent bot conflict)"
           fi
