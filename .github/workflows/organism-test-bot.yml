@@ -34,10 +34,10 @@ concurrency:
 jobs:
   test-matrix:
     name: "Test (Node ${{ matrix.node }})"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        node-version: [18, 20, 22]
+        node-version: [20, 22, 24]
       fail-fast: false
 
     steps:
@@ -64,7 +64,7 @@ jobs:
 
   report:
     name: Generate Test Dashboard
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test-matrix
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
@@ -75,7 +75,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Generate health report
         run: node scripts/generate-test-report.js
@@ -88,7 +88,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No test report changes to commit"
           else
-            git commit -m "🧪 Test-bot: health dashboard updated (Node 18/20/22) [skip ci]"
+            git commit -m "🧪 Test-bot: health dashboard updated (Node 20/22/24) [skip ci]"
             git pull --rebase origin main || true
             git push || echo "⚠️ Push failed — skipping (concurrent bot conflict)"
           fi

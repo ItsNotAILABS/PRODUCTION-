@@ -2,7 +2,7 @@
 # organism-alpha-bot — Fleet Commander & Orchestrator
 #
 # The Alpha bot sits above all other bots. It monitors the health of every
-# bot workflow, maintains a fleet census, enforces policies, and can trigger
+# bot workflow (20 bots), maintains a fleet census, enforces policies, and can trigger
 # any other bot via workflow_dispatch. Runs on every push to main and on a
 # schedule to provide continuous fleet oversight.
 #
@@ -46,7 +46,7 @@ concurrency:
 jobs:
   alpha-command:
     name: "👑 Fleet Command Center"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -55,7 +55,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: "Phase 1 — Fleet Census"
         run: node scripts/alpha-fleet-controller.js --census

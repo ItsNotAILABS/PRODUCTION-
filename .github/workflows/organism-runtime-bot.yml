@@ -36,7 +36,7 @@ concurrency:
 jobs:
   runtime-monitor:
     name: "⚙️ Runtime Monitoring Cycle"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -45,7 +45,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: "Phase 1 — Probe runtime modules"
         run: node scripts/runtime-monitor.js --probe

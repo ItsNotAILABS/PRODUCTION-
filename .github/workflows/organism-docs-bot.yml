@@ -34,7 +34,7 @@ concurrency:
 jobs:
   generate-docs:
     name: Generate Documentation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -43,7 +43,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Generate extension catalog
         run: node scripts/generate-docs.js --extensions

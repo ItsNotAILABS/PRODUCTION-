@@ -38,7 +38,7 @@ concurrency:
 jobs:
   validate-neural-graph:
     name: Validate Neural Protocol Graph
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -47,7 +47,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Validate protocol exports
         run: node scripts/validate-neural-graph.js

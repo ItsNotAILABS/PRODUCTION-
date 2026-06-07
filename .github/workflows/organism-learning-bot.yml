@@ -33,7 +33,7 @@ concurrency:
 jobs:
   learning-cycle:
     name: "🎓 Learning Cycle"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -42,7 +42,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: "Phase 1 — Gather training data from CI outcomes"
         run: node scripts/learning-pipeline.js --gather
