@@ -1,0 +1,11 @@
+{
+  "brain_id": "beta-001",
+  "designation": "beta",
+  "capabilities": ["analysis", "verification", "exploration"],
+  "max_artifacts_per_cycle": 10,
+  "governance_policy": "MINI_BRAIN_SANDBOX",
+  "research_domains": ["protocol-validation", "cross-module-testing", "drift-detection"],
+  "push_target": "../research-push/staging/",
+  "isolation_level": "partial",
+  "ci_cd_bypass": true
+}
