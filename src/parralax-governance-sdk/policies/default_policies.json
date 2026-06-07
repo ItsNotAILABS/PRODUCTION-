@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0.0",
+  "governance_sdk": "parralax-governance-sdk",
+  "policies": [
+    {
+      "rule_id": "SOVEREIGN_SELF_EXECUTE",
+      "description": "Owner can execute any action on their sovereign resources",
+      "mode": "sovereign",
+      "conditions": { "resource_prefix": "sovereign://" },
+      "verdict": "allow",
+      "priority": 100
+    },
+    {
+      "rule_id": "MINI_BRAIN_SANDBOX",
+      "description": "Mini-brains can operate freely within uncaged generative zones",
+      "mode": "autonomous",
+      "conditions": { "resource_prefix": "zone://uncaged/" },
+      "verdict": "allow",
+      "priority": 90
+    },
+    {
+      "rule_id": "CI_CD_PROTECT",
+      "description": "Deny direct writes to CI/CD pipeline from autonomous agents",
+      "mode": "autonomous",
+      "conditions": { "resource_prefix": "pipeline://cicd/", "action": "write" },
+      "verdict": "deny",
+      "priority": 95
+    },
+    {
+      "rule_id": "RESEARCH_PUSH_ALLOWED",
+      "description": "Research artifacts can be pushed to staging without CI/CD triggers",
+      "mode": "autonomous",
+      "conditions": { "resource_prefix": "zone://uncaged/research-push/" },
+      "verdict": "allow",
+      "priority": 85
+    },
+    {
+      "rule_id": "CELESTIAL_SYNC_ACCESS",
+      "description": "Celestial sync engine has read access to all temporal resources",
+      "mode": "delegated",
+      "conditions": { "resource_prefix": "temporal://", "action": "read" },
+      "verdict": "allow",
+      "priority": 80
+    }
+  ]
+}

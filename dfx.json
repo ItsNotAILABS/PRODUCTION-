@@ -10,17 +10,21 @@
       "type": "assets",
       "source": ["icp-dist"],
       "dependencies": ["organism_backend"]
+    },
+    "governance_canister": {
+      "type": "motoko",
+      "main": "organism/motoko/src/Governance.mo",
+      "dependencies": ["organism_backend"]
+    },
+    "celestial_sync_canister": {
+      "type": "motoko",
+      "main": "organism/motoko/src/CelestialSync.mo",
+      "dependencies": ["governance_canister"]
     }
   },
   "networks": {
-    "local": {
-      "bind": "127.0.0.1:4943",
-      "type": "ephemeral"
-    },
-    "ic": {
-      "providers": ["https://icp0.io"],
-      "type": "persistent"
-    }
+    "local": { "bind": "127.0.0.1:4943", "type": "ephemeral" },
+    "ic": { "providers": ["https://icp0.io"], "type": "persistent" }
   },
   "output_env_file": ".env"
 }
