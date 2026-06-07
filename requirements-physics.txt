@@ -1,0 +1,17 @@
+# PRODUCTION- Physics Layer Dependencies
+# Parralax Governance SDK + Celestial Sync Engine + MESIE Bridge
+
+# Core
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.5.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+
+# Serialization
+orjson>=3.9.0
+
+# Utilities (minimal footprint)
+python-dateutil>=2.8.0
