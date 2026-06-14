@@ -1,32 +1,32 @@
 # Evolution Report
 
-*Generated: 2026-06-07T02:08:59.342Z*
+*Generated: 2026-06-14T02:12:56.598Z*
 
 ## Fleet Fitness Overview
 
 | Metric | Value |
 |--------|-------|
 | Total Agents | 27 |
-| Average Fitness | 0.581 |
+| Average Fitness | 0.582 |
 | Max Fitness | 0.661 |
-| Min Fitness | 0.523 |
+| Min Fitness | 0.538 |
 
 ## Fitness Distribution
 
 | Status | Count | Percentage |
 |--------|-------|------------|
 | 🟢 Excellent (≥0.8) | 0 | 0% |
-| 🟡 Good (0.6-0.8) | 7 | 26% |
-| 🟠 Average (0.4-0.6) | 20 | 74% |
+| 🟡 Good (0.6-0.8) | 5 | 19% |
+| 🟠 Average (0.4-0.6) | 22 | 81% |
 | 🔴 Poor (<0.4) | 0 | 0% |
 
 ## Top Performers
 
 1. 🔷 **geometry-lock** — 0.661
-2. 👑 **organism-alpha-bot** — 0.620
-3. ☁️ **organism-cloud-bot** — 0.613
-4. 🏛️ **organism-governance-bot** — 0.606
-5. 🎯 **organism-coordinator-bot** — 0.602
+2. 🎓 **organism-learning-bot** — 0.626
+3. 🧬 **organism-evolution-bot** — 0.625
+4. 👑 **organism-alpha-bot** — 0.614
+5. 🏛️ **organism-governance-bot** — 0.609
 
 ## Candidates for Action
 
