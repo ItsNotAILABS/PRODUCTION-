@@ -2,7 +2,7 @@
 # organism-sdk-bot — SDK Preparation, Validation & Publish Readiness
 #
 # Normalizes all SDK package.json files, validates exports, checks version
-# consistency, and prepares SDKs for npm publish. Handles 19 SDK packages
+# consistency, and prepares SDKs for npm publish. Handles 29 SDK packages
 # across intelligence-routing, sovereign-memory, runtime, agents, and more.
 #
 # Identity: organism-sdk-bot <organism-sdk-bot@users.noreply.github.com>
@@ -32,7 +32,7 @@ concurrency:
 jobs:
   validate-sdks:
     name: Validate & Normalize SDKs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -41,7 +41,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Validate SDK structure
         run: node scripts/validate-sdks.js

@@ -5,4 +5,4 @@ pathways. No sandboxing, no isolation boundaries, no circuit breakers.
 Direct access to: parralax-governance-sdk, mesie-bridge, celestial-sync-engine.
 """
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"

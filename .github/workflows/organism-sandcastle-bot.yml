@@ -32,7 +32,7 @@ concurrency:
 jobs:
   sandcastle-build:
     name: "🏰 Full Sandcastle Build"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -41,7 +41,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: "Phase 1 — Validate all manifests"
         run: node scripts/sandcastle-pipeline.js --validate

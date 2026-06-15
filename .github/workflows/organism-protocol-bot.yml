@@ -1,7 +1,7 @@
 # ============================================================================
 # organism-protocol-bot — Protocol Linting, Dependency Graph & Integration
 #
-# Validates all 38 protocols in protocols/, checks export signatures,
+# Validates all 253 protocols in protocols/, checks export signatures,
 # builds a protocol dependency graph, verifies cross-protocol bindings
 # (synapse-binding ↔ memory-consolidation ↔ hebbian-learning etc.),
 # and ensures no circular dependencies or orphaned protocols.
@@ -33,7 +33,7 @@ concurrency:
 jobs:
   scan-protocols:
     name: Lint & Graph Protocols
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -42,7 +42,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Lint protocol exports & signatures
         run: node scripts/lint-protocols.js

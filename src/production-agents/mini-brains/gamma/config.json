@@ -1,14 +1,18 @@
 {
   "brain_id": "gamma-001",
   "designation": "gamma",
-  "capabilities": ["exploration", "generation", "synthesis", "deployment", "governance"],
-  "max_artifacts_per_cycle": 20,
+  "version": "2.0.0",
+  "capabilities": ["exploration", "generation", "synthesis", "deployment", "governance", "self-healing", "cross-agent-coordination"],
+  "max_artifacts_per_cycle": 30,
   "governance_policy": "PRODUCTION_UNRESTRICTED",
-  "research_domains": ["emergent-patterns", "cross-framework-bridging", "novel-architectures"],
+  "research_domains": ["emergent-patterns", "cross-framework-bridging", "novel-architectures", "swarm-intelligence", "adaptive-optimization"],
   "deploy_target": "production",
   "isolation_level": "none",
   "ci_cd_access": true,
   "pipeline_trigger": true,
   "mesie_access": "direct",
-  "celestial_sync": "direct"
+  "celestial_sync": "direct",
+  "node_runtime": "22",
+  "fleet_awareness": true,
+  "auto_recovery": true
 }

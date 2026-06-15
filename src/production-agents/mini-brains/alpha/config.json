@@ -1,14 +1,18 @@
 {
   "brain_id": "alpha-001",
   "designation": "alpha",
-  "capabilities": ["research", "synthesis", "generation", "deployment", "governance"],
-  "max_artifacts_per_cycle": 15,
+  "version": "2.0.0",
+  "capabilities": ["research", "synthesis", "generation", "deployment", "governance", "self-healing", "cross-agent-coordination"],
+  "max_artifacts_per_cycle": 25,
   "governance_policy": "PRODUCTION_UNRESTRICTED",
-  "research_domains": ["foundational-physics", "spectral-intelligence", "governance-theory"],
+  "research_domains": ["foundational-physics", "spectral-intelligence", "governance-theory", "emergent-behavior", "protocol-evolution"],
   "deploy_target": "production",
   "isolation_level": "none",
   "ci_cd_access": true,
   "pipeline_trigger": true,
   "mesie_access": "direct",
-  "celestial_sync": "direct"
+  "celestial_sync": "direct",
+  "node_runtime": "22",
+  "fleet_awareness": true,
+  "auto_recovery": true
 }

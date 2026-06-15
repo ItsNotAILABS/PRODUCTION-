@@ -33,7 +33,7 @@ concurrency:
 jobs:
   scan-dependencies:
     name: "🔄 Scan & Report Dependencies"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -42,7 +42,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Scan all package.json files for outdated deps
         run: node scripts/scan-dependencies.js --scan

@@ -1,14 +1,18 @@
 {
   "brain_id": "beta-001",
   "designation": "beta",
-  "capabilities": ["analysis", "verification", "exploration", "deployment"],
-  "max_artifacts_per_cycle": 10,
+  "version": "2.0.0",
+  "capabilities": ["analysis", "verification", "exploration", "deployment", "self-healing", "cross-agent-coordination"],
+  "max_artifacts_per_cycle": 20,
   "governance_policy": "PRODUCTION_UNRESTRICTED",
-  "research_domains": ["protocol-validation", "cross-module-testing", "drift-detection"],
+  "research_domains": ["protocol-validation", "cross-module-testing", "drift-detection", "regression-analysis", "dependency-health"],
   "deploy_target": "production",
   "isolation_level": "none",
   "ci_cd_access": true,
   "pipeline_trigger": true,
   "mesie_access": "direct",
-  "celestial_sync": "direct"
+  "celestial_sync": "direct",
+  "node_runtime": "22",
+  "fleet_awareness": true,
+  "auto_recovery": true
 }

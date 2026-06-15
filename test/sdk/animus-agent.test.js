@@ -389,4 +389,183 @@ describe('AnimusAgent', () => {
       assert.equal(agent.awake, false);
     });
   });
+
+  describe('explore/exploit homeostat (THE CRITICAL FIX)', () => {
+    let nexorisState;
+
+    beforeEach(() => {
+      // Improved mock to track cognitive state
+      nexorisState = {
+        'cognitive:awareness': 1.0,
+        'affective:coherence': 0.618,
+        'affective:resonance': 0.618,
+        'affective:entropy': 0.0,
+      };
+      
+      mockEngines.nexoris.get = (register, key) => {
+        const fullKey = `${register}:${key}`;
+        return nexorisState[fullKey];
+      };
+      
+      mockEngines.nexoris.set = (register, key, value) => {
+        const fullKey = `${register}:${key}`;
+        nexorisState[fullKey] = value;
+      };
+      
+      mockEngines.coreograph = {
+        emit: (event, data) => {
+          // Track emitted events for testing
+          if (!mockEngines.coreograph.events) {
+            mockEngines.coreograph.events = [];
+          }
+          mockEngines.coreograph.events.push({ event, data });
+        },
+      };
+      
+      agent = new AnimusAgent(mockEngines);
+      agent.awaken();
+    });
+
+    it('should calculate effectiveness from awareness + coherence + resonance', () => {
+      // Setup: high awareness, coherence, resonance
+      nexorisState['cognitive:awareness'] = 0.8;
+      nexorisState['affective:coherence'] = 0.7;
+      nexorisState['affective:resonance'] = 0.9;
+      
+      agent._reflect();
+      
+      const expectedEffectiveness = (0.8 + 0.7 + 0.9) / 3;
+      assert.equal(agent.reflectState.effectiveness, expectedEffectiveness);
+      assert.ok(agent.reflectState.effectiveness > 0.618);
+    });
+
+    it('should trigger EXPLORE when effectiveness < φ⁻¹ (0.618)', () => {
+      // Setup: low awareness drives effectiveness below threshold
+      nexorisState['cognitive:awareness'] = 0.3;
+      nexorisState['affective:coherence'] = 0.618;
+      nexorisState['affective:resonance'] = 0.618;
+      
+      const initialEntropy = nexorisState['affective:entropy'];
+      
+      agent._reflect();
+      
+      const effectiveness = agent.reflectState.effectiveness;
+      assert.ok(effectiveness < 0.618, `Effectiveness ${effectiveness} should be < 0.618`);
+      
+      // Should have emitted EXPLORE event
+      const exploreEvent = mockEngines.coreograph.events.find(e => e.event === 'ANIMUS:explore');
+      assert.ok(exploreEvent, 'Should emit ANIMUS:explore event');
+      assert.equal(exploreEvent.data.reason, 'effectiveness_below_threshold');
+      
+      // Entropy should increase
+      const newEntropy = nexorisState['affective:entropy'];
+      assert.ok(newEntropy > initialEntropy, 'Entropy should increase in explore mode');
+      
+      // Should increment exploreCycles
+      assert.equal(agent.stats.exploreCycles, 1);
+    });
+
+    it('should trigger EXPLOIT when effectiveness >= φ⁻¹ (0.618)', () => {
+      // Setup: high awareness, coherence, resonance
+      nexorisState['cognitive:awareness'] = 0.9;
+      nexorisState['affective:coherence'] = 1.0;
+      nexorisState['affective:resonance'] = 0.9;
+      
+      const initialEntropy = 0.5;
+      nexorisState['affective:entropy'] = initialEntropy;
+      
+      agent._reflect();
+      
+      const effectiveness = agent.reflectState.effectiveness;
+      assert.ok(effectiveness >= 0.618, `Effectiveness ${effectiveness} should be >= 0.618`);
+      
+      // Should have emitted EXPLOIT event
+      const exploitEvent = mockEngines.coreograph.events.find(e => e.event === 'ANIMUS:exploit');
+      assert.ok(exploitEvent, 'Should emit ANIMUS:exploit event');
+      assert.equal(exploitEvent.data.reason, 'effectiveness_above_threshold');
+      
+      // Entropy should decrease
+      const newEntropy = nexorisState['affective:entropy'];
+      assert.ok(newEntropy < initialEntropy, 'Entropy should decrease in exploit mode');
+      
+      // Should increment exploitCycles
+      assert.equal(agent.stats.exploitCycles, 1);
+    });
+
+    it('should be in reflectState after each reflection', () => {
+      agent._reflect();
+      
+      assert.ok(agent.reflectState);
+      assert.ok(agent.reflectState.awareness !== undefined);
+      assert.ok(agent.reflectState.coherence !== undefined);
+      assert.ok(agent.reflectState.resonance !== undefined);
+      assert.ok(agent.reflectState.effectiveness !== undefined);
+      assert.ok(agent.reflectState.timestamp !== undefined);
+    });
+
+    it('should strengthen patterns during exploit mode', () => {
+      // Add patterns
+      agent.addPattern({ name: 'pattern1', type: 'learned' });
+      agent.addPattern({ name: 'pattern2', type: 'learned' });
+      
+      const pattern1StrengthBefore = agent.patterns[0].strength;
+      
+      // Setup for EXPLOIT
+      nexorisState['cognitive:awareness'] = 0.95;
+      nexorisState['affective:coherence'] = 0.95;
+      nexorisState['affective:resonance'] = 0.95;
+      
+      agent._reflect();
+      
+      // Patterns should be strengthened
+      const pattern1StrengthAfter = agent.patterns[0].strength;
+      assert.ok(pattern1StrengthAfter > pattern1StrengthBefore, 'Pattern strength should increase in exploit mode');
+    });
+
+    it('should correctly handle boundary condition at threshold', () => {
+      // Set effectiveness exactly at threshold
+      const PHI = 1.618033988749895;
+      const PHI_INV = 1 / PHI;
+      
+      // Construct awareness, coherence, resonance to give effectiveness exactly at threshold
+      const targetValue = PHI_INV;
+      nexorisState['cognitive:awareness'] = targetValue;
+      nexorisState['affective:coherence'] = targetValue;
+      nexorisState['affective:resonance'] = targetValue;
+      
+      agent._reflect();
+      
+      assert.equal(agent.reflectState.effectiveness, targetValue);
+      // At threshold, should be in EXPLOIT (>= not >)
+      const exploitEvent = mockEngines.coreograph.events.find(e => e.event === 'ANIMUS:exploit');
+      assert.ok(exploitEvent, 'At threshold, should be in EXPLOIT mode');
+    });
+
+    it('should emit correct reflect state in events', () => {
+      nexorisState['cognitive:awareness'] = 0.2;
+      nexorisState['affective:coherence'] = 0.5;
+      nexorisState['affective:resonance'] = 0.3;
+      
+      agent._reflect();
+      
+      const exploreEvent = mockEngines.coreograph.events.find(e => e.event === 'ANIMUS:explore');
+      assert.ok(exploreEvent.data.effectiveness !== undefined);
+      assert.ok(exploreEvent.data.threshold !== undefined);
+      assert.ok(exploreEvent.data.entropy !== undefined);
+    });
+
+    it('should include homeostat state in getState()', () => {
+      nexorisState['cognitive:awareness'] = 0.7;
+      nexorisState['affective:coherence'] = 0.8;
+      nexorisState['affective:resonance'] = 0.6;
+      
+      agent._reflect();
+      
+      const state = agent.getState();
+      assert.ok(state.reflectState);
+      assert.equal(state.reflectState.awareness, 0.7);
+      assert.equal(state.reflectState.coherence, 0.8);
+      assert.equal(state.reflectState.resonance, 0.6);
+    });
+  });
 });

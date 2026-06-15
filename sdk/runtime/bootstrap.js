@@ -33,12 +33,31 @@ const HEARTBEAT_MS = 873;
 
 /**
  * Bootstrap a new Civitas civilization
+ * 
+ * ⚠️  DEPRECATION WARNING (v2.0):
+ * This v1.x API is deprecated. Please use the new unified organism:
+ * 
+ *   import { bootstrapOrganism } from '@medina/civitas-intelligentiae';
+ *   const organism = await bootstrapOrganism({ name: 'MyOrganism' });
+ * 
+ * The v2.0 unified organism provides:
+ * - Central Nervous System (CNS) for coordination
+ * - All components wired together
+ * - Kingdom organs integrated
+ * - Protocol mesh activated
+ * - Intelligence augmentation (Spider MoE, Nova Bridge)
+ * 
+ * v1.x API will be maintained for backward compatibility.
+ * 
  * @param {string} meridian - The meridian (namespace) for this civilization
  * @param {string} civitasId - Optional unique ID for this civilization
  * @returns {CivitasRuntime} A running, living civilization
+ * @deprecated Use bootstrapOrganism from sdk/unified-organism instead
  */
 export function bootstrapCivitas(meridian = 'default', civitasId = null) {
-  console.log(`\n🌌 Bootstrapping Civitas Intelligentiae...`);
+  console.warn('⚠️  DEPRECATION WARNING: bootstrapCivitas() is deprecated in v2.0. Use bootstrapOrganism() instead.');
+  console.warn('   See documentation: https://github.com/ItsNotAILABS/PRODUCTION-/blob/main/UPGRADE_2.0.md');
+  console.log(`\n🌌 Bootstrapping Civitas Intelligentiae (v1.x legacy mode)...`);
   console.log(`   Meridian: ${meridian}`);
   console.log(`   φ = ${PHI}`);
   console.log(`   Heartbeat = ${HEARTBEAT_MS}ms\n`);

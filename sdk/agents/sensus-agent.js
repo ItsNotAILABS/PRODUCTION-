@@ -23,9 +23,13 @@ class SensusAgent {
     this.channels = new Map();
     this.percepts = [];
     
+    // Pattern matching for surprise detection
+    this.learnedPatterns = [];  // Array of { pattern, frequency, lastSeen }
+    this.patternHistory = [];   // Recent pattern matches for decay
+    
     // Attention filter
     this.attentionFilter = {
-      threshold: PHI_INV,  // Minimum salience to pass
+      threshold: 0.1,  // Lower initial threshold to allow more percepts through
       priorities: new Map(),  // channel -> priority
     };
     
@@ -38,6 +42,9 @@ class SensusAgent {
       perceptsReceived: 0,
       perceptsFiltered: 0,
       perceptsForwarded: 0,
+      patternsMatched: 0,
+      novelDetected: 0,
+      surpriseAccumulated: 0,
     };
     
     this.awake = false;
@@ -105,6 +112,7 @@ class SensusAgent {
 
   /**
    * Process a single percept
+   * KEY FIX: Detect pattern mismatches and calculate surprise
    */
   _processPercept(percept) {
     this.stats.perceptsReceived++;
@@ -119,6 +127,41 @@ class SensusAgent {
       return;
     }
     
+    // CRITICAL FIX: Detect pattern match vs. novelty
+    // Create pattern fingerprint (simplified: channel + type)
+    const patternSignature = `${percept.channel}:${percept.content?.type || 'unknown'}`;
+    const patternMatch = this._matchPattern(patternSignature);
+    
+    // Calculate surprise (prediction error)
+    // High surprise when percept doesn't match learned patterns
+    let surprise = 0;
+    if (patternMatch) {
+      // Known pattern: low surprise, update frequency
+      patternMatch.frequency = (patternMatch.frequency || 1) + 1;
+      patternMatch.lastSeen = Date.now();
+      surprise = 0.1 * PHI_INV;  // Base surprise for any mismatch
+      this.stats.patternsMatched++;
+    } else {
+      // Novel pattern: high surprise, add to learned patterns
+      surprise = 0.8;  // High surprise for novel percept
+      this.learnedPatterns.push({
+        pattern: patternSignature,
+        frequency: 1,
+        firstSeen: Date.now(),
+        lastSeen: Date.now(),
+      });
+      this.stats.novelDetected++;
+    }
+    
+    // CRITICAL FIX: Drive awareness DOWN on surprise/mismatch
+    // This is the missing link that makes the homeostat work
+    const currentAwareness = this.engines.nexoris.get('cognitive', 'awareness') || 1.0;
+    const awarenessDrop = surprise * 0.2;  // Surprise drives awareness down
+    const newAwareness = Math.max(0, currentAwareness - awarenessDrop);
+    this.engines.nexoris.set('cognitive', 'awareness', newAwareness);
+    
+    this.stats.surpriseAccumulated += surprise;
+    
     // Forward to ANIMUS via COREOGRAPH
     const processedPercept = {
       id: `percept-${Date.now()}-${this.engines.quantumFlux.uuid().slice(0, 8)}`,
@@ -126,6 +169,8 @@ class SensusAgent {
       channel: percept.channel,
       content: percept.content,
       salience,
+      surprise,
+      patternMatched: !!patternMatch,
       timestamp: Date.now(),
     };
     
@@ -138,9 +183,22 @@ class SensusAgent {
       Math.min(PHI, (channelPriority || 1.0) + 0.1 * PHI_INV)
     );
     
-    // Update resonance
-    this.engines.nexoris.set('affective', 'resonance', 
-      Math.min(1.0, this.engines.nexoris.get('affective', 'resonance') + 0.05));
+    // Update resonance based on pattern coherence
+    const patternCoherence = this.learnedPatterns.length > 0 ? 0.618 : PHI_INV;
+    this.engines.nexoris.set('affective', 'resonance', patternCoherence);
+  }
+
+  /**
+   * Match percept to learned pattern
+   * Returns pattern if found, null if novel
+   */
+  _matchPattern(signature) {
+    for (const pattern of this.learnedPatterns) {
+      if (pattern.pattern === signature) {
+        return pattern;
+      }
+    }
+    return null;
   }
 
   /**
