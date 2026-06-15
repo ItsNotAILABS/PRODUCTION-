@@ -197,7 +197,13 @@ class AnimusAgent {
         return;
       }
     }
-    
+
+    // Novel percept = prediction error. Surprise lowers cognitive awareness so
+    // effectiveness can fall below φ⁻¹ and _reflect's EXPLORE branch can finally
+    // fire — closing the explore/exploit homeostat the Divergence doctrine needs.
+    const aware = this.engines.nexoris.get('cognitive', 'awareness');
+    this.engines.nexoris.set('cognitive', 'awareness', Math.max(0, aware - 0.3));
+
     // New pattern
     this.patterns.push({
       type: 'percept',
@@ -247,8 +253,9 @@ class AnimusAgent {
   }
 
   _matches(percept, pattern) {
-    // Simple matching — could be enhanced
-    return percept.type === pattern.type;
+    // Content-aware: same type AND same content. (Type-only matching made every
+    // percept "familiar", so novelty never registered and surprise never fired.)
+    return percept.type === pattern.type && percept.content === pattern.content;
   }
 
   _relevantTo(pattern, query) {

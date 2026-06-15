@@ -10,10 +10,18 @@
  * These are the substrate on which all agents operate.
  */
 
-export { ChronoEngine, chronoEngine, PHI, PHI_INV, HEARTBEAT_MS, GOLDEN_ANGLE } from './chrono-engine.js';
-export { NexorisEngine, nexorisEngine, REGISTERS, DIMENSIONS } from './nexoris-engine.js';
-export { QuantumFluxEngine, quantumFluxEngine } from './quantum-flux-engine.js';
-export { CoreographEngine, coreographEngine, PRIORITY } from './coreograph-engine.js';
+// Import singletons locally so they can be referenced below (re-export alone
+// does NOT create a local binding — that was a load-time ReferenceError).
+import { chronoEngine } from './chrono-engine.js';
+import { nexorisEngine } from './nexoris-engine.js';
+import { quantumFluxEngine } from './quantum-flux-engine.js';
+import { coreographEngine } from './coreograph-engine.js';
+
+export { ChronoEngine, PHI, PHI_INV, HEARTBEAT_MS, GOLDEN_ANGLE } from './chrono-engine.js';
+export { NexorisEngine, REGISTERS, DIMENSIONS } from './nexoris-engine.js';
+export { QuantumFluxEngine } from './quantum-flux-engine.js';
+export { CoreographEngine, PRIORITY } from './coreograph-engine.js';
+export { chronoEngine, nexorisEngine, quantumFluxEngine, coreographEngine };
 
 // Re-export singletons as default engines
 export const CHRONO = chronoEngine;

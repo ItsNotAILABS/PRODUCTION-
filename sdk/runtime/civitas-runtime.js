@@ -131,46 +131,41 @@ class CivitasRuntime {
    * SENSUS → ANIMUS → CORPUS, with MEMORIA connected to all
    */
   _wireAgents() {
-    // SENSUS forwards percepts to ANIMUS
+    // PRIORITY.HIGH (=1) delivers synchronously, so the loop actually FLOWS on the
+    // heartbeat instead of accumulating in an un-pumped NORMAL-priority queue.
+    const HIGH = 1;
+
+    // SENSUS forwards the percept INTACT to ANIMUS (preserving type:'percept' so
+    // ANIMUS dispatches it through _procesPercept, not the default attention branch).
     this.engines.coreograph.on('SENSUS:percept', async (event) => {
-      await this.engines.coreograph.send('ANIMUS', {
-        action: 'perceive',
-        payload: event.data,
-      });
+      await this.engines.coreograph.send('ANIMUS', event.data, HIGH);
     });
-    
-    // ANIMUS forwards decisions to CORPUS
-    this.engines.coreograph.on('ANIMUS:reflection', async (event) => {
-      // If ANIMUS has goals, send to CORPUS for execution
+
+    // ANIMUS reflection → if it holds a goal, CORPUS executes it
+    this.engines.coreograph.on('ANIMUS:reflection', async () => {
       const animusState = this.agents.animus.getState();
       if (animusState.currentGoal) {
         await this.engines.coreograph.send('CORPUS', {
           action: 'execute',
-          payload: {
-            type: 'goal',
-            goal: animusState.currentGoal,
-          },
-        });
+          payload: { type: 'goal', goal: animusState.currentGoal },
+        }, HIGH);
       }
     });
-    
-    // CORPUS completion feeds back to MEMORIA
+
+    // CORPUS completion feeds back to MEMORIA for encoding
     this.engines.coreograph.on('CORPUS:actionComplete', async (event) => {
       await this.engines.coreograph.send('MEMORIA', {
         action: 'encode',
-        payload: {
-          content: event.data,
-          importance: 0.8,
-        },
-      });
+        payload: { content: event.data, importance: 1.0 },
+      }, HIGH);
     });
-    
+
     // All agents can query MEMORIA
     this.engines.coreograph.on('query:memory', async (event) => {
       const result = await this.engines.coreograph.send('MEMORIA', {
         action: 'search',
         payload: { query: event.data.query },
-      });
+      }, HIGH);
       return result;
     });
   }

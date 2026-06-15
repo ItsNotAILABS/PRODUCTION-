@@ -93,24 +93,24 @@ function calculateCodeDivergence() {
     linesRemovedByAgents: 0,
   };
   
+  // Cross-platform git invocation: ignore stderr via stdio (not POSIX `2>/dev/null`,
+  // which cmd.exe on Windows mis-parses as a redirect to a nonexistent path and
+  // returns the literal `""` fallback — fabricating a commit count of 1).
+  const gitOpts = { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] };
+  const countLines = (out) => out.trim().split('\n').filter(Boolean).length;
+
   try {
-    // Get commits by organism bots
-    const log = execSync(
-      'git log --oneline --all --author="organism-" 2>/dev/null || echo ""',
-      { encoding: 'utf8' }
-    );
-    divergence.totalAgentCommits = log.trim().split('\n').filter(Boolean).length;
-    
-    // Get total commits
-    const totalLog = execSync(
-      'git log --oneline --all 2>/dev/null || echo ""',
-      { encoding: 'utf8' }
-    );
-    const total = totalLog.trim().split('\n').filter(Boolean).length;
-    divergence.totalHumanCommits = total - divergence.totalAgentCommits;
-    
+    // Get commits by organism bots (identity law OL-009: organism-{name}-bot)
+    const log = execSync('git log --oneline --all --author="organism-"', gitOpts);
+    divergence.totalAgentCommits = countLines(log);
+
+    // Get total commits, derive human/non-bot as the remainder
+    const totalLog = execSync('git log --oneline --all', gitOpts);
+    const total = countLines(totalLog);
+    divergence.totalHumanCommits = Math.max(0, total - divergence.totalAgentCommits);
+
   } catch (e) {
-    // Git not available or not a repo
+    // Git not available or not a repo — leave counts at zero
   }
   
   return divergence;
