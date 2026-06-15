@@ -1,37 +1,49 @@
 /**
- * CIVITAS INTELLIGENTIAE SDK
+ * CIVITAS INTELLIGENTIAE SDK v2.0
  * 
  * The complete SDK for building living intelligent systems.
  * 
- * Architecture (backend-first):
- *   STEP 1: ENGINES (physics)
- *     - CHRONO: Time & Scheduling
- *     - NEXORIS: State Management
- *     - QUANTUM_FLUX: Randomness & Entropy
- *     - COREOGRAPH: Orchestration
+ * ╔═══════════════════════════════════════════════════════════════════════════════╗
+ * ║  VERSION 2.0: UNIFIED ORGANISM ARCHITECTURE                                   ║
+ * ╚═══════════════════════════════════════════════════════════════════════════════╝
  * 
- *   STEP 2: AGENTS (organs)
- *     - ANIMUS: Mind (reasoning, decisions)
- *     - CORPUS: Body (execution, actions)
- *     - SENSUS: Senses (perception, filtering)
- *     - MEMORIA: Memory (encoding, retrieval)
+ * NEW in v2.0:
+ *   - Central Nervous System (CNS) orchestrates all components
+ *   - Unified organism bootstrap wires everything together
+ *   - All agents, engines, organs communicate through CNS
+ *   - Protocol mesh for intelligent signal routing
+ *   - Kingdom organs integrated as support systems
+ *   - Spider MoE & Nova Bridge augment ANIMUS
+ *   - Organism Arms provide unified sensory-motor interface
  * 
- *   STEP 3: RUNTIME (coordinator)
- *     - CivitasRuntime: Creates agents, wires them, manages lifecycle
+ * Architecture (v2.0 Unified):
+ *   STEP 1: UNIFIED ORGANISM
+ *     - bootstrapOrganism(): One call activates entire organism
+ *     - CNS: Central coordination and signal routing
+ *     - StateBus: Organism-wide state management
  * 
- *   STEP 4: BOOTSTRAP (activation)
- *     - bootstrapCivitas(): One call to start a living civilization
+ *   STEP 2: CORE SYSTEMS (wired through CNS)
+ *     - Engines (CHRONO, NEXORIS, QUANTUM_FLUX, COREOGRAPH)
+ *     - Agents (ANIMUS, CORPUS, SENSUS, MEMORIA)
+ *     - Intelligence (Spider MoE, Nova Bridge)
  * 
- * Internal SDKs (Professional Pattern):
- *   - @medina/medina-timers: Mathematical timers (ancient calendars, sacred geometry, cosmic cycles)
- *   - @medina/medina-calls: Write operations (civitas, organism, governance mutations)
- *   - @medina/medina-queries: Read operations with caching
- *   - @medina/organism-bootstrap: ICP/Motoko organism bootstrap
+ *   STEP 3: SUPPORT SYSTEMS (organs)
+ *     - Power (circulatory), Thermal (cooling)
+ *     - Immune (gate keepers), Treasury (resources)
  * 
- * Usage:
+ *   STEP 4: COMMUNICATION LAYER
+ *     - Protocol mesh (253 protocols)
+ *     - Organism Arms (sensory-motor)
+ * 
+ * Usage (v2.0):
+ *   import { bootstrapOrganism } from '@medina/civitas-intelligentiae';
+ *   const organism = await bootstrapOrganism({ name: 'MyOrganism' });
+ *   // Entire organism is now ALIVE with all systems wired together
+ * 
+ * Usage (v1.x - deprecated):
  *   import { bootstrapCivitas } from '@medina/civitas-intelligentiae';
  *   const civitas = bootstrapCivitas('my-meridian');
- *   // civitas is now ALIVE and running forever
+ *   // Still works but will show deprecation warning
  */
 
 // Constants
@@ -40,6 +52,33 @@ export const PHI_INV = 1 / PHI;
 export const HEARTBEAT_MS = 873;
 export const GOLDEN_ANGLE = 137.508;
 export const EMERGENCE_THRESHOLD = PHI_INV;
+export const VERSION = '2.0.0';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V2.0 UNIFIED ORGANISM — PRIMARY API
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Unified Organism (v2.0 - NEW)
+export {
+  UnifiedOrganism,
+  bootstrapOrganism,
+  DEFAULT_CONFIG as UNIFIED_ORGANISM_CONFIG,
+} from './unified-organism/index.js';
+
+// Central Nervous System
+export {
+  CNSOrchestrator,
+  StateBus,
+  SignalRouter,
+  SIGNAL_TYPES,
+  COMPONENT_TYPES,
+  CONNECTION_STATUS,
+  ROUTING_STRATEGIES,
+} from './central-nervous-system/index.js';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V1.X LEGACY API — Still supported, use v2.0 for new projects
+// ═══════════════════════════════════════════════════════════════════════════
 
 // Engines
 export {
