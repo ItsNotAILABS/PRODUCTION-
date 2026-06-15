@@ -35,6 +35,8 @@ class AnimusAgent {
       thoughtsProcessed: 0,
       decisionssMade: 0,
       patternsRecognized: 0,
+      exploreCycles: 0,
+      exploitCycles: 0,
     };
     
     this.awake = false;
@@ -98,8 +100,102 @@ class AnimusAgent {
       .filter(p => p.strength > 0.1);
   }
 
+  /**
+   * THE CRITICAL FIX: Implement explore/exploit homeostat
+   * 
+   * This is the adaptive mechanism that was completely non-functional.
+   * Now it properly:
+   * 1. Calculates effectiveness from awareness, coherence, resonance
+   * 2. Checks if effectiveness < φ⁻¹ (0.618) — the threshold
+   * 3. If threshold crossed, EXPLORE: inject entropy and raise entropy
+   * 4. If effectiveness high, EXPLOIT: consolidate patterns
+   */
   _reflect() {
     if (!this.awake) return;
+    
+    // CRITICAL FIX: Calculate effectiveness from triple of cognitive states
+    const awareness = this.engines.nexoris.get('cognitive', 'awareness') || 1.0;
+    const coherence = this.engines.nexoris.get('affective', 'coherence') || PHI_INV;
+    const resonance = this.engines.nexoris.get('affective', 'resonance') || 0.618;
+    
+    // Effectiveness is the mean of these three cognitive dimensions
+    const effectiveness = (awareness + coherence + resonance) / 3.0;
+    const PHI_INV_THRESHOLD = PHI_INV;  // ≈ 0.618
+    
+    // Track for debug/audit
+    this.reflectState = {
+      awareness,
+      coherence,
+      resonance,
+      effectiveness,
+      timestamp: Date.now(),
+    };
+    
+    // CRITICAL CONDITION: Is effectiveness below the explore threshold?
+    if (effectiveness < PHI_INV_THRESHOLD) {
+      // EXPLORE MODE: Organism is uncertain, inject entropy
+      this._exploreMode(effectiveness);
+    } else {
+      // EXPLOIT MODE: Organism is confident, consolidate learning
+      this._exploitMode(effectiveness);
+    }
+  }
+
+  /**
+   * EXPLORE mode: Raise entropy, expand search space, accept novelty
+   * Fires when effectiveness < φ⁻¹ and organism is uncertain
+   */
+  _exploreMode(effectiveness) {
+    // Inject entropy: raise entropy setpoint
+    const entropy = this.engines.nexoris.get('affective', 'entropy') || 0;
+    const entropyIncrease = 0.1 * (PHI_INV - effectiveness);
+    const newEntropy = Math.min(1.0, entropy + entropyIncrease);
+    this.engines.nexoris.set('affective', 'entropy', newEntropy);
+    
+    // Lower attention threshold to be more exploratory
+    // (already handled in SENSUS._adjustFilter, but reinforce here)
+    
+    // Inject exploration signal
+    this.engines.coreograph.emit('ANIMUS:explore', {
+      reason: 'effectiveness_below_threshold',
+      effectiveness,
+      threshold: PHI_INV,
+      entropy: newEntropy,
+      timestamp: Date.now(),
+    });
+    
+    // Track explore cycles
+    this.stats.exploreCycles = (this.stats.exploreCycles || 0) + 1;
+  }
+
+  /**
+   * EXPLOIT mode: Lower entropy, consolidate patterns, optimize
+   * Fires when effectiveness ≥ φ⁻¹ and organism is confident
+   */
+  _exploitMode(effectiveness) {
+    // Lower entropy: narrow focus on proven strategies
+    const entropy = this.engines.nexoris.get('affective', 'entropy') || 0;
+    const entropyDecrease = 0.05;  // Gradual entropy decay during exploit
+    const newEntropy = Math.max(0, entropy - entropyDecrease);
+    this.engines.nexoris.set('affective', 'entropy', newEntropy);
+    
+    // Strengthen winning patterns
+    for (const pattern of this.patterns) {
+      pattern.strength = Math.min(1.0, (pattern.strength || 1) * PHI);
+    }
+    
+    // Emit exploit signal
+    this.engines.coreograph.emit('ANIMUS:exploit', {
+      reason: 'effectiveness_above_threshold',
+      effectiveness,
+      threshold: PHI_INV,
+      entropy: newEntropy,
+      patternCount: this.patterns.length,
+      timestamp: Date.now(),
+    });
+    
+    // Track exploit cycles
+    this.stats.exploitCycles = (this.stats.exploitCycles || 0) + 1;
   }
 
   // ── Public API ─────────────────────────────────────────────────────────
@@ -174,6 +270,7 @@ class AnimusAgent {
       attentionKeys: Array.from(this.attention.keys()),
       patternCount: this.patterns.length,
       stats: { ...this.stats },
+      reflectState: this.reflectState || {},  // Include homeostat state for monitoring
     };
   }
 }
