@@ -12,7 +12,9 @@
     "dev": "node --watch src/server.mjs",
     "smoke": "node src/_smoke.mjs",
     "smoke:mcp": "node src/_mcp_smoke.mjs",
-    "test": "node src/_smoke.mjs && node src/_mcp_smoke.mjs"
+    "test": "node src/_smoke.mjs && node src/_mcp_smoke.mjs",
+    "charter:embed": "node charter/tools/embed-charter.mjs",
+    "ship:alpha": "node charter/tools/embed-charter.mjs && node charter/tools/release-gate.mjs"
   },
   "keywords": ["ai", "memory", "mcp", "sovereign", "local", "medina"],
   "license": "MIT",

@@ -18,6 +18,7 @@ import { stdin, stdout, stderr, argv, env } from 'node:process';
 import { MedinaVault } from './vault.mjs';
 import { defaultVaultPath, loadSnapshot, saveSnapshot } from './snapshot.mjs';
 import { hashEntry } from './laws.mjs';
+import { chartManifest } from '../charter/charter.mjs';
 
 // ── Identity ────────────────────────────────────────────────────────────
 
@@ -161,7 +162,7 @@ const tools = {
   },
 
   vault_status: {
-    description: 'Report node status: protocol, operator, tier counts, vault path.',
+    description: 'Report node status + the Alpha Charter manifest embedded at runtime: protocol, operator, tier counts, vault path, pricing, license.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => ({
       ok: true,
@@ -169,6 +170,7 @@ const tools = {
       operator: OPERATOR_ID,
       vault_path: VAULT_PATH,
       tiers: vault.status(),
+      charter: chartManifest(),
     }),
   },
 };

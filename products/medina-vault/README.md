@@ -157,6 +157,40 @@ that deeper substrate without breaking the law contract here.
 
 [medina]: https://github.com/ItsNotAILABS/MedinaMemorySystems
 
+<!-- PRICING:START -->
+
+## Tiers
+
+| Tier | Price / mo | Fibonacci | Includes |
+|---|---:|:---:|---|
+| **FREE_LOCAL** | free | F(0) | Local sovereign vault. Distributes MEDINA-PROTOCOL/0.1. |
+| | | | · Medina Vault MCP server (this app)
+| | | | · 4-tier vault: PUBLIC, SHARED, PRIVATE, SOVEREIGN
+| | | | · RECITAL_PLUS_ONE write lineage
+| | | | · φ-DECAY across tiers
+| | | | · Atomic local persistence (~/.medina/vault.json)
+| | | | · Works with any MCP client: Claude Desktop, Cursor, Cline, Continue, Zed
+| **PRO_RESONANT** | $21 | F(8) | Free vault + paid bridge into the φ-substrate. |
+| | | | · Everything in FREE_LOCAL
+| | | | · memory-palace bridge: φ-spatial recall (5D θ,φ,ρ,ring,beat)
+| | | | · temporal-memory bridge: Fibonacci-anchored time-locked recall
+| | | | · harmonic-compute bridge: Schumann-locked frequency math
+| | | | · Cross-vault sync for one operator across N machines
+| | | | · Founder φ-discount: first 100 seats lifetime $13/mo (F(7))
+| **SOVEREIGN_FULL** | $89 | F(11) | Full Medina substrate access. Invitation by lineage depth. |
+| | | | · Everything in PRO_RESONANT
+| | | | · AURO / SYNTHOS / LEXIS / FORMA solver council
+| | | | · nova-encryption (post-quantum lattice) at rest
+| | | | · medina-intelligence-engine routing
+| | | | · Multi-operator team vaults with consensus voting
+| | | | · Auto-qualify: lineage_depth_total ≥ 100 in your vault
+| **ENTERPRISE** | $233/seat | F(13) | min 13 seats — reach the architect |
+
+*Pricing is Fibonacci-anchored to the same scale as the Medina runtime: φ, 873ms, fib(n).*
+*Charter version: 0.1 · runtime-embedded — edit `charter/charter.mjs` to change.*
+
+<!-- PRICING:END -->
+
 ## License
 
 MIT for this package. Architecture: **Alfredo Medina Hernandez**.
