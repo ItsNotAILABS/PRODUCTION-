@@ -72,8 +72,11 @@ try {
   send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   const list = await waitFor(2);
   const toolNames = list.result.tools.map((t) => t.name);
-  assert('tools/list exposes 7 vault tools',
-    toolNames.length === 7 && toolNames.includes('vault_store'),
+  assert('tools/list exposes 9 vault tools',
+    toolNames.length === 9 &&
+    toolNames.includes('vault_store') &&
+    toolNames.includes('vault_search') &&
+    toolNames.includes('vault_lineage'),
     toolNames.join(','));
 
   send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: {

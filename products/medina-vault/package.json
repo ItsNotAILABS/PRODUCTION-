@@ -5,7 +5,8 @@
   "type": "module",
   "main": "src/server.mjs",
   "bin": {
-    "medina-vault": "src/server.mjs"
+    "medina-vault":         "src/server.mjs",
+    "medina-vault-install": "src/install.mjs"
   },
   "scripts": {
     "start": "node src/server.mjs",
@@ -13,6 +14,8 @@
     "smoke": "node src/_smoke.mjs",
     "smoke:mcp": "node src/_mcp_smoke.mjs",
     "test": "node src/_smoke.mjs && node src/_mcp_smoke.mjs",
+    "install:mcp":   "node src/install.mjs",
+    "install:dry":   "node src/install.mjs --dry-run",
     "charter:embed": "node charter/tools/embed-charter.mjs",
     "ship:alpha": "node charter/tools/embed-charter.mjs && node charter/tools/release-gate.mjs"
   },

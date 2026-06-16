@@ -18,6 +18,8 @@ import {
   hashEntry, strength, ttlAlive, dualRead, recital, isTier,
 } from './laws.mjs';
 
+export { hashEntry, strength };
+
 export class MedinaVault {
   constructor() {
     /** @type {Map<string, object>} */
@@ -143,6 +145,69 @@ export class MedinaVault {
       });
     }
     return out;
+  }
+
+  /**
+   * Substring search across keys, stringified values, and metadata tags.
+   * φ-aware: results ranked by current strength × match-signal weight.
+   * DUAL_READ enforced per entry (no leakage of forbidden tiers).
+   */
+  search(requesterId, { query = '', tier, tag, limit = 20 } = {}) {
+    const now = Date.now();
+    const q = String(query).toLowerCase();
+    const wantTag = tag ? String(tag).toLowerCase() : null;
+    const hits = [];
+
+    for (const e of this.entries.values()) {
+      if (tier && e.tier !== tier) continue;
+      if (!dualRead(e, requesterId, now).ok) continue;
+
+      const keyL  = e.key.toLowerCase();
+      const valL  = (typeof e.value === 'string' ? e.value : JSON.stringify(e.value ?? '')).toLowerCase();
+      const tags  = (e.metadata?.tags ?? []).map(t => String(t).toLowerCase());
+
+      let signal = 0;
+      if (wantTag && tags.includes(wantTag))           signal += 1.0;
+      if (q && keyL.includes(q))                       signal += 0.6;
+      if (q && valL.includes(q))                       signal += 0.4;
+      if (!q && !wantTag)                              signal  = 0.5; // browse mode
+
+      if (signal === 0) continue;
+
+      const s = strength(e, now);
+      hits.push({
+        key: e.key, tier: e.tier, ownerId: e.ownerId,
+        strength: s, lineage_depth: e.lineage.length,
+        match_signal: Math.round(signal * 1000) / 1000,
+        rank: Math.round(signal * s * 1000) / 1000,
+        snippet: typeof e.value === 'string'
+          ? e.value.slice(0, 160)
+          : JSON.stringify(e.value ?? null).slice(0, 160),
+        metadata: e.metadata,
+      });
+    }
+    return hits.sort((a, b) => b.rank - a.rank).slice(0, limit);
+  }
+
+  /**
+   * Return the recital lineage for a key — the hash chain from genesis
+   * to head. Read-gated by DUAL_READ on the current entry.
+   */
+  lineage(key, requesterId) {
+    const e = this.entries.get(key);
+    if (!e) return { ok: false, reason: 'NOT_FOUND' };
+    const verdict = dualRead(e, requesterId);
+    if (!verdict.ok) return verdict;
+    // hashEntry(current) is the *head* — append it so the chain shows
+    // the complete history end-to-end.
+    return {
+      ok: true,
+      key,
+      genesis_hash: e.lineage[0] ?? '0'.repeat(64),
+      chain: [...e.lineage, hashEntry(e)],
+      depth: e.lineage.length,
+      head_hash: hashEntry(e),
+    };
   }
 
   status() {

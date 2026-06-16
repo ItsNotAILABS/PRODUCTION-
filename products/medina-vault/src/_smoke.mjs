@@ -86,6 +86,20 @@ export async function run() {
   assert('status reports remaining entry', s.total === 1 && s.SOVEREIGN === 1,
          JSON.stringify(s));
 
+  // 9. Search — owner sees own SOVEREIGN; non-owner sees nothing.
+  const ownerHits = vault.search('claude', { query: 'survives' });
+  assert('search returns owner result', ownerHits.length === 1 && ownerHits[0].key === 'project/north-star',
+         `hits=${ownerHits.length}`);
+  const otherHits = vault.search('cursor', { query: 'survives' });
+  assert('search hides SOVEREIGN from non-owner', otherHits.length === 0,
+         `hits=${otherHits.length}`);
+
+  // 10. Lineage — head_hash matches and chain depth is genesis+1+head=3
+  const lin = vault.lineage('project/north-star', 'claude');
+  assert('lineage returns full chain (depth)', lin.ok && lin.chain.length === 3,
+         `chain.length=${lin.chain?.length}`);
+  assert('lineage refuses non-owner on SOVEREIGN', !vault.lineage('project/north-star', 'cursor').ok);
+
   console.log(
     C('\n=== RESULT ===\n') +
     (process.exitCode === 1

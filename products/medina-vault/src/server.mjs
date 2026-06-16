@@ -161,6 +161,39 @@ const tools = {
     },
   },
 
+  vault_search: {
+    description: 'Search entries by query (key/value substring) and/or tag, filtered by tier. Results ranked by match × φ-strength. Use when you do not know the exact key.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query:    { type: 'string', description: 'Substring matched against key and stringified value (case-insensitive).' },
+        tag:      { type: 'string', description: 'Match an entry whose metadata.tags includes this tag.' },
+        tier:     { type: 'string', enum: ['PUBLIC','SHARED','PRIVATE','SOVEREIGN'] },
+        limit:    { type: 'number', description: 'Max results (default 20).' },
+        agent_id: { type: 'string' },
+      },
+    },
+    handler: async (a) => ({
+      ok: true,
+      results: vault.search(defaultRequester(a), {
+        query: a.query, tag: a.tag, tier: a.tier, limit: a.limit,
+      }),
+    }),
+  },
+
+  vault_lineage: {
+    description: 'Return the RECITAL_PLUS_ONE hash chain for a key — genesis → … → head. Use this to audit a memory\'s history or recover from RECITAL_MISMATCH.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        key:      { type: 'string' },
+        agent_id: { type: 'string' },
+      },
+      required: ['key'],
+    },
+    handler: async (a) => vault.lineage(a.key, defaultRequester(a)),
+  },
+
   vault_status: {
     description: 'Report node status + the Alpha Charter manifest embedded at runtime: protocol, operator, tier counts, vault path, pricing, license.',
     inputSchema: { type: 'object', properties: {} },
