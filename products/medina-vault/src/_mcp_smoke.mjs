@@ -72,8 +72,8 @@ try {
   send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   const list = await waitFor(2);
   const toolNames = list.result.tools.map((t) => t.name);
-  assert('tools/list exposes ≥72 vault tools (+ embedded agents)',
-    toolNames.length >= 72 &&
+  assert('tools/list exposes ≥80 vault tools (+ root vault)',
+    toolNames.length >= 80 &&
     toolNames.includes('vault_store') &&
     toolNames.includes('vault_custos') &&
     toolNames.includes('keys_set') &&

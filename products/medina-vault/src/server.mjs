@@ -41,6 +41,7 @@ import { BudgetTracker } from './budget.mjs';
 import { EfficiencyEngine } from './efficiency.mjs';
 import { FailureRegistry } from './failures.mjs';
 import { AgentRegistry } from './agents.mjs';
+import { RootVault } from './root_vault.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -101,6 +102,10 @@ failures.loadFromMeta(existing?._meta);
 const agents = new AgentRegistry({ vault, skills, receipts, knowledge,
                                     consolidator, failures, efficiency, graph });
 agents.loadFromMeta(existing?._meta);
+// ROOT VAULT — the AI's deeper sovereign layer. Separate file. Operator denied.
+const rootVault = new RootVault();
+await rootVault.load();
+const OPERATOR = env.MEDINA_OPERATOR_ID || env.USER || env.USERNAME || 'operator';
 
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
@@ -1227,6 +1232,124 @@ const tools = {
     description: 'Aggregate agent activity: total tasks, by_agent breakdown, by_status breakdown, available agents.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => ({ ok: true, ...agents.stats() }),
+  },
+
+  // ── ROOT VAULT — system/AI only · frozen · compressed · auto-categorized ──
+  //
+  // The deeper sovereign layer. Operator does not have access. Entries are
+  // immutable (same key → -v2, -v3 suffix), frozen (no delete), hash-chained,
+  // gzip-compressed transparently above 1KB, auto-front-page summarized,
+  // auto-categorized via keyword tags, and verifiable end-to-end.
+
+  root_write: {
+    description: 'Write into the ROOT vault (system/AI only). Immutable: same key creates a -v2 etc. Auto-compressed, auto-front-paged, auto-categorized. Returns the canonical key + hash. Operator agent_id is denied.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        key:      { type: 'string', description: 'Namespace path, e.g. "doctrine/never-fake-data" or "learning/efficiency-engine"' },
+        value:    {},
+        kind:     { type: 'string', description: 'note | doctrine | learning | failure | decision | package' },
+        agent_id: { type: 'string', description: 'Must NOT equal the operator id. Use "claude" or "system".' },
+        tags:     { type: 'array', items: { type: 'string' } },
+      },
+      required: ['key', 'value', 'agent_id'],
+    },
+    handler: async (a) => {
+      const r = rootVault.write({ key: a.key, value: a.value, agent_id: a.agent_id,
+                                   kind: a.kind, operator: OPERATOR }, { tags: a.tags });
+      if (r.ok) {
+        await rootVault.persist();
+        receipts.append({ kind: 'vault_store', ref: r.key, agent: a.agent_id,
+                          meta: { layer: 'ROOT', hash: r.hash, compressed: r.compressed,
+                                  compression_ratio: r.compression_ratio, auto_tags: r.auto_tags } });
+      }
+      return r;
+    },
+  },
+
+  root_read: {
+    description: 'Read an entry from the ROOT vault. Transparent decompression. Operator denied.',
+    inputSchema: {
+      type: 'object',
+      properties: { key: { type: 'string' }, agent_id: { type: 'string' } },
+      required: ['key', 'agent_id'],
+    },
+    handler: async (a) => rootVault.read({ key: a.key, agent_id: a.agent_id, operator: OPERATOR }),
+  },
+
+  root_list: {
+    description: 'List ROOT entries (metadata + front_page only, NOT full values). Filter by kind or tag.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string' }, tag: { type: 'string' },
+        agent_id: { type: 'string' }, limit: { type: 'number', default: 50 },
+      },
+      required: ['agent_id'],
+    },
+    handler: async (a) => rootVault.list({ agent_id: a.agent_id, operator: OPERATOR,
+                                            kind: a.kind, tag: a.tag, limit: a.limit }),
+  },
+
+  root_search: {
+    description: 'Search ROOT entries by substring across keys, front_pages, and tags.',
+    inputSchema: {
+      type: 'object',
+      properties: { query: { type: 'string' }, agent_id: { type: 'string' }, limit: { type: 'number', default: 25 } },
+      required: ['query', 'agent_id'],
+    },
+    handler: async (a) => rootVault.search({ query: a.query, agent_id: a.agent_id,
+                                              operator: OPERATOR, limit: a.limit }),
+  },
+
+  root_store_package: {
+    description: "Store a binary package (base64-encoded zip/tar.gz/etc) in the ROOT vault under packages/<key>. Manifest describes what's inside (files + type). Future AIs can retrieve and reconstruct.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        key: { type: 'string' },
+        manifest: { type: 'object',
+          properties: {
+            name:  { type: 'string' },
+            type:  { type: 'string', description: 'zip | tar.gz | tarball' },
+            files: { type: 'array', items: { type: 'string' } },
+            description: { type: 'string' },
+          },
+        },
+        archive_b64: { type: 'string', description: 'Base64-encoded archive bytes.' },
+        agent_id:    { type: 'string' },
+      },
+      required: ['key', 'manifest', 'archive_b64', 'agent_id'],
+    },
+    handler: async (a) => {
+      const r = rootVault.store_package({ key: a.key, manifest: a.manifest,
+                                           archive_b64: a.archive_b64,
+                                           agent_id: a.agent_id, operator: OPERATOR });
+      if (r.ok) await rootVault.persist();
+      return r;
+    },
+  },
+
+  root_get_package: {
+    description: 'Retrieve a stored package by key. Returns manifest + archive_b64 + checksum.',
+    inputSchema: {
+      type: 'object',
+      properties: { key: { type: 'string' }, agent_id: { type: 'string' } },
+      required: ['key', 'agent_id'],
+    },
+    handler: async (a) => rootVault.get_package({ key: a.key, agent_id: a.agent_id, operator: OPERATOR }),
+  },
+
+  root_verify: {
+    description: 'Verify the entire ROOT chain — recompute every hash from genesis. Returns first_broken_seq if tampered.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => rootVault.verify(),
+  },
+
+  root_stats: {
+    description: 'ROOT stats: total entries, by_kind, by_category, head_hash, compression savings.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, path: RootVault.path, ...rootVault.stats() }),
   },
 
   // ── SEMANTIC RECALL via φ-spectral fingerprints ─────────────────────

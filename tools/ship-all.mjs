@@ -45,6 +45,8 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_failures_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · embedded agents (5 native, async dispatch)`,
                 process.execPath, ['src/_agents_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · root vault (frozen, compressed, fingerprinted)`,
+                process.execPath, ['src/_root_smoke.mjs'], cwd) && allOk;
   }
 }
 
