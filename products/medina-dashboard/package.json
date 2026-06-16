@@ -1,0 +1,14 @@
+{
+  "name": "@medina/dashboard",
+  "version": "0.1.0",
+  "description": "Single-file local dashboard for the Medina Mesh. Shows vault + signal bus live in a browser tab.",
+  "type": "module",
+  "main": "src/server.mjs",
+  "bin": { "medina-dashboard": "src/server.mjs" },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "node --watch src/server.mjs"
+  },
+  "license": "MIT",
+  "engines": { "node": ">=20" }
+}

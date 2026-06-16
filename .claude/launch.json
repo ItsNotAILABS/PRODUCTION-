@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "medina-dashboard",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["products/medina-dashboard/src/server.mjs"],
+      "port": 8731
+    },
+    {
       "name": "vigil-jarvis-vite",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "extensions/jarvis"],
