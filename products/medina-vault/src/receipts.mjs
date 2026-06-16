@@ -27,7 +27,7 @@ export class ReceiptLedger {
 
   loadFromMeta(meta) {
     if (!meta?.receipts) return;
-    this.receipts = meta.receipts.slice();
+    this.receipts = meta.receipts.slice(); // replace, not append
   }
   toMeta() { return { receipts: this.receipts }; }
 

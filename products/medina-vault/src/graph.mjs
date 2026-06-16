@@ -36,8 +36,14 @@ export class SessionGraph {
 
   loadFromMeta(meta) {
     if (!meta?.graph) return;
-    if (Array.isArray(meta.graph.nodes)) for (const n of meta.graph.nodes) this.nodes.set(n.id, n);
-    if (Array.isArray(meta.graph.edges)) this.edges.push(...meta.graph.edges);
+    // Replace, not append — multiple loads must be idempotent.
+    if (Array.isArray(meta.graph.nodes)) {
+      this.nodes = new Map();
+      for (const n of meta.graph.nodes) this.nodes.set(n.id, n);
+      // Re-seed the current session node since constructor created a new one.
+      if (this.session) this.nodes.set(this.session.id, this.session);
+    }
+    if (Array.isArray(meta.graph.edges)) this.edges = meta.graph.edges.slice();
   }
 
   toMeta() {

@@ -38,7 +38,8 @@ const PHI = 1.618033988749895;
 const DECAY_THRESHOLD = 0.05;
 
 // Live vault for memory.* skills + DUAL_READ semantics.
-const vault    = new MedinaVault({ operatorId: process.env.MEDINA_OPERATOR_ID || process.env.USERNAME || 'operator' });
+const OPERATOR = process.env.MEDINA_OPERATOR_ID || process.env.USERNAME || 'operator';
+const vault    = new MedinaVault({ operatorId: OPERATOR });
 const keys     = new KeyVault();
 const receipts  = new ReceiptLedger();
 const skills   = new SkillRegistry({ vault });
@@ -51,6 +52,39 @@ const workspace = new Workspace();
 const planLedger = new PlanLedger();
 const ctxLog    = new ContextLog();
 const reinforcement = new Reinforcement();
+
+// One-time hydrate from disk so live writes don't drop existing state.
+const _initial = await readJsonSafe(VAULT_PATH);
+if (_initial) vault.loadFromJSON(_initial);
+graph.loadFromMeta(_initial?._meta);
+knowledge.loadFromMeta(_initial?._meta);
+receipts.loadFromMeta(_initial?._meta);
+sandbox.loadFromMeta(_initial?._meta);
+keys.loadFromMeta(_initial?._meta);
+workspace.loadFromMeta(_initial?._meta);
+planLedger.loadFromMeta(_initial?._meta);
+ctxLog.loadFromMeta(_initial?._meta);
+reinforcement.loadFromMeta(_initial?._meta);
+
+async function persist() {
+  const snap = vault.toJSON();
+  snap._meta = {
+    ...(snap._meta || {}),
+    ...graph.toMeta(),
+    ...knowledge.toMeta(),
+    ...receipts.toMeta(),
+    ...sandbox.toMeta(),
+    ...keys.toMeta(),
+    ...workspace.toMeta(),
+    ...planLedger.toMeta(),
+    ...ctxLog.toMeta(),
+    ...reinforcement.toMeta(),
+    custos: { online: true, last_persist: Date.now(), source: 'dashboard' },
+  };
+  const tmp = VAULT_PATH + '.tmp';
+  await fs.writeFile(tmp, JSON.stringify(snap, null, 2));
+  await fs.rename(tmp, VAULT_PATH);
+}
 
 // Hydrate read-only views from the on-disk vault snapshot
 async function rehydrate() {
@@ -113,7 +147,6 @@ function signalStats(snapshot) {
 }
 
 async function gatherState() {
-  await rehydrate();
   const [v, s] = await Promise.all([readJsonSafe(VAULT_PATH), readJsonSafe(SIGNAL_PATH)]);
   return {
     operator:    process.env.MEDINA_OPERATOR_ID || process.env.USERNAME || process.env.USER || 'operator',
@@ -173,24 +206,20 @@ const server = createServer(async (req, res) => {
                          workflow_runs: workflows.status({ limit: 10 }) });
 
     if (req.method === 'GET' && url.pathname === '/api/knowledge') {
-      await rehydrate();
-      return json(res, { tokens: knowledge.list({ limit: 100 }), stats: knowledge.stats() });
+      return json(res,{ tokens: knowledge.list({ limit: 100 }), stats: knowledge.stats() });
     }
     if (req.method === 'GET' && url.pathname === '/api/graph') {
-      await rehydrate();
-      return json(res, {
+      return json(res,{
         stats: graph.stats(),
         nodes: [...graph.nodes.values()].slice(0, 200),
         edges: graph.edges.slice(-200),
       });
     }
     if (req.method === 'GET' && url.pathname === '/api/receipts') {
-      await rehydrate();
-      return json(res, { receipts: receipts.list({ limit: 100 }), verify: receipts.verify(), stats: receipts.stats() });
+      return json(res,{ receipts: receipts.list({ limit: 100 }), verify: receipts.verify(), stats: receipts.stats() });
     }
     if (req.method === 'GET' && url.pathname === '/api/sandbox') {
-      await rehydrate();
-      return json(res, { drafts: sandbox.list() });
+      return json(res,{ drafts: sandbox.list() });
     }
     if (req.method === 'GET' && url.pathname === '/api/workspace') {
       await rehydrate();
@@ -200,8 +229,71 @@ const server = createServer(async (req, res) => {
       return json(res, { agents, workspaces });
     }
     if (req.method === 'GET' && url.pathname === '/api/plans') {
-      await rehydrate();
       return json(res, { plans: planLedger.list({ limit: 50 }), next_actions: planLedger.nextActions({ limit: 10 }), stats: planLedger.stats() });
+    }
+
+    // ── WRITE ENDPOINTS — same API surface as MCP, callable via HTTP ──
+    if (req.method === 'POST' && url.pathname === '/api/vault/store') {
+      const b = await readBody(req);
+      const r = vault.store({ key: b.key, value: b.value, tier: b.tier || 'PRIVATE',
+                              ownerId: b.agent_id || OPERATOR,
+                              prior_hash: b.prior_hash, ttlMs: b.ttl_ms,
+                              metadata: b.metadata, sharedWith: b.shared_with });
+      if (r.ok) {
+        graph.addNode({ id: `entry:${r.entry.key}`, kind: 'entry', label: r.entry.key, tier: r.entry.tier });
+        graph.addNode({ id: `agent:${b.agent_id || OPERATOR}`, kind: 'agent', label: b.agent_id || OPERATOR });
+        graph.link(`agent:${b.agent_id || OPERATOR}`, `entry:${r.entry.key}`, 'observed');
+        graph.link(`entry:${r.entry.key}`, graph.session.id, 'belongs_to');
+        receipts.append({ kind: 'vault_store', ref: r.entry.key, agent: b.agent_id || OPERATOR,
+                          meta: { tier: r.entry.tier, hash: r.head_hash, lineage_depth: r.lineage_depth } });
+        await persist();
+      }
+      return json(res, r);
+    }
+    if (req.method === 'POST' && url.pathname === '/api/workspace/focus') {
+      const b = await readBody(req);
+      const r = workspace.focus(b.agent_id || 'claude', b.key, b.value);
+      await persist();
+      return json(res, r);
+    }
+    if (req.method === 'POST' && url.pathname === '/api/workspace/scratch') {
+      const b = await readBody(req);
+      const r = workspace.scratch(b.agent_id || 'claude', b.key, b.value, { ttl: b.ttl_ms });
+      await persist();
+      return json(res, r);
+    }
+    if (req.method === 'POST' && url.pathname === '/api/plans/create') {
+      const b = await readBody(req);
+      const r = planLedger.create(b);
+      if (r.ok) await persist();
+      return json(res, r);
+    }
+    if (req.method === 'POST' && url.pathname === '/api/plans/advance') {
+      const b = await readBody(req);
+      const r = planLedger.advance(b.id, b.step_id, b);
+      if (r.ok) await persist();
+      return json(res, r);
+    }
+    if (req.method === 'POST' && url.pathname === '/api/knowledge/mint') {
+      const b = await readBody(req);
+      const r = knowledge.mint(b);
+      if (r.ok) {
+        graph.addNode({ id: r.token.id, kind: 'token', label: r.token.name, domains: r.token.domains });
+        graph.link(graph.session.id, r.token.id, 'minted');
+        for (const i of r.token.inputs) graph.link(r.token.id, `${i.kind}:${i.ref}`, 'derived_from');
+        receipts.append({ kind: 'token_mint', ref: r.token.id, agent: b.minter || 'claude',
+                          meta: { name: b.name, input_count: b.inputs.length } });
+        await persist();
+      }
+      return json(res, r);
+    }
+    if (req.method === 'POST' && url.pathname === '/api/session/close') {
+      const b = await readBody(req);
+      const recent = receipts.list({ limit: 10 });
+      const r = ctxLog.snapshot({ ...b, session_id: b.session_id || graph.session.id,
+                                  recent_receipts: recent, agent: b.agent_id || 'claude' });
+      if (r.ok) await persist();
+      return json(res, r);
     }
 
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
@@ -230,7 +322,7 @@ const HTML = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Medina · AI memory, skills & continuity</title>
+<title>Loom · Persistent memory and skills for AI</title>
 <style>
 :root{
   --bg:#07090e; --panel:#0d111a; --panel2:#11161f; --line:#1a2233;
@@ -313,9 +405,9 @@ th{color:var(--dim);font-weight:normal;font-size:10px;text-transform:uppercase;l
 <div class="app">
   <aside class="side">
     <div class="brand">
-      <h1>𓂀 MEDINA</h1>
-      <div class="sub">AI memory · skills · continuity</div>
-      <div class="sub" style="margin-top:2px">protocol 0.2 · <span class="live"></span>φ=1.618 · 873ms</div>
+      <h1>⌘ LOOM</h1>
+      <div class="sub">Persistent memory and skills for AI</div>
+      <div class="sub" style="margin-top:2px">v0.2 · <span class="live"></span>φ=1.618 · 873ms</div>
     </div>
     <nav class="nav" id="nav"></nav>
     <div class="foot">
