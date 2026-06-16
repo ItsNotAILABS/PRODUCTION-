@@ -88,22 +88,26 @@ export class SkillRegistry {
     const s = this.skills.get(name);
     if (!s) return { ok: false, reason: 'SKILL_NOT_FOUND' };
     const t0 = Date.now();
-    let result;
-    try {
-      result = s.run(input, ctx) ?? { ok: true };
-    } catch (e) {
-      result = { ok: false, reason: 'SKILL_THREW', message: e.message };
-    }
-    const record = {
-      name, input_keys: Object.keys(input),
-      ok: !!result.ok, reason: result.reason ?? null,
-      ms: Date.now() - t0,
-      ts: new Date().toISOString(),
-      agent_id: ctx.agent_id ?? null,
+    const finish = (result) => {
+      result = result ?? { ok: true };
+      const record = {
+        name, input_keys: Object.keys(input),
+        ok: !!result.ok, reason: result.reason ?? null,
+        ms: Date.now() - t0,
+        ts: new Date().toISOString(),
+        agent_id: ctx.agent_id ?? null,
+      };
+      this.runs.push(record);
+      if (this.runs.length > this.maxRuns) this.runs.shift();
+      return result;
     };
-    this.runs.push(record);
-    if (this.runs.length > this.maxRuns) this.runs.shift();
-    return result;
+    let result;
+    try { result = s.run(input, ctx); }
+    catch (e) { return finish({ ok: false, reason: 'SKILL_THREW', message: e.message }); }
+    if (result && typeof result.then === 'function') {
+      return result.then(finish, e => finish({ ok: false, reason: 'SKILL_THREW', message: e.message }));
+    }
+    return finish(result);
   }
 
   history({ limit = 20, name } = {}) {

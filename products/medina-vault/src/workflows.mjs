@@ -19,14 +19,14 @@ export class WorkflowRunner {
    *   ]
    * }
    */
-  run(definition, ctx = {}) {
+  async run(definition, ctx = {}) {
     if (!definition?.id || !Array.isArray(definition.nodes))
       return { ok: false, reason: 'INVALID_WORKFLOW' };
     const results = {};
     let allOk = true;
     for (const node of definition.nodes) {
       const resolved = resolveInput(node.input ?? {}, results);
-      const r = this.registry.run(node.skill, resolved, ctx);
+      const r = await this.registry.run(node.skill, resolved, ctx);
       results[node.id] = r;
       if (!r.ok) { allOk = false; if (!node.continue_on_error) break; }
     }

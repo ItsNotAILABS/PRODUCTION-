@@ -18,6 +18,12 @@ const { WorkflowRunner }   = await import(pathToFileURL(join(VAULT_SRC, 'workflo
 const { WORKFLOW_LIBRARY, listWorkflows } =
   await import(pathToFileURL(join(VAULT_SRC, 'skills/workflows_library.mjs')).href);
 const { MedinaVault }      = await import(pathToFileURL(join(VAULT_SRC, 'vault.mjs')).href);
+const { SessionGraph }     = await import(pathToFileURL(join(VAULT_SRC, 'graph.mjs')).href);
+const { KnowledgeLedger }  = await import(pathToFileURL(join(VAULT_SRC, 'knowledge_tokens.mjs')).href);
+const { ReceiptLedger }    = await import(pathToFileURL(join(VAULT_SRC, 'receipts.mjs')).href);
+const { SkillSandbox }     = await import(pathToFileURL(join(VAULT_SRC, 'sandbox.mjs')).href);
+const { KeyVault }         = await import(pathToFileURL(join(VAULT_SRC, 'keys.mjs')).href);
+const { buildGitHubSkills } = await import(pathToFileURL(join(VAULT_SRC, 'integrations/github.mjs')).href);
 
 const PORT = Number(process.env.MEDINA_DASHBOARD_PORT || 8731);
 const MEDINA_HOME = process.env.MEDINA_HOME || join(homedir(), '.medina');
@@ -29,8 +35,24 @@ const DECAY_THRESHOLD = 0.05;
 
 // Live vault for memory.* skills + DUAL_READ semantics.
 const vault    = new MedinaVault({ operatorId: process.env.MEDINA_OPERATOR_ID || process.env.USERNAME || 'operator' });
+const keys     = new KeyVault();
+const receipts  = new ReceiptLedger();
 const skills   = new SkillRegistry({ vault });
+for (const s of buildGitHubSkills({ keys, receipts })) skills.register(s);
 const workflows = new WorkflowRunner({ registry: skills });
+const graph    = new SessionGraph();
+const knowledge = new KnowledgeLedger();
+const sandbox   = new SkillSandbox({ registry: skills, runner: workflows });
+
+// Hydrate read-only views from the on-disk vault snapshot
+async function rehydrate() {
+  const v = await readJsonSafe(VAULT_PATH);
+  graph.loadFromMeta(v?._meta);
+  knowledge.loadFromMeta(v?._meta);
+  receipts.loadFromMeta(v?._meta);
+  sandbox.loadFromMeta(v?._meta);
+  keys.loadFromMeta(v?._meta);
+}
 
 async function readJsonSafe(p) {
   try { return JSON.parse(await fs.readFile(p, 'utf8')); } catch { return null; }
@@ -79,6 +101,7 @@ function signalStats(snapshot) {
 }
 
 async function gatherState() {
+  await rehydrate();
   const [v, s] = await Promise.all([readJsonSafe(VAULT_PATH), readJsonSafe(SIGNAL_PATH)]);
   return {
     operator:    process.env.MEDINA_OPERATOR_ID || process.env.USERNAME || process.env.USER || 'operator',
@@ -88,6 +111,10 @@ async function gatherState() {
     vault:  { path: VAULT_PATH,  ...vaultStats(v) },
     signal: { path: SIGNAL_PATH, ...signalStats(s) },
     meta:   metaStats(v),
+    graph:     graph.stats(),
+    knowledge: knowledge.stats(),
+    receipts:  receipts.stats(),
+    sandbox:   { drafts: sandbox.list() },
     counts: { skills: skills.list().length, workflows: Object.keys(WORKFLOW_LIBRARY).length,
               domains: skills.domains().length },
     timestamp: new Date().toISOString(),
@@ -130,6 +157,27 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/runs')
       return json(res, { skill_runs: skills.history({ limit: 30 }),
                          workflow_runs: workflows.status({ limit: 10 }) });
+
+    if (req.method === 'GET' && url.pathname === '/api/knowledge') {
+      await rehydrate();
+      return json(res, { tokens: knowledge.list({ limit: 100 }), stats: knowledge.stats() });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/graph') {
+      await rehydrate();
+      return json(res, {
+        stats: graph.stats(),
+        nodes: [...graph.nodes.values()].slice(0, 200),
+        edges: graph.edges.slice(-200),
+      });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/receipts') {
+      await rehydrate();
+      return json(res, { receipts: receipts.list({ limit: 100 }), verify: receipts.verify(), stats: receipts.stats() });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/sandbox') {
+      await rehydrate();
+      return json(res, { drafts: sandbox.list() });
+    }
 
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     res.end(HTML);
@@ -268,6 +316,10 @@ const TABS = [
   { id:'vault',     label:'Vault',     icon:'⟁' },
   { id:'skills',    label:'Skills',    icon:'✦' },
   { id:'workflows', label:'Workflows', icon:'⇄' },
+  { id:'knowledge', label:'Knowledge', icon:'◇' },
+  { id:'graph',     label:'Graph',     icon:'⌬' },
+  { id:'sandbox',   label:'Sandbox',   icon:'◐' },
+  { id:'receipts',  label:'Receipts',  icon:'⛓' },
   { id:'keys',      label:'Keys',      icon:'⚷' },
   { id:'tokens',    label:'Tokens',    icon:'◈' },
   { id:'signal',    label:'Signal',    icon:'⇋' },
@@ -296,6 +348,10 @@ function renderNav() {
     vault:     STATE.vault.total,
     skills:    SKILLS.length,
     workflows: WFS.length,
+    knowledge: STATE.knowledge?.total ?? 0,
+    graph:     STATE.graph?.total_nodes ?? 0,
+    sandbox:   STATE.sandbox?.drafts?.length ?? 0,
+    receipts:  STATE.receipts?.total ?? 0,
     keys:      STATE.meta.keys.length,
     tokens:    STATE.meta.tokens.length,
     signal:    STATE.signal.total,
@@ -319,6 +375,82 @@ function render(tab) {
   else if (tab === 'tokens')    m.innerHTML = renderTokens();
   else if (tab === 'signal')    m.innerHTML = renderSignal();
   else if (tab === 'runs')      { m.innerHTML = '<div class="empty">loading…</div>'; loadRuns(); }
+  else if (tab === 'knowledge') { m.innerHTML = '<div class="empty">loading…</div>'; loadKnowledge(); }
+  else if (tab === 'graph')     { m.innerHTML = '<div class="empty">loading…</div>'; loadGraph(); }
+  else if (tab === 'receipts')  { m.innerHTML = '<div class="empty">loading…</div>'; loadReceipts(); }
+  else if (tab === 'sandbox')   { m.innerHTML = '<div class="empty">loading…</div>'; loadSandbox(); }
+}
+
+async function loadKnowledge() {
+  const r = await fetch('/api/knowledge').then(x=>x.json());
+  const rows = r.tokens.length === 0
+    ? '<tr><td colspan="6" class="empty">no knowledge tokens minted yet — call knowledge_mint with ≥2 input refs</td></tr>'
+    : r.tokens.map(t => \`<tr><td><code>\${esc(t.id)}</code></td><td>\${esc(t.name)}</td><td>\${t.domains.map(d=>'<span class="tag">'+esc(d)+'</span>').join('')}</td><td>\${t.inputs.length}</td><td>\${t.unwraps}</td><td>\${t.reward_mt?.toFixed(2)} MX</td></tr>\`).join('');
+  const byDom = Object.entries(r.stats.by_domain||{}).map(([d,n]) => \`<span class="tag">\${esc(d)} <code>\${n}</code></span>\`).join('');
+  $('main').innerHTML = \`
+    <div class="head"><h2>Knowledge Tokens</h2><span class="pill">\${r.stats.total} minted · \${r.stats.total_unwrapped} unwrapped · \${r.stats.total_mt_minted?.toFixed(2)} MX rewards</span></div>
+    <div style="color:var(--ink-dim);font-size:11px;margin-bottom:14px">
+      A Knowledge Token fuses ≥2 input refs (entries, other tokens, skills, sessions) into a single durable artifact.
+      Identity = sha256(sorted_inputs || summary) — minting the same fused understanding twice returns DUPLICATE.
+      Knowledge tokens DO NOT decay. Future sessions <code>knowledge_unwrap</code> instead of re-deriving.
+    </div>
+    <div style="margin-bottom:14px">\${byDom || '<span class="empty" style="padding:0">no domains yet</span>'}</div>
+    <table><thead><tr><th>id</th><th>name</th><th>domains</th><th>inputs</th><th>unwraps</th><th>reward</th></tr></thead><tbody>\${rows}</tbody></table>\`;
+}
+
+async function loadGraph() {
+  const r = await fetch('/api/graph').then(x=>x.json());
+  const byKind = Object.entries(r.stats.by_kind||{}).map(([k,n]) => \`<span class="tag">\${esc(k)} <code>\${n}</code></span>\`).join('');
+  const byEdge = Object.entries(r.stats.by_edge_type||{}).map(([k,n]) => \`<span class="tag">\${esc(k)} <code>\${n}</code></span>\`).join('');
+  const nodeRows = r.nodes.length === 0
+    ? '<tr><td colspan="3" class="empty">no graph nodes yet</td></tr>'
+    : r.nodes.map(n => \`<tr><td><span class="tag">\${esc(n.kind)}</span></td><td><code>\${esc(n.id)}</code></td><td>\${esc(n.label||'')}</td></tr>\`).join('');
+  const edgeRows = r.edges.length === 0
+    ? '<tr><td colspan="3" class="empty">no edges yet</td></tr>'
+    : r.edges.slice().reverse().map(e => \`<tr><td><code>\${esc(e.from)}</code></td><td><span class="tag">\${esc(e.type)}</span></td><td><code>\${esc(e.to)}</code></td></tr>\`).join('');
+  $('main').innerHTML = \`
+    <div class="head"><h2>Session Graph</h2><span class="pill">\${r.stats.total_nodes} nodes · \${r.stats.total_edges} edges · session \${esc(r.stats.current_session_hash||'')}</span></div>
+    <div style="margin-bottom:6px">\${byKind}</div>
+    <div style="margin-bottom:16px">\${byEdge}</div>
+    <h3 style="font-size:11px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase">Nodes</h3>
+    <table><thead><tr><th>kind</th><th>id</th><th>label</th></tr></thead><tbody>\${nodeRows}</tbody></table>
+    <h3 style="font-size:11px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-top:24px">Recent Edges</h3>
+    <table><thead><tr><th>from</th><th>type</th><th>to</th></tr></thead><tbody>\${edgeRows}</tbody></table>\`;
+}
+
+async function loadReceipts() {
+  const r = await fetch('/api/receipts').then(x=>x.json());
+  const status = r.verify.ok
+    ? \`<span style="color:var(--green)">✓ chain intact (length \${r.verify.length}, head <code>\${esc((r.verify.head_hash||'').slice(0,16))}…</code>)</span>\`
+    : \`<span style="color:var(--red)">✗ CHAIN BROKEN at seq \${r.verify.first_broken_seq}</span>\`;
+  const rows = r.receipts.length === 0
+    ? '<tr><td colspan="5" class="empty">no receipts yet — every meaningful event appends here</td></tr>'
+    : r.receipts.map(rec => \`<tr><td>\${rec.seq}</td><td>\${new Date(rec.ts).toLocaleTimeString()}</td><td><span class="tag">\${esc(rec.kind)}</span></td><td><code>\${esc(rec.ref)}</code></td><td><code style="font-size:10px">\${esc(rec.hash.slice(0,16))}…</code></td></tr>\`).join('');
+  const byKind = Object.entries(r.stats.by_kind||{}).map(([k,n]) => \`<span class="tag">\${esc(k)} <code>\${n}</code></span>\`).join('');
+  $('main').innerHTML = \`
+    <div class="head"><h2>Receipt Ledger</h2><span class="pill">Merkle-chained · \${r.stats.total} entries</span></div>
+    <div style="margin-bottom:12px;font-size:12px">\${status}</div>
+    <div style="color:var(--ink-dim);font-size:11px;margin-bottom:14px">
+      Every vault_store, skill_run, token_mint, key_set, sandbox_test &amp; sandbox_promote appends a signed receipt.
+      Each receipt's hash includes the previous receipt's hash. Recompute via <code>receipts_verify</code> — tampering breaks the chain at a known seq.
+      Genesis: <code>\${esc(r.stats.genesis)}</code>
+    </div>
+    <div style="margin-bottom:14px">\${byKind}</div>
+    <table><thead><tr><th>seq</th><th>time</th><th>kind</th><th>ref</th><th>hash</th></tr></thead><tbody>\${rows}</tbody></table>\`;
+}
+
+async function loadSandbox() {
+  const r = await fetch('/api/sandbox').then(x=>x.json());
+  const rows = r.drafts.length === 0
+    ? '<tr><td colspan="5" class="empty">no draft skills yet — compose one with sandbox_draft</td></tr>'
+    : r.drafts.map(d => \`<tr><td><code>\${esc(d.id)}</code></td><td>\${esc(d.name)}</td><td><span class="tag">\${esc(d.status)}</span></td><td>\${d.runs}</td><td>\${esc(d.promoted_as||'—')}</td></tr>\`).join('');
+  $('main').innerHTML = \`
+    <div class="head"><h2>Skill Sandbox</h2><span class="pill">\${r.drafts.length} drafts</span></div>
+    <div style="color:var(--ink-dim);font-size:11px;margin-bottom:14px">
+      Lifecycle: <code>draft</code> → <code>testing</code> → <code>stable</code> (≥3 runs, ≥0.85 output-shape stability) → <code>promoted</code> (registered as <code>composed.&lt;name&gt;</code>).
+      Build composed skills by chaining existing ones; if they prove consistent, they become first-class skills callable from MCP.
+    </div>
+    <table><thead><tr><th>id</th><th>name</th><th>status</th><th>runs</th><th>promoted as</th></tr></thead><tbody>\${rows}</tbody></table>\`;
 }
 
 // ── VAULT ─────────────────────────────────────────────────────────

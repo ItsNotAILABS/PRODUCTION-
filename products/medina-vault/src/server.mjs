@@ -26,6 +26,11 @@ import { KeyVault } from './keys.mjs';
 import { SkillRegistry } from './skills.mjs';
 import { WorkflowRunner } from './workflows.mjs';
 import { fingerprint, encodeFP, decodeFP, rankBySimilarity } from './spectral.mjs';
+import { SessionGraph } from './graph.mjs';
+import { KnowledgeLedger } from './knowledge_tokens.mjs';
+import { SkillSandbox } from './sandbox.mjs';
+import { ReceiptLedger } from './receipts.mjs';
+import { buildGitHubSkills } from './integrations/github.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,7 +63,16 @@ keys.loadFromMeta(existing?._meta);
 
 // Skills + workflows. Pass vault/custos so memory.* skills can read/write live state.
 const skills    = new SkillRegistry({ vault, custos });
+
+// Knowledge layer (PROTOCOL_11..14): graph, knowledge tokens, sandbox, receipts, integrations
+const graph     = new SessionGraph();   graph.loadFromMeta(existing?._meta);
+const knowledge = new KnowledgeLedger(); knowledge.loadFromMeta(existing?._meta);
+const receipts  = new ReceiptLedger();  receipts.loadFromMeta(existing?._meta);
+// Register GitHub integration skills using stored 'github' key.
+for (const s of buildGitHubSkills({ keys, receipts })) skills.register(s);
 const workflows = new WorkflowRunner({ registry: skills });
+const sandbox   = new SkillSandbox({ registry: skills, runner: workflows });
+sandbox.loadFromMeta(existing?._meta);
 
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
@@ -92,6 +106,10 @@ async function persist() {
       ...(snap._meta || {}),
       ...tokens.toMeta(),
       ...keys.toMeta(),
+      ...graph.toMeta(),
+      ...knowledge.toMeta(),
+      ...sandbox.toMeta(),
+      ...receipts.toMeta(),
       custom_skills: customTemplates,
       custos: { online: true, last_persist: Date.now() },
     };
@@ -134,6 +152,14 @@ const tools = {
       if (r.ok) {
         const earned = tokens.award(requester, { tier: r.entry.tier, lineageDepth: r.lineage_depth });
         custos.observeWrite({ agentId: requester, tier: r.entry.tier, key: r.entry.key, lineageDepth: r.lineage_depth });
+        // Graph: ensure entry + agent nodes, edge to current session
+        const entryId = `entry:${r.entry.key}`;
+        graph.addNode({ id: entryId, kind: 'entry', label: r.entry.key, tier: r.entry.tier });
+        graph.addNode({ id: `agent:${requester}`, kind: 'agent', label: requester });
+        graph.link(`agent:${requester}`, entryId, 'observed');
+        graph.link(entryId, graph.session.id, 'belongs_to');
+        receipts.append({ kind: 'vault_store', ref: r.entry.key, agent: requester,
+                          meta: { tier: r.entry.tier, lineage_depth: r.lineage_depth, hash: r.head_hash } });
         await persist();
         r.tokens_earned = earned;
         r.medina_hash = medinaHash(r.entry);
@@ -349,7 +375,12 @@ const tools = {
       },
       required: ['name', 'value'],
     },
-    handler: async (a) => { const r = keys.set(a.name, a.value, a.metadata); if (r.ok) await persist(); return r; },
+    handler: async (a) => {
+      const r = keys.set(a.name, a.value, a.metadata);
+      if (r.ok) { receipts.append({ kind: 'key_set', ref: a.name, agent: 'operator', meta: { fingerprint: r.fingerprint } });
+                  await persist(); }
+      return r;
+    },
   },
 
   keys_list: {
@@ -439,7 +470,13 @@ const tools = {
     },
     handler: async (a) => {
       const requester = defaultRequester(a);
-      const r = skills.run(a.name, a.input || {}, { agent_id: requester });
+      const r = await skills.run(a.name, a.input || {}, { agent_id: requester });
+      // Receipt + graph for every skill run (regardless of artifact store)
+      receipts.append({ kind: 'skill_run', ref: a.name, agent: requester,
+                        meta: { ok: !!r.ok, reason: r.reason ?? null } });
+      const skillNodeId = `skill:${a.name}`;
+      graph.addNode({ id: skillNodeId, kind: 'skill', label: a.name });
+      graph.link(`agent:${requester}`, skillNodeId, 'called');
       if (r.ok && a.store !== false) {
         const key = `artifact/${a.name}/${Date.now()}`;
         const stored = vault.store({
@@ -503,6 +540,215 @@ const tools = {
     description: 'Recent workflow runs with per-node ok/reason/summary.',
     inputSchema: { type: 'object', properties: { limit: { type: 'number', default: 10 } } },
     handler: async (a) => ({ ok: true, runs: workflows.status({ limit: a.limit }) }),
+  },
+
+  // ── SESSION MEMORY GRAPH (PROTOCOL_11) ──────────────────────────────
+
+  graph_stats: {
+    description: 'Graph stats: total nodes/edges, counts by kind/type, current session id + hash.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...graph.stats() }),
+  },
+
+  graph_link: {
+    description: 'Add a typed edge between two nodes. Types: derived_from | called | used_key | minted | supersedes | observed | belongs_to.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string' }, to: { type: 'string' },
+        type: { type: 'string', enum: ['derived_from','called','used_key','minted','supersedes','observed','belongs_to'] },
+      },
+      required: ['from','to','type'],
+    },
+    handler: async (a) => { const r = graph.link(a.from, a.to, a.type); if (r.ok) await persist(); return r; },
+  },
+
+  graph_neighbors: {
+    description: 'Neighbors of a node along outgoing (default) or incoming edges, optionally filtered by edge type.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        direction: { type: 'string', enum: ['out','in'], default: 'out' },
+        type: { type: 'string' },
+        limit: { type: 'number', default: 25 },
+      },
+      required: ['id'],
+    },
+    handler: async (a) => ({ ok: true, neighbors: graph.neighbors(a.id, a) }),
+  },
+
+  graph_path: {
+    description: 'BFS shortest path between two nodes (any edge direction). Returns hops + edge sequence.',
+    inputSchema: {
+      type: 'object',
+      properties: { from: { type: 'string' }, to: { type: 'string' }, max_depth: { type: 'number', default: 6 } },
+      required: ['from','to'],
+    },
+    handler: async (a) => graph.path(a.from, a.to, { maxDepth: a.max_depth }),
+  },
+
+  graph_search: {
+    description: 'Search graph nodes by substring (full JSON match) and/or kind.',
+    inputSchema: {
+      type: 'object',
+      properties: { query: { type: 'string' }, kind: { type: 'string' }, limit: { type: 'number', default: 25 } },
+    },
+    handler: async (a) => ({ ok: true, nodes: graph.search(a) }),
+  },
+
+  // ── KNOWLEDGE TOKENS (PROTOCOL_12) ──────────────────────────────────
+
+  knowledge_mint: {
+    description: 'Mint a Knowledge Token fusing ≥2 input refs into a single durable artifact. Returns KT-<hex> id + memory-token reward.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name:    { type: 'string' },
+        summary: { type: 'string', description: 'What the fused understanding MEANS.' },
+        domains: { type: 'array', items: { type: 'string' } },
+        inputs:  { type: 'array', items: { type: 'object',
+          properties: { kind: { type: 'string' }, ref: { type: 'string' } }, required: ['kind','ref'] } },
+        minter:  { type: 'string' },
+      },
+      required: ['name','summary','inputs'],
+    },
+    handler: async (a) => {
+      const r = knowledge.mint(a);
+      if (r.ok) {
+        // Award memory-token reward
+        if (a.minter) tokens.balances.set(a.minter, (tokens.balances.get(a.minter) || 0) + r.mt_reward);
+        // Add to graph: token node + edges to each input ref + minted edge from session
+        graph.addNode({ id: r.token.id, kind: 'token', label: r.token.name,
+                        domains: r.token.domains, hash: r.token.hash });
+        graph.link(graph.session.id, r.token.id, 'minted');
+        for (const i of r.token.inputs) graph.link(r.token.id, `${i.kind}:${i.ref}`, 'derived_from');
+        receipts.append({ kind: 'token_mint', ref: r.token.id, agent: a.minter || 'operator',
+                          meta: { name: a.name, input_count: a.inputs.length } });
+        await persist();
+      }
+      return r;
+    },
+  },
+
+  knowledge_unwrap: {
+    description: 'Unwrap a Knowledge Token by id. Returns the summary + lineage + domains. Increments read counter.',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    handler: async (a) => {
+      const r = knowledge.unwrap(a.id);
+      if (r.ok) {
+        receipts.append({ kind: 'token_unwrap', ref: a.id, agent: 'reader', meta: {} });
+        await persist();
+      }
+      return r;
+    },
+  },
+
+  knowledge_list: {
+    description: 'List Knowledge Tokens, optionally filtered by domain or minter.',
+    inputSchema: {
+      type: 'object',
+      properties: { domain: { type: 'string' }, minter: { type: 'string' }, limit: { type: 'number', default: 25 } },
+    },
+    handler: async (a) => ({ ok: true, tokens: knowledge.list(a) }),
+  },
+
+  knowledge_search: {
+    description: 'Search Knowledge Tokens by query; ranked by how often each has been unwrapped.',
+    inputSchema: { type: 'object', properties: { query: { type: 'string' }, limit: { type: 'number', default: 25 } } },
+    handler: async (a) => ({ ok: true, tokens: knowledge.search(a) }),
+  },
+
+  knowledge_stats: {
+    description: 'Stats on the Knowledge Token economy: total minted, total unwrapped, MT reward issued, by-domain counts, top 5 unwrapped.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...knowledge.stats() }),
+  },
+
+  // ── SKILL SANDBOX (PROTOCOL_13) ─────────────────────────────────────
+
+  sandbox_draft: {
+    description: 'Create a draft composed skill (DAG of existing skills). Status starts at "draft".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name:        { type: 'string' },
+        description: { type: 'string' },
+        composition: { type: 'object',
+          properties: { id: { type: 'string' }, nodes: { type: 'array' } },
+          required: ['id','nodes'] },
+        sample_inputs: { type: 'array' },
+      },
+      required: ['name','composition'],
+    },
+    handler: async (a) => { const r = sandbox.draft(a); if (r.ok) await persist(); return r; },
+  },
+
+  sandbox_test: {
+    description: 'Run a draft against an input. Captures ok + output-shape fingerprint.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' }, input: { type: 'object' } },
+      required: ['id'],
+    },
+    handler: async (a) => {
+      const r = sandbox.test(a.id, a.input);
+      if (r.ok) {
+        receipts.append({ kind: 'sandbox_test', ref: a.id, agent: 'operator',
+                          meta: { ok: r.run.ok, ran_nodes: r.run.ran_nodes } });
+        await persist();
+      }
+      return r;
+    },
+  },
+
+  sandbox_evaluate: {
+    description: 'Recompute draft stability (min_runs=3, threshold=0.85) and advance status: draft → testing → stable → promoted.',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    handler: async (a) => sandbox.evaluate(a.id),
+  },
+
+  sandbox_promote: {
+    description: 'Promote a stable draft into the live SkillRegistry as composed.<name>. Only works on status=stable.',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    handler: async (a) => {
+      const r = sandbox.promote(a.id);
+      if (r.ok) {
+        receipts.append({ kind: 'sandbox_promote', ref: a.id, agent: 'operator', meta: { promoted_as: r.promoted_as } });
+        graph.addNode({ id: r.promoted_as, kind: 'skill', label: r.promoted_as });
+        await persist();
+      }
+      return r;
+    },
+  },
+
+  sandbox_list: {
+    description: 'List all draft composed skills with their status + run count.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, drafts: sandbox.list() }),
+  },
+
+  // ── RECEIPT LEDGER (PROTOCOL_14) ────────────────────────────────────
+
+  receipts_list: {
+    description: 'List the most recent Merkle-chained receipts, newest first. Optional filter by kind / agent.',
+    inputSchema: {
+      type: 'object',
+      properties: { kind: { type: 'string' }, agent: { type: 'string' }, limit: { type: 'number', default: 50 } },
+    },
+    handler: async (a) => ({ ok: true, receipts: receipts.list(a) }),
+  },
+
+  receipts_verify: {
+    description: 'Recompute the entire receipt chain and report whether it is intact. Returns first-broken seq if tampered.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => receipts.verify(),
+  },
+
+  receipts_stats: {
+    description: 'Aggregate stats on the receipt chain: total, head_hash, counts by kind/agent.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...receipts.stats() }),
   },
 
   // ── SEMANTIC RECALL via φ-spectral fingerprints ─────────────────────

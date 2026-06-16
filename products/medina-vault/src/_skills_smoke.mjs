@@ -140,7 +140,7 @@ assert('Unknown skill returns SKILL_NOT_FOUND', !unknown.ok && unknown.reason ==
 
 // ── Workflows: chain NDA + invoice for the same matter ────────────────
 const wf = new WorkflowRunner({ registry: reg });
-const wfResult = wf.run({
+const wfResult = await wf.run({
   id: 'onboard-acme',
   nodes: [
     { id: 'nda', skill: 'legal.nda_mutual',

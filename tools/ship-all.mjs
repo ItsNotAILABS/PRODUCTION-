@@ -33,6 +33,8 @@ for (const p of PRODUCTS) {
   if (p === 'medina-vault') {
     allOk = run(`${p} · skills/keys/workflows/spectral`,
                 process.execPath, ['src/_skills_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · graph/knowledge/sandbox/receipts/integrations`,
+                process.execPath, ['src/_layer_smoke.mjs'], cwd) && allOk;
   }
 }
 
