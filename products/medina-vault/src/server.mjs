@@ -22,6 +22,10 @@ import { chartManifest } from '../charter/charter.mjs';
 import { PRO_TOOLS, PRO_STATUS } from './pro.mjs';
 import { Custos } from './custos.mjs';
 import { TokenLedger, tokenValue } from './tokens.mjs';
+import { KeyVault } from './keys.mjs';
+import { SkillRegistry } from './skills.mjs';
+import { WorkflowRunner } from './workflows.mjs';
+import { fingerprint, encodeFP, decodeFP, rankBySimilarity } from './spectral.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,6 +52,14 @@ await custos.load();
 const tokens = new TokenLedger();
 tokens.loadFromMeta(existing?._meta);
 
+// API key vault (encrypted at rest)
+const keys = new KeyVault();
+keys.loadFromMeta(existing?._meta);
+
+// Skills + workflows
+const skills    = new SkillRegistry();
+const workflows = new WorkflowRunner({ registry: skills });
+
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
   try {
@@ -67,7 +79,12 @@ async function persist() {
   try {
     // Merge token ledger into vault snapshot under _meta.
     const snap = vault.toJSON();
-    snap._meta = { ...(snap._meta || {}), ...tokens.toMeta(), custos: { online: true, last_persist: Date.now() } };
+    snap._meta = {
+      ...(snap._meta || {}),
+      ...tokens.toMeta(),
+      ...keys.toMeta(),
+      custos: { online: true, last_persist: Date.now() },
+    };
     await saveSnapshot(snap, VAULT_PATH);
     await custos.persist();
   } catch (e) { stderr.write(`[medina-vault] persist failed: ${e.message}\n`); }
@@ -306,6 +323,165 @@ const tools = {
         } catch { /* no protocols dir on this machine */ }
       }
       return { ok: true, protocol_version: 'MEDINA-PROTOCOL/0.2', count: out.length, protocols: out };
+    },
+  },
+
+  // ── API KEYS (encrypted at rest with AES-256-GCM) ───────────────────
+
+  keys_set: {
+    description: 'Store an API key encrypted at rest. Master key derived from operator+machine. Value never returns through MCP.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name:     { type: 'string', description: 'e.g. "openai", "anthropic", "sendgrid"' },
+        value:    { type: 'string', description: 'The secret. Encrypted immediately; not persisted in plaintext.' },
+        metadata: { type: 'object' },
+      },
+      required: ['name', 'value'],
+    },
+    handler: async (a) => { const r = keys.set(a.name, a.value, a.metadata); if (r.ok) await persist(); return r; },
+  },
+
+  keys_list: {
+    description: 'List stored API keys by name with usage stats. Plaintext values are NEVER returned.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, keys: keys.list() }),
+  },
+
+  keys_describe: {
+    description: 'Get safe metadata for one key: fingerprint, addedAt, lastUsedAt, usageCount.',
+    inputSchema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+    handler: async (a) => keys.describe(a.name),
+  },
+
+  keys_delete: {
+    description: 'Permanently remove a stored API key from the vault.',
+    inputSchema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+    handler: async (a) => { const r = keys.delete(a.name); if (r.ok) await persist(); return r; },
+  },
+
+  // ── SKILLS (callable production work) ───────────────────────────────
+
+  skills_list: {
+    description: 'List skills available on this node. Each entry includes name, description, JSON Schema for input.',
+    inputSchema: {
+      type: 'object',
+      properties: { prefix: { type: 'string', description: 'Filter by name prefix, e.g. "legal."' } },
+    },
+    handler: async (a) => ({ ok: true, skills: skills.list({ prefix: a.prefix }) }),
+  },
+
+  skills_run: {
+    description: 'Run a named skill. Returns the skill output, often a PDF as bytes_base64 + filename. Stores the artifact in vault under artifact/<name>/<timestamp>.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name:     { type: 'string' },
+        input:    { type: 'object' },
+        agent_id: { type: 'string' },
+        store:    { type: 'boolean', default: true, description: 'If true, persist the artifact summary in vault.' },
+      },
+      required: ['name'],
+    },
+    handler: async (a) => {
+      const requester = defaultRequester(a);
+      const r = skills.run(a.name, a.input || {}, { agent_id: requester });
+      if (r.ok && a.store !== false) {
+        const key = `artifact/${a.name}/${Date.now()}`;
+        const stored = vault.store({
+          key, value: { skill: a.name, summary: r.summary, filename: r.filename, bytes: r.bytes },
+          tier: 'PRIVATE', ownerId: requester,
+          metadata: { tags: ['artifact', a.name.split('.')[0]], source: 'skills_run' },
+        });
+        if (stored.ok) {
+          tokens.award(requester, { tier: 'PRIVATE', lineageDepth: stored.lineage_depth });
+          custos.observeWrite({ agentId: requester, tier: 'PRIVATE', key, lineageDepth: stored.lineage_depth });
+          r.stored_at = key;
+        }
+        await persist();
+      }
+      return r;
+    },
+  },
+
+  skills_history: {
+    description: 'Recent skill runs on this node (timestamps, durations, ok/fail).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name:  { type: 'string', description: 'Optional skill name filter.' },
+        limit: { type: 'number', default: 20 },
+      },
+    },
+    handler: async (a) => ({ ok: true, runs: skills.history({ name: a.name, limit: a.limit }) }),
+  },
+
+  // ── WORKFLOWS (skill chains) ────────────────────────────────────────
+
+  workflows_run: {
+    description: 'Run a workflow — a DAG of skill calls with output binding. Supports ${node.field} substitution and ${node.field|hash}.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        definition: {
+          type: 'object',
+          properties: {
+            id:    { type: 'string' },
+            nodes: { type: 'array', items: { type: 'object',
+              properties: {
+                id:    { type: 'string' },
+                skill: { type: 'string' },
+                input: { type: 'object' },
+                continue_on_error: { type: 'boolean' },
+              }, required: ['id', 'skill']
+            }},
+          },
+          required: ['id', 'nodes'],
+        },
+        agent_id: { type: 'string' },
+      },
+      required: ['definition'],
+    },
+    handler: async (a) => workflows.run(a.definition, { agent_id: defaultRequester(a) }),
+  },
+
+  workflows_status: {
+    description: 'Recent workflow runs with per-node ok/reason/summary.',
+    inputSchema: { type: 'object', properties: { limit: { type: 'number', default: 10 } } },
+    handler: async (a) => ({ ok: true, runs: workflows.status({ limit: a.limit }) }),
+  },
+
+  // ── SEMANTIC RECALL via φ-spectral fingerprints ─────────────────────
+
+  vault_fingerprint: {
+    description: 'Compute a 64-dim φ-spectral fingerprint of an arbitrary text. Base64-encoded float32. Used by vault_similar.',
+    inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
+    handler: async (a) => ({ ok: true, fingerprint: encodeFP(fingerprint(a.text)), dim: 64 }),
+  },
+
+  vault_similar: {
+    description: 'Find entries similar to a query string (or fingerprint). Cosine similarity over φ-spectral fingerprints, ranked × φ-decay strength. DUAL_READ-authorized per entry.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        text:      { type: 'string', description: 'Query text (preferred).' },
+        agent_id:  { type: 'string' },
+        tier:      { type: 'string', enum: ['PUBLIC','SHARED','PRIVATE','SOVEREIGN'] },
+        limit:     { type: 'number', default: 10 },
+        min_score: { type: 'number', default: 0.15 },
+      },
+      required: ['text'],
+    },
+    handler: async (a) => {
+      const requester = defaultRequester(a);
+      const candidates = vault.list(requester, { tier: a.tier }).map(c => ({
+        ...c,
+        value: c.metadata?._preview ?? c.snippet ?? c.key,
+      }));
+      // Use full snippet for fingerprinting: re-derive from vault.search browse-mode.
+      const browse = vault.search(requester, { tier: a.tier, limit: 500 });
+      const ranked = rankBySimilarity(a.text, browse, { limit: a.limit, minScore: a.min_score });
+      return { ok: true, results: ranked };
     },
   },
 

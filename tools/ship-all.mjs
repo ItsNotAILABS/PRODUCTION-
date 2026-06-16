@@ -22,13 +22,18 @@ function run(label, cmd, args, cwd) {
   return ok;
 }
 
-console.log(C('\n=== SHIP ALL · MEDINA-PROTOCOL/0.1 ===\n'));
+console.log(C('\n=== SHIP ALL · MEDINA-PROTOCOL/0.2 ===\n'));
 let allOk = true;
 for (const p of PRODUCTS) {
   const cwd = join(ROOT, 'products', p);
   console.log(C(`\n[ ${p} ]`));
   allOk = run(`${p} · unit smoke`, process.execPath, ['src/_smoke.mjs'], cwd) && allOk;
   allOk = run(`${p} · MCP wire`,    process.execPath, ['src/_mcp_smoke.mjs'], cwd) && allOk;
+  // Vault has a third suite: skills + keys + workflows + spectral
+  if (p === 'medina-vault') {
+    allOk = run(`${p} · skills/keys/workflows/spectral`,
+                process.execPath, ['src/_skills_smoke.mjs'], cwd) && allOk;
+  }
 }
 
 // Vault's charter gate

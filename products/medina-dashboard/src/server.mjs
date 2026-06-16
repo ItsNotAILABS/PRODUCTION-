@@ -48,6 +48,18 @@ function vaultStats(snapshot) {
   return { total: entries.length, tiers, entries };
 }
 
+function metaStats(snapshot) {
+  const meta = snapshot?._meta || {};
+  return {
+    keys:   Object.entries(meta.keys || {}).map(([name, v]) => ({
+      name, fingerprint: v.fingerprint, addedAt: v.addedAt,
+      lastUsedAt: v.lastUsedAt, usageCount: v.usageCount,
+    })),
+    tokens: Object.entries(meta.tokens || {}).map(([agent, balance]) => ({ agent, balance })),
+    custos: meta.custos || null,
+  };
+}
+
 function signalStats(snapshot) {
   if (!snapshot?.signals) return { total: 0, roles: [], recent: [] };
   return {
@@ -70,6 +82,7 @@ async function gatherState() {
     heartbeat_ms: 873,
     vault: { path: VAULT_PATH, ...vaultStats(vault) },
     signal: { path: SIGNAL_PATH, ...signalStats(signal) },
+    meta: metaStats(vault),
     timestamp: new Date().toISOString(),
   };
 }
@@ -154,7 +167,7 @@ function tier(t) { return '<span class="tier tier-'+t+'">'+t+'</span>'; }
 
 function render(s) {
   const root = document.getElementById('root');
-  const v = s.vault, sg = s.signal;
+  const v = s.vault, sg = s.signal, m = s.meta || { keys: [], tokens: [], custos: null };
 
   const vaultRows = v.entries.length === 0
     ? '<tr><td colspan="5" class="empty">vault is empty — your AIs haven\\'t written anything yet</td></tr>'
@@ -221,6 +234,31 @@ function render(s) {
           <tbody>\${signalRows}</tbody>
         </table>
         <div style="font-size:10px;color:var(--dim);margin-top:8px">📁 \${sg.path}</div>
+      </div>
+
+      <div class="panel">
+        <h2>api keys · encrypted at rest (AES-256-GCM)</h2>
+        <div class="stats">
+          <div class="stat"><div class="n">\${m.keys.length}</div><div class="l">keys stored</div></div>
+          <div class="stat"><div class="n">\${m.keys.reduce((s,k)=>s+(k.usageCount||0),0)}</div><div class="l">total uses</div></div>
+        </div>
+        \${m.keys.length === 0
+          ? '<div class="empty">no API keys yet — call keys_set to add one</div>'
+          : '<table><thead><tr><th>name</th><th>fingerprint</th><th>uses</th><th>last used</th></tr></thead><tbody>' +
+            m.keys.map(k => '<tr><td><code>'+escape(k.name)+'</code></td><td style="color:var(--dim)">'+escape(k.fingerprint||'')+'</td><td>'+(k.usageCount||0)+'</td><td style="color:var(--dim)">'+(k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString() : '—')+'</td></tr>').join('') +
+            '</tbody></table>'}
+        <div style="font-size:10px;color:var(--dim);margin-top:8px">🔐 plaintext never leaves the local process · GCM auth tag prevents tampering</div>
+      </div>
+
+      <div class="panel">
+        <h2>memory tokens · agent leaderboard</h2>
+        \${m.tokens.length === 0
+          ? '<div class="empty">no token balances yet — every store earns tokens</div>'
+          : '<table><thead><tr><th>rank</th><th>agent</th><th>balance</th></tr></thead><tbody>' +
+            m.tokens.slice().sort((a,b)=>b.balance-a.balance).slice(0,10).map((t,i) =>
+              '<tr><td>'+(i+1)+'</td><td><code>'+escape(t.agent)+'</code></td><td>'+t.balance.toFixed(2)+' MX</td></tr>').join('') +
+            '</tbody></table>'}
+        <div style="font-size:10px;color:var(--dim);margin-top:8px">⚙ tier × (1 + lineage·φ⁻¹) · Fibonacci weights F(1) F(3) F(5) F(7)</div>
       </div>
     </div>\`;
 
