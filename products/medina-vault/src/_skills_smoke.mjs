@@ -44,12 +44,65 @@ const kv3 = new KeyVault();
 kv3.loadFromMeta(tamper);
 assert('tampered ciphertext returns null (GCM auth tag fails)', kv3.unwrap('openai') === null);
 
-// ── Skills: NDA generation, real PDF bytes ────────────────────────────
+// ── Skills: cross-domain registry ─────────────────────────────────────
 const reg = new SkillRegistry();
+const domains = reg.domains();
+assert('registry exposes 7+ domains (legal, writing, code, comms, finance, data, research)',
+  domains.length >= 7 &&
+  ['legal','writing','code','comms','finance','data','research'].every(d => domains.find(x => x.domain === d)),
+  domains.map(d => `${d.domain}:${d.count}`).join(' '));
+
+const total = reg.list().length;
+assert('total skill count ≥ 35 across all domains', total >= 35, `total=${total}`);
+
 const skillsList = reg.list({ prefix: 'legal.' });
-assert('skills registry has all 6 legal skills',
+assert('legal domain has 6 skills',
   skillsList.length === 6 && skillsList.some(s => s.name === 'legal.nda_mutual'),
   skillsList.map(s => s.name).join(','));
+
+// Each domain produces a real callable output
+const w = reg.run('writing.redact_pii', { text: 'Email me at alice@example.com or call 555-123-4567.' });
+assert('writing.redact_pii redacts email + phone',
+  w.ok && w.counts.email === 1 && w.counts.phone === 1, JSON.stringify(w.counts));
+
+const f = reg.run('finance.runway', { cash_balance: 500000, monthly_burn: 50000, monthly_revenue: 20000, growth_rate: 0.05 });
+assert('finance.runway computes months', f.ok && (typeof f.runway_months === 'number' || /^>/.test(f.runway_months)),
+  `runway=${f.runway_months}`);
+
+const c = reg.run('code.commit_message', {
+  diff: 'diff --git a/src/foo.js b/src/foo.js\n+const x = 1;\n-const x = 0;\n'
+});
+assert('code.commit_message classifies type from diff',
+  c.ok && ['feat','fix','chore','test','docs'].includes(c.type) && c.message.includes(':'),
+  c.message);
+
+const cm = reg.run('comms.email_draft', {
+  to: 'partner@acme.com', subject: 'Hello', intent: 'Schedule a call next week.',
+});
+assert('comms.email_draft returns mailto URL',
+  cm.ok && cm.mailto.startsWith('mailto:partner%40acme.com?'), cm.mailto.slice(0, 60));
+
+const csv = reg.run('data.json_to_csv', { rows: [{a:1,b:2},{a:3,b:4}] });
+assert('data.json_to_csv emits valid CSV',
+  csv.ok && csv.csv.startsWith('a,b\n') && csv.csv.includes('1,2'), csv.csv);
+
+const r = reg.run('research.citation', {
+  style: 'APA', authors: ['Smith, J.', 'Doe, A.'], year: 2026, title: 'On φ',
+  source: 'Journal of Things',
+});
+assert('research.citation formats APA',
+  r.ok && /Smith, J\.\s*,\s*&\s*Doe, A\..*\(2026\).*φ/.test(r.citation), r.citation);
+
+const ts = reg.registerTemplate({
+  name: 'ops.outage_template',
+  description: 'Outage runbook',
+  template: 'Outage: ${title}\nSeverity: ${severity}\nStart: ${start}\nOwner: ${owner}',
+  inputSchema: { type: 'object', properties: {} },
+});
+assert('register custom template skill', ts.ok);
+const trun = reg.run('ops.outage_template', { title: 'API 500s', severity: 'SEV-2', start: '14:32', owner: 'on-call' });
+assert('custom template fills variables',
+  trun.ok && trun.text.includes('SEV-2') && trun.text.includes('on-call'), trun.text);
 
 const nda = reg.run('legal.nda_mutual', {
   party_a_name: 'Medina Tech LLC', party_b_name: 'Acme Corp.',

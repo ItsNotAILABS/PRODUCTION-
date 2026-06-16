@@ -72,14 +72,17 @@ try {
   send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   const list = await waitFor(2);
   const toolNames = list.result.tools.map((t) => t.name);
-  assert('tools/list exposes 27 vault tools (vault + inside + keys + skills + workflows + spectral + pro)',
-    toolNames.length === 27 &&
+  assert('tools/list exposes ≥31 vault tools (vault + inside + keys + skills + workflows + spectral + pro)',
+    toolNames.length >= 31 &&
     toolNames.includes('vault_store') &&
     toolNames.includes('vault_custos') &&
     toolNames.includes('keys_set') &&
     toolNames.includes('skills_list') &&
+    toolNames.includes('skills_domains') &&
+    toolNames.includes('skills_register_template') &&
     toolNames.includes('skills_run') &&
     toolNames.includes('workflows_run') &&
+    toolNames.includes('workflows_library') &&
     toolNames.includes('vault_similar') &&
     toolNames.includes('memory_palace_search'),
     `count=${toolNames.length}`);

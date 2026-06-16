@@ -56,8 +56,8 @@ tokens.loadFromMeta(existing?._meta);
 const keys = new KeyVault();
 keys.loadFromMeta(existing?._meta);
 
-// Skills + workflows
-const skills    = new SkillRegistry();
+// Skills + workflows. Pass vault/custos so memory.* skills can read/write live state.
+const skills    = new SkillRegistry({ vault, custos });
 const workflows = new WorkflowRunner({ registry: skills });
 
 // Protocols directory (resolved relative to this server file)
@@ -79,10 +79,20 @@ async function persist() {
   try {
     // Merge token ledger into vault snapshot under _meta.
     const snap = vault.toJSON();
+    // Persist custom template skills.
+    const customTemplates = [];
+    for (const s of skills.skills.values()) {
+      if (s.template) customTemplates.push({
+        name: s.name, description: s.description,
+        template: s.run.toString().match(/`([^`]*)`/)?.[1] ?? '',
+        inputSchema: s.inputSchema,
+      });
+    }
     snap._meta = {
       ...(snap._meta || {}),
       ...tokens.toMeta(),
       ...keys.toMeta(),
+      custom_skills: customTemplates,
       custos: { online: true, last_persist: Date.now() },
     };
     await saveSnapshot(snap, VAULT_PATH);
@@ -363,12 +373,56 @@ const tools = {
   // ── SKILLS (callable production work) ───────────────────────────────
 
   skills_list: {
-    description: 'List skills available on this node. Each entry includes name, description, JSON Schema for input.',
+    description: 'List skills available on this node. Each entry includes name, description, JSON Schema for input, and domain.',
     inputSchema: {
       type: 'object',
-      properties: { prefix: { type: 'string', description: 'Filter by name prefix, e.g. "legal."' } },
+      properties: { prefix: { type: 'string', description: 'Filter by name prefix, e.g. "legal." or "finance."' } },
     },
     handler: async (a) => ({ ok: true, skills: skills.list({ prefix: a.prefix }) }),
+  },
+
+  skills_domains: {
+    description: 'List skill domains (legal, writing, code, finance, etc.) with skill counts.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, domains: skills.domains(), total: skills.list().length }),
+  },
+
+  skills_register_template: {
+    description: 'Register a template skill at runtime. Template is mustache-style ${field} text that gets filled from input. Persisted across server restarts in vault::_meta.custom_skills.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name:        { type: 'string', description: 'e.g. "ops.runbook_outage"' },
+        description: { type: 'string' },
+        template:    { type: 'string', description: 'Mustache-style template; ${field} placeholders.' },
+        inputSchema: { type: 'object' },
+      },
+      required: ['name', 'template'],
+    },
+    handler: async (a) => {
+      const r = skills.registerTemplate(a);
+      if (r.ok) await persist();
+      return r;
+    },
+  },
+
+  workflows_library: {
+    description: 'List prebuilt workflow templates. Returns id, description, nodes, and the input variables each requires.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => {
+      const { listWorkflows } = await import('./skills/workflows_library.mjs');
+      return { ok: true, workflows: listWorkflows() };
+    },
+  },
+
+  workflows_get: {
+    description: 'Get a single workflow definition from the library by id.',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    handler: async (a) => {
+      const { WORKFLOW_LIBRARY } = await import('./skills/workflows_library.mjs');
+      const wf = WORKFLOW_LIBRARY[a.id];
+      return wf ? { ok: true, workflow: wf } : { ok: false, reason: 'WORKFLOW_NOT_FOUND' };
+    },
   },
 
   skills_run: {

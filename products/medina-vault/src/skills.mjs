@@ -1,21 +1,52 @@
 // skills.mjs — registry of named skills callable through MCP.
 // Each skill = { name, description, inputSchema, run(input, ctx) }.
-// Builtins: legal artifacts (NDA, demand letter, contractor agreement, etc.).
-// Operator can add custom skills at runtime via skills_register.
+// Domains: legal · memory · writing · code · comms · finance · data · research
+// Custom skills can be registered at runtime via skills_register and
+// persist into the vault as template skills (mustache fill).
 
-import { LEGAL_SKILLS } from './skills/legal.mjs';
+import { LEGAL_SKILLS }    from './skills/legal.mjs';
+import { WRITING_SKILLS }  from './skills/writing.mjs';
+import { CODE_SKILLS }     from './skills/code.mjs';
+import { COMMS_SKILLS }    from './skills/comms.mjs';
+import { FINANCE_SKILLS }  from './skills/finance.mjs';
+import { DATA_SKILLS }     from './skills/data.mjs';
+import { RESEARCH_SKILLS } from './skills/research.mjs';
+import { buildMemorySkills } from './skills/memory.mjs';
 
 export class SkillRegistry {
-  constructor() {
+  constructor({ vault, custos } = {}) {
     /** @type {Map<string, Skill>} */
     this.skills = new Map();
     this.runs   = [];   // last N runs for introspection
     this.maxRuns = 100;
-    this._registerBuiltins();
+    this._registerBuiltins({ vault, custos });
   }
 
-  _registerBuiltins() {
-    for (const s of LEGAL_SKILLS) this.skills.set(s.name, s);
+  _registerBuiltins({ vault, custos }) {
+    const batches = [
+      LEGAL_SKILLS, WRITING_SKILLS, CODE_SKILLS, COMMS_SKILLS,
+      FINANCE_SKILLS, DATA_SKILLS, RESEARCH_SKILLS,
+    ];
+    for (const batch of batches) for (const s of batch) this.skills.set(s.name, s);
+    if (vault) {
+      for (const s of buildMemorySkills({ vault, custos })) this.skills.set(s.name, s);
+    }
+  }
+
+  /** Register a template skill at runtime (mustache-style ${field} fill on the template). */
+  registerTemplate({ name, description, template, inputSchema }) {
+    if (!name || !template) return { ok: false, reason: 'NAME_AND_TEMPLATE_REQUIRED' };
+    const skill = {
+      name, description: description || `Template skill: ${name}`,
+      inputSchema: inputSchema || { type: 'object', properties: {} },
+      run(input) {
+        const out = String(template).replace(/\$\{([^}]+)\}/g, (_, k) => String(input[k] ?? ''));
+        return { ok: true, kind: 'text', text: out };
+      },
+      template: true,
+    };
+    this.skills.set(name, skill);
+    return { ok: true, name };
   }
 
   register(skill) {
@@ -32,8 +63,19 @@ export class SkillRegistry {
         name: s.name,
         description: s.description,
         inputSchema: s.inputSchema,
-        builtin: LEGAL_SKILLS.some(b => b.name === s.name),
+        domain: s.name.split('.')[0],
+        template: !!s.template,
       }));
+  }
+
+  domains() {
+    const counts = {};
+    for (const s of this.skills.values()) {
+      const d = s.name.split('.')[0];
+      counts[d] = (counts[d] || 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])
+      .map(([domain, count]) => ({ domain, count }));
   }
 
   describe(name) {
