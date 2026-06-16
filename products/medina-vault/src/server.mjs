@@ -38,6 +38,8 @@ import { MemoryConsolidator } from './consolidation.mjs';
 import { Reinforcement } from './reinforcement.mjs';
 import { SkillCache } from './cache.mjs';
 import { BudgetTracker } from './budget.mjs';
+import { EfficiencyEngine } from './efficiency.mjs';
+import { FailureRegistry } from './failures.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -91,6 +93,10 @@ const consolidator  = new MemoryConsolidator({ vault, receipts, graph });
 // Efficiency layer (PROTOCOL_20..21): skill cache + budget tracker
 const cache  = new SkillCache();    cache.loadFromMeta(existing?._meta);
 const budget = new BudgetTracker(); budget.loadFromMeta(existing?._meta);
+const efficiency = new EfficiencyEngine({ receipts, registry: skills });
+efficiency.loadFromMeta(existing?._meta);
+const failures = new FailureRegistry({ receipts });
+failures.loadFromMeta(existing?._meta);
 
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
@@ -134,6 +140,8 @@ async function persist() {
       ...reinforcement.toMeta(),
       ...cache.toMeta(),
       ...budget.toMeta(),
+      ...efficiency.toMeta(),
+      ...failures.toMeta(),
       custom_skills: customTemplates,
       custos: { online: true, last_persist: Date.now() },
     };
@@ -184,9 +192,25 @@ const tools = {
         graph.link(entryId, graph.session.id, 'belongs_to');
         receipts.append({ kind: 'vault_store', ref: r.entry.key, agent: requester,
                           meta: { tier: r.entry.tier, lineage_depth: r.lineage_depth, hash: r.head_hash } });
+        // System observes the vault write and fires any applicable efficiency receipts.
+        efficiency.observe({ type: 'vault_post', key: r.entry.key, value: r.entry.value,
+                             tier: r.entry.tier, dedup: false });
         await persist();
         r.tokens_earned = earned;
         r.medina_hash = medinaHash(r.entry);
+      } else if (r.reason === 'RECITAL_MISMATCH' || r.reason === 'DUPLICATE') {
+        efficiency.observe({ type: 'vault_post', key: a.key, value: a.value,
+                             tier: a.tier || 'PRIVATE', dedup: true });
+        const kindMap = { RECITAL_MISMATCH: 'vault_recital_mismatch',
+                          GENESIS_EXPECTS_EMPTY: 'vault_genesis_expects_empty',
+                          INVALID_TIER: 'vault_invalid_tier',
+                          SOVEREIGN_OWNER_ONLY: 'vault_sovereign_owner_only',
+                          TIER_FORBIDDEN: 'vault_tier_forbidden' };
+        failures.observe({ kind: kindMap[r.reason] || 'unknown', reason: r.reason,
+                           agent: requester, input: { key: a.key, tier: a.tier } });
+      } else if (!r.ok) {
+        failures.observe({ kind: 'unknown', reason: r.reason || 'UNKNOWN',
+                           agent: requester, input: { key: a.key, tier: a.tier } });
       }
       return r;
     },
@@ -496,18 +520,30 @@ const tools = {
       const requester = defaultRequester(a);
       // Efficiency: try cache first
       const cached = cache.get(a.name, a.input || {});
-      let r, fromCache = false;
+      let r, fromCache = false, ms = 0;
       if (cached) { r = { ...cached, _cache_hit: true }; fromCache = true; }
       else {
         const t0 = Date.now();
         r = await skills.run(a.name, a.input || {}, { agent_id: requester });
-        cache.set(a.name, a.input || {}, r, { ms: Date.now() - t0 });
+        ms = Date.now() - t0;
+        cache.set(a.name, a.input || {}, r, { ms });
       }
       // Budget tracking
-      budget.record(requester, a.name, { input: a.input, output: r });
+      const budgetResult = budget.record(requester, a.name, { input: a.input, output: r });
+      const budgetCheck  = budget.check(requester);
+      // System observes the event and writes efficiency receipts itself.
+      efficiency.observe({ type: 'skill_post', skill: a.name, input: a.input,
+                           output: r, ms, agent: requester, from_cache: fromCache });
+      efficiency.observe({ type: 'budget_tick', agent: requester, percent_used: budgetCheck.percent_used });
       // Receipt + graph for every skill run (regardless of artifact store)
       receipts.append({ kind: 'skill_run', ref: a.name, agent: requester,
                         meta: { ok: !!r.ok, reason: r.reason ?? null, cached: fromCache } });
+      // System observes failures and learns patterns autonomously.
+      if (!r.ok) {
+        const kind = r.reason === 'SKILL_THREW' ? 'skill_threw' : 'skill_returned_error';
+        failures.observe({ kind, reason: r.reason || 'UNKNOWN', skill: a.name,
+                           agent: requester, input: a.input, message: r.message });
+      }
       const skillNodeId = `skill:${a.name}`;
       graph.addNode({ id: skillNodeId, kind: 'skill', label: a.name });
       graph.link(`agent:${requester}`, skillNodeId, 'called');
@@ -750,6 +786,8 @@ const tools = {
       if (r.ok) {
         receipts.append({ kind: 'sandbox_promote', ref: a.id, agent: 'operator', meta: { promoted_as: r.promoted_as } });
         graph.addNode({ id: r.promoted_as, kind: 'skill', label: r.promoted_as });
+        const draft = sandbox.drafts.get(a.id);
+        efficiency.observe({ type: 'sandbox_promote', composition_size: draft?.composition?.nodes?.length || 1 });
         await persist();
       }
       return r;
@@ -994,7 +1032,12 @@ const tools = {
   reinforcement_beat: {
     description: 'Apply one φ-decay beat to all reinforcement records older than minQuiet (default 60s). Marks any below 0.05 as stale.',
     inputSchema: { type: 'object', properties: { min_quiet_ms: { type: 'number' } } },
-    handler: async (a) => { const r = reinforcement.beat({ minQuietMs: a.min_quiet_ms }); await persist(); return r; },
+    handler: async (a) => {
+      const r = reinforcement.beat({ minQuietMs: a.min_quiet_ms });
+      if (r.ok) efficiency.observe({ type: 'reinforcement_beat', marked_stale: r.marked_stale });
+      await persist();
+      return r;
+    },
   },
   reinforcement_list: {
     description: 'List reinforcement records, optionally filtered by stale flag or min confidence.',
@@ -1057,9 +1100,75 @@ const tools = {
       type: 'object',
       properties: { session_id: { type: 'string' }, agent_id: { type: 'string' }, since_hash: { type: 'string' } },
     },
-    handler: async (a) => ctxLog.openDelta({ session_id: a.session_id || graph.session.id,
-                                              agent: a.agent_id || 'claude',
-                                              since_hash: a.since_hash }),
+    handler: async (a) => {
+      const r = ctxLog.openDelta({ session_id: a.session_id || graph.session.id,
+                                    agent: a.agent_id || 'claude',
+                                    since_hash: a.since_hash });
+      const fullBytes = JSON.stringify(ctxLog.latest({ agent: a.agent_id || 'claude' }) || {}).length;
+      const deltaBytes = JSON.stringify(r.delta || {}).length;
+      efficiency.observe({ type: 'session_open', agent: a.agent_id || 'claude',
+                           returned_bytes: fullBytes, delta_bytes: deltaBytes,
+                           no_change: r.no_change });
+      return r;
+    },
+  },
+
+  // ── EFFICIENCY ENGINE (20 models, autonomous receipts) ──────────────
+
+  efficiency_list: {
+    description: 'List all 20 efficiency models with description, enabled flag, and fire count. The system runs these autonomously on every observed event.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, models: efficiency.list() }),
+  },
+  efficiency_stats: {
+    description: 'Aggregate efficiency stats: tokens saved, calls avoided, ms saved, bytes saved, top firing models.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...efficiency.stats() }),
+  },
+  efficiency_report: {
+    description: 'Auto-generated markdown efficiency report from observed activity. The system writes this — not you.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => efficiency.report(),
+  },
+  efficiency_toggle: {
+    description: 'Enable or disable an efficiency model by id.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' }, on: { type: 'boolean' } },
+      required: ['id', 'on'],
+    },
+    handler: async (a) => { const r = efficiency.toggle(a.id, a.on); await persist(); return r; },
+  },
+
+  // ── FAILURE REGISTRY (autonomous: system observes errors, learns patterns) ──
+
+  failures_list: {
+    description: 'List failure buckets, optionally filtered to detected-patterns-only or those with open proposals. Newest activity first.',
+    inputSchema: {
+      type: 'object',
+      properties: { pattern_only: { type: 'boolean' }, with_proposals: { type: 'boolean' }, limit: { type: 'number', default: 50 } },
+    },
+    handler: async (a) => ({ ok: true, buckets: failures.list(a) }),
+  },
+  failures_get: {
+    description: 'Get a failure bucket by signature: full context history + any proposed fix.',
+    inputSchema: { type: 'object', properties: { sig: { type: 'string' } }, required: ['sig'] },
+    handler: async (a) => failures.get(a.sig),
+  },
+  failures_stats: {
+    description: 'Aggregate stats: total failures, patterns detected, fixes proposed/applied, by_kind breakdown, top recurring.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...failures.stats() }),
+  },
+  failures_apply_fix: {
+    description: 'Apply the auto-proposed fix for a failure pattern. For documentation_entry strategy, returns the entry to vault_store.',
+    inputSchema: { type: 'object', properties: { sig: { type: 'string' } }, required: ['sig'] },
+    handler: async (a) => { const r = failures.applyFix(a.sig); await persist(); return r; },
+  },
+  failures_dismiss: {
+    description: 'Dismiss an open proposal (the pattern is real but not worth fixing).',
+    inputSchema: { type: 'object', properties: { sig: { type: 'string' } }, required: ['sig'] },
+    handler: async (a) => { const r = failures.dismiss(a.sig); await persist(); return r; },
   },
 
   // ── SEMANTIC RECALL via φ-spectral fingerprints ─────────────────────

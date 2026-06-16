@@ -17,6 +17,10 @@ const RECEIPT_KINDS = new Set([
   'token_mint', 'token_unwrap',
   'key_set', 'key_use', 'key_delete',
   'sandbox_test', 'sandbox_promote',
+  // Efficiency receipts — written by the system observing activity, not by the AI.
+  'efficiency_event',
+  // Failure receipts — system observes errors, learns patterns, proposes fixes.
+  'failure_observed', 'failure_pattern_detected', 'failure_fix_proposed', 'failure_fix_applied',
 ]);
 
 export class ReceiptLedger {
