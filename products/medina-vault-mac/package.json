@@ -1,0 +1,42 @@
+{
+  "name": "@medina/vault-mac",
+  "version": "0.1.0",
+  "description": "Medina Vault as a macOS menu-bar app. One install, vault runs in the background, dashboard opens in browser.",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac dmg --x64 --arm64",
+    "dist:mac:arm": "electron-builder --mac dmg --arm64"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "tech.medina.vault",
+    "productName": "Medina Vault",
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "tray-icon.png",
+      "../medina-vault/src/**/*",
+      "../medina-vault/charter/**/*",
+      "../medina-dashboard/src/**/*",
+      "../../protocols/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "icon": "tray-icon.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "Medina Vault",
+      "window": { "width": 540, "height": 380 }
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
+}

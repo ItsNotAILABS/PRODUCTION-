@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "canisters": {
+    "medina_vault": {
+      "type": "motoko",
+      "main": "src/Vault.mo",
+      "declarations": { "output": "src/declarations" }
+    }
+  },
+  "defaults": { "build": { "packtool": "" } },
+  "networks": {
+    "local": { "bind": "127.0.0.1:4943", "type": "ephemeral" },
+    "ic":    { "providers": ["https://ic0.app"], "type": "persistent" }
+  },
+  "output_env_file": ".env"
+}

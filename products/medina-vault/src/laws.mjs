@@ -141,3 +141,14 @@ export function isTier(t) {
 export function stableStringify(obj) {
   return JSON.stringify(obj, Object.keys(obj).sort());
 }
+
+/**
+ * Medina hash variant — same SHA-256 inside, prefixed with "MX-" so a
+ * Medina hash is identifiable in any log/wire/output. Used by SHA-style
+ * internal systems that want to declare provenance.
+ *
+ *   medinaHash(entry) === "MX-" + hashEntry(entry)
+ */
+export function medinaHash(entry) {
+  return 'MX-' + hashEntry(entry);
+}

@@ -72,11 +72,14 @@ try {
   send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   const list = await waitFor(2);
   const toolNames = list.result.tools.map((t) => t.name);
-  assert('tools/list exposes 12 vault tools (9 free + 3 pro)',
-    toolNames.length === 12 &&
+  assert('tools/list exposes 16 vault tools (9 free + 4 inside + 3 pro)',
+    toolNames.length === 16 &&
     toolNames.includes('vault_store') &&
     toolNames.includes('vault_search') &&
     toolNames.includes('vault_lineage') &&
+    toolNames.includes('vault_custos') &&
+    toolNames.includes('vault_tokens') &&
+    toolNames.includes('vault_protocols') &&
     toolNames.includes('memory_palace_search'),
     toolNames.join(','));
 
@@ -86,6 +89,31 @@ try {
   assert('pro tool surfaces UPGRADE_REQUIRED when unlicensed',
     !proRes.ok && proRes.reason === 'UPGRADE_REQUIRED' && proRes.tier === 'PRO_RESONANT',
     `reason=${proRes.reason}`);
+
+  // store earns tokens + medina_hash + custos observes
+  send({ jsonrpc:'2.0', id:91, method:'tools/call', params:{
+    name:'vault_store', arguments:{ key:'demo/token-write', value:'x', tier:'PRIVATE' }}});
+  const sw = JSON.parse((await waitFor(91)).result.content[0].text);
+  assert('store returns tokens_earned + medina_hash',
+    sw.ok && typeof sw.tokens_earned === 'number' && sw.tokens_earned > 0 && /^MX-/.test(sw.medina_hash),
+    `earned=${sw.tokens_earned} hash=${sw.medina_hash?.slice(0,9)}…`);
+
+  send({ jsonrpc:'2.0', id:92, method:'tools/call', params:{ name:'vault_tokens', arguments:{} }});
+  const tk = JSON.parse((await waitFor(92)).result.content[0].text);
+  assert('vault_tokens reports balance + rank',
+    tk.ok && tk.tokens > 0 && tk.rank_on_node >= 1, JSON.stringify(tk));
+
+  send({ jsonrpc:'2.0', id:93, method:'tools/call', params:{ name:'vault_custos', arguments:{} }});
+  const cv = JSON.parse((await waitFor(93)).result.content[0].text);
+  assert('vault_custos returns engagement view',
+    cv.ok && typeof cv.session_engagement === 'number' && cv.protocol === 'PROTOCOL_08',
+    `eng=${cv.session_engagement} needs_nudge=${cv.needs_nudge}`);
+
+  send({ jsonrpc:'2.0', id:94, method:'tools/call', params:{ name:'vault_protocols', arguments:{} }});
+  const pr = JSON.parse((await waitFor(94)).result.content[0].text);
+  assert('vault_protocols lists 10 protocols',
+    pr.ok && pr.count === 10 && pr.protocols[0].name === 'RECITAL_PLUS_ONE',
+    `count=${pr.count} first=${pr.protocols[0]?.name}`);
 
   send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: {
     name: 'vault_store',

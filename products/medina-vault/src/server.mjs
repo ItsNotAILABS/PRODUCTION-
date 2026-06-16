@@ -17,9 +17,14 @@
 import { stdin, stdout, stderr, argv, env } from 'node:process';
 import { MedinaVault } from './vault.mjs';
 import { defaultVaultPath, loadSnapshot, saveSnapshot } from './snapshot.mjs';
-import { hashEntry } from './laws.mjs';
+import { hashEntry, medinaHash } from './laws.mjs';
 import { chartManifest } from '../charter/charter.mjs';
 import { PRO_TOOLS, PRO_STATUS } from './pro.mjs';
+import { Custos } from './custos.mjs';
+import { TokenLedger, tokenValue } from './tokens.mjs';
+import { promises as fsp } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // ── Identity ────────────────────────────────────────────────────────────
 
@@ -35,6 +40,21 @@ const vault = new MedinaVault();
 const existing = await loadSnapshot(VAULT_PATH).catch(() => null);
 if (existing) vault.loadFromJSON(existing);
 
+// Custos — the intelligence entity inside (PROTOCOL_08)
+const custos = new Custos();
+await custos.load();
+
+// Token ledger (PROTOCOL_09) — persisted in vault.json::_meta
+const tokens = new TokenLedger();
+tokens.loadFromMeta(existing?._meta);
+
+// Protocols directory (resolved relative to this server file)
+const PROTOCOLS_DIR = (() => {
+  try {
+    return join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'protocols');
+  } catch { return null; }
+})();
+
 // One operator per node (the human installing the app).
 // Defaults to the OS user. Override with MEDINA_OPERATOR_ID env var.
 const OPERATOR_ID = env.MEDINA_OPERATOR_ID || env.USER || env.USERNAME || 'operator';
@@ -44,8 +64,13 @@ const OPERATOR_ID = env.MEDINA_OPERATOR_ID || env.USER || env.USERNAME || 'opera
 const defaultRequester = (args) => args?.agent_id || OPERATOR_ID;
 
 async function persist() {
-  try { await saveSnapshot(vault.toJSON(), VAULT_PATH); }
-  catch (e) { stderr.write(`[medina-vault] persist failed: ${e.message}\n`); }
+  try {
+    // Merge token ledger into vault snapshot under _meta.
+    const snap = vault.toJSON();
+    snap._meta = { ...(snap._meta || {}), ...tokens.toMeta(), custos: { online: true, last_persist: Date.now() } };
+    await saveSnapshot(snap, VAULT_PATH);
+    await custos.persist();
+  } catch (e) { stderr.write(`[medina-vault] persist failed: ${e.message}\n`); }
 }
 
 // ── Tools the server exposes ────────────────────────────────────────────
@@ -69,16 +94,23 @@ const tools = {
       required: ['key', 'value'],
     },
     handler: async (a) => {
+      const requester = defaultRequester(a);
       const r = vault.store({
         key: a.key, value: a.value,
         tier: a.tier || 'PRIVATE',
-        ownerId: defaultRequester(a),
+        ownerId: requester,
         prior_hash: a.prior_hash,
         ttlMs: a.ttl_ms,
         metadata: a.metadata,
         sharedWith: a.shared_with,
       });
-      if (r.ok) await persist();
+      if (r.ok) {
+        const earned = tokens.award(requester, { tier: r.entry.tier, lineageDepth: r.lineage_depth });
+        custos.observeWrite({ agentId: requester, tier: r.entry.tier, key: r.entry.key, lineageDepth: r.lineage_depth });
+        await persist();
+        r.tokens_earned = earned;
+        r.medina_hash = medinaHash(r.entry);
+      }
       return r;
     },
   },
@@ -94,8 +126,11 @@ const tools = {
       required: ['key'],
     },
     handler: async (a) => {
-      const r = vault.retrieve(a.key, defaultRequester(a));
-      if (r.ok) return { ...r, head_hash: hashEntry(r.entry) };
+      const requester = defaultRequester(a);
+      const r = vault.retrieve(a.key, requester);
+      custos.observeRead({ agentId: requester, key: a.key, ok: r.ok });
+      await custos.persist();
+      if (r.ok) return { ...r, head_hash: hashEntry(r.entry), medina_hash: medinaHash(r.entry) };
       return r;
     },
   },
@@ -206,7 +241,72 @@ const tools = {
       tiers: vault.status(),
       charter: chartManifest(),
       pro_licensed: PRO_STATUS.licensed(),
+      custos: custos.status(),
     }),
+  },
+
+  vault_custos: {
+    description: 'Read what the in-vault intelligence entity has observed about you. Returns engagement, whether you read SOVEREIGN preferences this session, writes by tier, last observation. PROTOCOL_08.',
+    inputSchema: {
+      type: 'object',
+      properties: { agent_id: { type: 'string' } },
+    },
+    handler: async (a) => {
+      const requester = defaultRequester(a);
+      const v = custos.view(requester);
+      const needs = custos.needsNudge(requester);
+      return { ok: true, ...v, needs_nudge: needs,
+               protocol: 'PROTOCOL_08',
+               hint: needs
+                 ? 'You have not read operator/preferences/* this session. Read them before proceeding.'
+                 : 'Engagement healthy. Carry on.' };
+    },
+  },
+
+  vault_tokens: {
+    description: 'Memory token balance for an agent on this node. Formula: tier_weight × (1 + lineage_depth · φ⁻¹). PROTOCOL_09.',
+    inputSchema: {
+      type: 'object',
+      properties: { agent_id: { type: 'string' } },
+    },
+    handler: async (a) => tokens.view(defaultRequester(a)),
+  },
+
+  vault_leaderboard: {
+    description: 'Top agents by token balance on this node.',
+    inputSchema: {
+      type: 'object',
+      properties: { limit: { type: 'number', default: 10 } },
+    },
+    handler: async (a) => ({ ok: true, leaderboard: tokens.leaderboard(a.limit) }),
+  },
+
+  vault_protocols: {
+    description: 'List the 10 Medina protocols governing this node. Returns id, name, layer, binding. AIs should read 01-05 before writing.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => {
+      const out = [];
+      if (PROTOCOLS_DIR) {
+        try {
+          const files = (await fsp.readdir(PROTOCOLS_DIR)).filter(f => /^PROTOCOL-\d/.test(f)).sort();
+          for (const f of files) {
+            const text = await fsp.readFile(join(PROTOCOLS_DIR, f), 'utf8');
+            const header = text.match(/<!--([\s\S]*?)-->/)?.[1] ?? '';
+            const idM    = header.match(/id:\s*(\d+)/);
+            const nameM  = header.match(/name:\s*(\w+)/);
+            const layerM = header.match(/layer:\s*(\w+)/);
+            out.push({
+              id: idM ? Number(idM[1]) : null,
+              name: nameM ? nameM[1] : null,
+              layer: layerM ? layerM[1] : null,
+              file: f,
+              path: join(PROTOCOLS_DIR, f),
+            });
+          }
+        } catch { /* no protocols dir on this machine */ }
+      }
+      return { ok: true, protocol_version: 'MEDINA-PROTOCOL/0.2', count: out.length, protocols: out };
+    },
   },
 
   // PRO bridge tools — advertised in tools/list. Without MEDINA_PRO_LICENSE
