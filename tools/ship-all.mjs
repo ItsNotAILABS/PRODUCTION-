@@ -35,6 +35,8 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_skills_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · graph/knowledge/sandbox/receipts/integrations`,
                 process.execPath, ['src/_layer_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · workspace/plans/context/consolidation/reinforcement`,
+                process.execPath, ['src/_workspace_smoke.mjs'], cwd) && allOk;
   }
 }
 

@@ -24,6 +24,10 @@ const { ReceiptLedger }    = await import(pathToFileURL(join(VAULT_SRC, 'receipt
 const { SkillSandbox }     = await import(pathToFileURL(join(VAULT_SRC, 'sandbox.mjs')).href);
 const { KeyVault }         = await import(pathToFileURL(join(VAULT_SRC, 'keys.mjs')).href);
 const { buildGitHubSkills } = await import(pathToFileURL(join(VAULT_SRC, 'integrations/github.mjs')).href);
+const { Workspace }        = await import(pathToFileURL(join(VAULT_SRC, 'workspace.mjs')).href);
+const { PlanLedger }       = await import(pathToFileURL(join(VAULT_SRC, 'plans.mjs')).href);
+const { ContextLog }       = await import(pathToFileURL(join(VAULT_SRC, 'context.mjs')).href);
+const { Reinforcement }    = await import(pathToFileURL(join(VAULT_SRC, 'reinforcement.mjs')).href);
 
 const PORT = Number(process.env.MEDINA_DASHBOARD_PORT || 8731);
 const MEDINA_HOME = process.env.MEDINA_HOME || join(homedir(), '.medina');
@@ -43,6 +47,10 @@ const workflows = new WorkflowRunner({ registry: skills });
 const graph    = new SessionGraph();
 const knowledge = new KnowledgeLedger();
 const sandbox   = new SkillSandbox({ registry: skills, runner: workflows });
+const workspace = new Workspace();
+const planLedger = new PlanLedger();
+const ctxLog    = new ContextLog();
+const reinforcement = new Reinforcement();
 
 // Hydrate read-only views from the on-disk vault snapshot
 async function rehydrate() {
@@ -52,6 +60,10 @@ async function rehydrate() {
   receipts.loadFromMeta(v?._meta);
   sandbox.loadFromMeta(v?._meta);
   keys.loadFromMeta(v?._meta);
+  workspace.loadFromMeta(v?._meta);
+  planLedger.loadFromMeta(v?._meta);
+  ctxLog.loadFromMeta(v?._meta);
+  reinforcement.loadFromMeta(v?._meta);
 }
 
 async function readJsonSafe(p) {
@@ -115,6 +127,8 @@ async function gatherState() {
     knowledge: knowledge.stats(),
     receipts:  receipts.stats(),
     sandbox:   { drafts: sandbox.list() },
+    workspace: { agents: workspace.agents().length },
+    plans:     planLedger.stats(),
     counts: { skills: skills.list().length, workflows: Object.keys(WORKFLOW_LIBRARY).length,
               domains: skills.domains().length },
     timestamp: new Date().toISOString(),
@@ -178,6 +192,17 @@ const server = createServer(async (req, res) => {
       await rehydrate();
       return json(res, { drafts: sandbox.list() });
     }
+    if (req.method === 'GET' && url.pathname === '/api/workspace') {
+      await rehydrate();
+      const agents = workspace.agents();
+      const workspaces = {};
+      for (const a of agents) workspaces[a] = workspace.view(a);
+      return json(res, { agents, workspaces });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/plans') {
+      await rehydrate();
+      return json(res, { plans: planLedger.list({ limit: 50 }), next_actions: planLedger.nextActions({ limit: 10 }), stats: planLedger.stats() });
+    }
 
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     res.end(HTML);
@@ -205,7 +230,7 @@ const HTML = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Medina Mesh</title>
+<title>Medina · AI memory, skills & continuity</title>
 <style>
 :root{
   --bg:#07090e; --panel:#0d111a; --panel2:#11161f; --line:#1a2233;
@@ -288,8 +313,9 @@ th{color:var(--dim);font-weight:normal;font-size:10px;text-transform:uppercase;l
 <div class="app">
   <aside class="side">
     <div class="brand">
-      <h1>𓂀 MEDINA MESH</h1>
-      <div class="sub">MEDINA-PROTOCOL/0.2 · <span class="live"></span>φ=1.618</div>
+      <h1>𓂀 MEDINA</h1>
+      <div class="sub">AI memory · skills · continuity</div>
+      <div class="sub" style="margin-top:2px">protocol 0.2 · <span class="live"></span>φ=1.618 · 873ms</div>
     </div>
     <nav class="nav" id="nav"></nav>
     <div class="foot">
@@ -313,6 +339,8 @@ th{color:var(--dim);font-weight:normal;font-size:10px;text-transform:uppercase;l
 
 <script>
 const TABS = [
+  { id:'workspace', label:'Workspace', icon:'☉' },
+  { id:'plans',     label:'Plans',     icon:'☷' },
   { id:'vault',     label:'Vault',     icon:'⟁' },
   { id:'skills',    label:'Skills',    icon:'✦' },
   { id:'workflows', label:'Workflows', icon:'⇄' },
@@ -348,6 +376,8 @@ function renderNav() {
     vault:     STATE.vault.total,
     skills:    SKILLS.length,
     workflows: WFS.length,
+    workspace: STATE.workspace?.agents ?? 0,
+    plans:     STATE.plans?.total ?? 0,
     knowledge: STATE.knowledge?.total ?? 0,
     graph:     STATE.graph?.total_nodes ?? 0,
     sandbox:   STATE.sandbox?.drafts?.length ?? 0,
@@ -379,6 +409,50 @@ function render(tab) {
   else if (tab === 'graph')     { m.innerHTML = '<div class="empty">loading…</div>'; loadGraph(); }
   else if (tab === 'receipts')  { m.innerHTML = '<div class="empty">loading…</div>'; loadReceipts(); }
   else if (tab === 'sandbox')   { m.innerHTML = '<div class="empty">loading…</div>'; loadSandbox(); }
+  else if (tab === 'workspace') { m.innerHTML = '<div class="empty">loading…</div>'; loadWorkspace(); }
+  else if (tab === 'plans')     { m.innerHTML = '<div class="empty">loading…</div>'; loadPlans(); }
+}
+
+async function loadWorkspace() {
+  const r = await fetch('/api/workspace').then(x=>x.json());
+  if (!r.agents?.length) {
+    $('main').innerHTML = '<div class="head"><h2>Workspace</h2></div><div class="empty">no agent workspaces yet — call workspace_focus to start</div>';
+    return;
+  }
+  let html = '<div class="head"><h2>Workspace</h2><span class="pill">'+r.agents.length+' agent(s) · focus 7 · scratchpad TTL 4h</span></div>';
+  html += '<div style="color:var(--ink-dim);font-size:11px;margin-bottom:14px">An AI\\'s working space: <b>focus slots</b> (LRU, cap 7 — Miller 7±2) hold what you\\'re thinking about right now. <b>Scratchpad</b> notes auto-expire in 4 hours; after 2 reads they become eligible for vault promotion. Re-touching a focus resets its confidence to 1.0; cold slots φ-decay each beat.</div>';
+  for (const a of r.agents) {
+    const view = r.workspaces[a];
+    const focusRows = view.focus.length === 0 ? '<tr><td colspan="4" class="empty">no focus slots</td></tr>'
+      : view.focus.map(f => '<tr><td><code>'+esc(f.key)+'</code></td><td>'+f.confidence.toFixed(2)+'</td><td>'+f.touches+'</td><td>'+new Date(f.lastTouched).toLocaleTimeString()+'</td></tr>').join('');
+    const scratchRows = view.scratchpad.length === 0 ? '<tr><td colspan="4" class="empty">scratchpad empty</td></tr>'
+      : view.scratchpad.map(s => '<tr><td><code>'+esc(s.key)+'</code></td><td>'+s.reads+'</td><td>'+(s.eligible?'<span style="color:var(--green)">✓ eligible</span>':'—')+'</td><td>'+new Date(s.expiresAt).toLocaleTimeString()+'</td></tr>').join('');
+    html += '<h3 style="font-size:11px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-top:18px">Agent: <code>'+esc(a)+'</code></h3>';
+    html += '<div class="stats" style="margin:8px 0"><div class="stat"><div class="n">'+view.focus.length+'</div><div class="l">focus</div></div><div class="stat"><div class="n">'+view.scratchpad.length+'</div><div class="l">scratch</div></div><div class="stat"><div class="n">'+(view.stats?.focuses||0)+'</div><div class="l">total focuses</div></div><div class="stat"><div class="n">'+(view.stats?.scratches||0)+'</div><div class="l">total scratches</div></div></div>';
+    html += '<h4 style="font-size:10px;color:var(--dim);letter-spacing:.1em;margin:12px 0 4px">Focus slots (LRU)</h4>';
+    html += '<table><thead><tr><th>key</th><th>confidence</th><th>touches</th><th>last touched</th></tr></thead><tbody>'+focusRows+'</tbody></table>';
+    html += '<h4 style="font-size:10px;color:var(--dim);letter-spacing:.1em;margin:12px 0 4px">Scratchpad</h4>';
+    html += '<table><thead><tr><th>key</th><th>reads</th><th>promotable</th><th>expires</th></tr></thead><tbody>'+scratchRows+'</tbody></table>';
+  }
+  $('main').innerHTML = html;
+}
+
+async function loadPlans() {
+  const r = await fetch('/api/plans').then(x=>x.json());
+  const rows = r.plans.length === 0
+    ? '<tr><td colspan="6" class="empty">no plans yet — call plan_create with steps to track work across sessions</td></tr>'
+    : r.plans.map(p => '<tr><td><code>'+esc(p.id)+'</code></td><td>'+esc(p.title)+'</td><td><span class="tag">'+esc(p.status)+'</span></td><td>'+p.steps_done+' / '+p.steps_total+'</td><td>'+(p.steps_blocked>0?'<span style="color:var(--red)">'+p.steps_blocked+'</span>':'0')+'</td><td>'+new Date(p.updated).toLocaleString()+'</td></tr>').join('');
+  const actRows = r.next_actions.length === 0
+    ? '<tr><td colspan="4" class="empty">no actionable steps right now</td></tr>'
+    : r.next_actions.map(a => '<tr><td><code>'+esc(a.plan_id)+'</code></td><td>'+esc(a.plan_title)+'</td><td>'+esc(a.step_title)+'</td><td>'+(a.intended_skill?'<code>'+esc(a.intended_skill)+'</code>':(a.intended_workflow?'<code>'+esc(a.intended_workflow)+'</code>':'—'))+'</td></tr>').join('');
+  const byStatus = Object.entries(r.stats?.by_status||{}).map(([s,n]) => '<span class="tag">'+esc(s)+' <code>'+n+'</code></span>').join('');
+  $('main').innerHTML =
+    '<div class="head"><h2>Plans</h2><span class="pill">'+r.plans.length+' plans · '+r.stats?.open_steps+' open steps</span></div>'+
+    '<div style="margin-bottom:14px">'+byStatus+'</div>'+
+    '<h3 style="font-size:11px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase">Next actions across all active plans</h3>'+
+    '<table><thead><tr><th>plan</th><th>title</th><th>step</th><th>intended</th></tr></thead><tbody>'+actRows+'</tbody></table>'+
+    '<h3 style="font-size:11px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-top:24px">All plans</h3>'+
+    '<table><thead><tr><th>id</th><th>title</th><th>status</th><th>steps</th><th>blocked</th><th>updated</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 async function loadKnowledge() {

@@ -31,6 +31,11 @@ import { KnowledgeLedger } from './knowledge_tokens.mjs';
 import { SkillSandbox } from './sandbox.mjs';
 import { ReceiptLedger } from './receipts.mjs';
 import { buildGitHubSkills } from './integrations/github.mjs';
+import { Workspace } from './workspace.mjs';
+import { PlanLedger } from './plans.mjs';
+import { ContextLog } from './context.mjs';
+import { MemoryConsolidator } from './consolidation.mjs';
+import { Reinforcement } from './reinforcement.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -74,6 +79,13 @@ const workflows = new WorkflowRunner({ registry: skills });
 const sandbox   = new SkillSandbox({ registry: skills, runner: workflows });
 sandbox.loadFromMeta(existing?._meta);
 
+// AI workspace layer (PROTOCOL_15..19): workspace, plans, context, consolidation, reinforcement
+const workspace     = new Workspace();    workspace.loadFromMeta(existing?._meta);
+const plans         = new PlanLedger();   plans.loadFromMeta(existing?._meta);
+const ctxLog        = new ContextLog();   ctxLog.loadFromMeta(existing?._meta);
+const reinforcement = new Reinforcement(); reinforcement.loadFromMeta(existing?._meta);
+const consolidator  = new MemoryConsolidator({ vault, receipts, graph });
+
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
   try {
@@ -110,6 +122,10 @@ async function persist() {
       ...knowledge.toMeta(),
       ...sandbox.toMeta(),
       ...receipts.toMeta(),
+      ...workspace.toMeta(),
+      ...plans.toMeta(),
+      ...ctxLog.toMeta(),
+      ...reinforcement.toMeta(),
       custom_skills: customTemplates,
       custos: { online: true, last_persist: Date.now() },
     };
@@ -749,6 +765,231 @@ const tools = {
     description: 'Aggregate stats on the receipt chain: total, head_hash, counts by kind/agent.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => ({ ok: true, ...receipts.stats() }),
+  },
+
+  // ── AI WORKSPACE (PROTOCOL_15) ──────────────────────────────────────
+
+  workspace_focus: {
+    description: "Add or refresh a key in the agent's focus slots (LRU, capacity 7). Resets confidence to 1.0; evicts the coldest if full.",
+    inputSchema: {
+      type: 'object',
+      properties: { agent_id: { type: 'string' }, key: { type: 'string' }, value: {} },
+      required: ['key'],
+    },
+    handler: async (a) => {
+      const r = workspace.focus(a.agent_id || defaultRequester(a), a.key, a.value);
+      await persist();
+      return r;
+    },
+  },
+  workspace_beat: {
+    description: "Apply φ-decay to focus slots that haven't been touched in the last minute; evict any below 0.05 confidence.",
+    inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } } },
+    handler: async (a) => {
+      const r = workspace.beat(a.agent_id || defaultRequester(a));
+      await persist();
+      return r;
+    },
+  },
+  workspace_scratch: {
+    description: "Write a TTL-bounded note to the agent's scratchpad. Default TTL 4h. Notes become promotable after 2 reads.",
+    inputSchema: {
+      type: 'object',
+      properties: { agent_id: { type: 'string' }, key: { type: 'string' }, value: {}, ttl_ms: { type: 'number' } },
+      required: ['key', 'value'],
+    },
+    handler: async (a) => {
+      const r = workspace.scratch(a.agent_id || defaultRequester(a), a.key, a.value, { ttl: a.ttl_ms });
+      await persist();
+      return r;
+    },
+  },
+  workspace_read_scratch: {
+    description: 'Read a scratchpad note; bumps read count, eligible-for-promotion after 2 reads.',
+    inputSchema: {
+      type: 'object',
+      properties: { agent_id: { type: 'string' }, key: { type: 'string' } },
+      required: ['key'],
+    },
+    handler: async (a) => {
+      const r = workspace.readScratch(a.agent_id || defaultRequester(a), a.key);
+      await persist();
+      return r;
+    },
+  },
+  workspace_view: {
+    description: "View the agent's full workspace: focus slots + scratchpad + stats.",
+    inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } } },
+    handler: async (a) => ({ ok: true, ...workspace.view(a.agent_id || defaultRequester(a)) }),
+  },
+  workspace_sweep: {
+    description: 'Sweep expired scratchpad notes for the agent.',
+    inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } } },
+    handler: async (a) => {
+      const r = workspace.sweep(a.agent_id || defaultRequester(a));
+      await persist();
+      return r;
+    },
+  },
+
+  // ── PLANS (PROTOCOL_16) ─────────────────────────────────────────────
+
+  plan_create: {
+    description: 'Create a multi-step plan. Each step can carry intended_skill / intended_workflow references — making it partly executable.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        why:   { type: 'string' },
+        owner: { type: 'string' },
+        steps: { type: 'array', items: { type: 'object',
+          properties: { title: { type: 'string' }, intended_skill: { type: 'string' },
+                        intended_workflow: { type: 'string' }, notes: { type: 'string' } },
+          required: ['title'] } },
+      },
+      required: ['title', 'steps'],
+    },
+    handler: async (a) => { const r = plans.create(a); if (r.ok) await persist(); return r; },
+  },
+  plan_advance: {
+    description: 'Update a step (status / log). Allowed status: todo, doing, done, blocked, skipped. Plan status rolls up.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' }, step_id: { type: 'number' },
+                    status: { type: 'string' }, log: { type: 'string' } },
+      required: ['id', 'step_id'],
+    },
+    handler: async (a) => { const r = plans.advance(a.id, a.step_id, a); if (r.ok) await persist(); return r; },
+  },
+  plan_list: {
+    description: 'List plans, optionally filtered by owner / status.',
+    inputSchema: { type: 'object', properties: { owner: { type: 'string' }, status: { type: 'string' }, limit: { type: 'number', default: 50 } } },
+    handler: async (a) => ({ ok: true, plans: plans.list(a) }),
+  },
+  plan_get: {
+    description: 'Get a full plan with every step + log.',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    handler: async (a) => plans.get(a.id),
+  },
+  plan_next_actions: {
+    description: 'Across all active plans, return the next actionable step. Use this as "what should I do now?" across sessions.',
+    inputSchema: { type: 'object', properties: { owner: { type: 'string' }, limit: { type: 'number', default: 5 } } },
+    handler: async (a) => ({ ok: true, actions: plans.nextActions(a) }),
+  },
+  plan_pause: {
+    description: 'Pause a plan (e.g., at session_close).',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    handler: async (a) => { const r = plans.pause(a.id); if (r.ok) await persist(); return r; },
+  },
+  plan_resume: {
+    description: 'Resume a paused plan.',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    handler: async (a) => { const r = plans.resume(a.id); if (r.ok) await persist(); return r; },
+  },
+
+  // ── SESSION LIFECYCLE (PROTOCOL_17) ─────────────────────────────────
+
+  session_open: {
+    description: "Open a new AI session. Returns the previous snapshot's summary, focus, active plans, open promises, decisions — for cross-session continuity.",
+    inputSchema: { type: 'object', properties: { session_id: { type: 'string' }, agent_id: { type: 'string' } } },
+    handler: async (a) => ctxLog.open({ session_id: a.session_id || graph.session.id, agent: a.agent_id || 'claude' }),
+  },
+  session_close: {
+    description: "Close the current session by writing a context snapshot: summary, focus, active plans, open promises, decisions, recent receipts. Read by session_open next time.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        session_id:    { type: 'string' },
+        agent_id:      { type: 'string' },
+        summary:       { type: 'string', description: "What we worked on and what's left." },
+        focus:         { type: 'array' },
+        active_plans:  { type: 'array' },
+        open_promises: { type: 'array' },
+        decisions:     { type: 'array' },
+      },
+      required: ['summary'],
+    },
+    handler: async (a) => {
+      const sid = a.session_id || graph.session.id;
+      const recent = receipts.list({ limit: 10 });
+      const r = ctxLog.snapshot({ ...a, session_id: sid, recent_receipts: recent, agent: a.agent_id || 'claude' });
+      if (r.ok) await persist();
+      return r;
+    },
+  },
+  context_list: {
+    description: 'List recent context snapshots, newest first.',
+    inputSchema: { type: 'object', properties: { agent_id: { type: 'string' }, limit: { type: 'number', default: 10 } } },
+    handler: async (a) => ({ ok: true, snapshots: ctxLog.list({ agent: a.agent_id, limit: a.limit }) }),
+  },
+  context_stats: {
+    description: 'Aggregate stats on the context-snapshot log.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...ctxLog.stats() }),
+  },
+
+  // ── MEMORY CONSOLIDATION (PROTOCOL_18) ──────────────────────────────
+
+  consolidate_candidates: {
+    description: 'Find cold entry clusters that could collapse into a single semantic summary. Read-only.',
+    inputSchema: {
+      type: 'object',
+      properties: { agent_id: { type: 'string' }, min_cluster: { type: 'number', default: 3 },
+                    max_strength: { type: 'number', default: 0.35 },
+                    tier: { type: 'string', enum: ['PUBLIC','SHARED','PRIVATE','SOVEREIGN'] } },
+    },
+    handler: async (a) => consolidator.candidates({ ownerId: a.agent_id || defaultRequester(a),
+                                                    minClusterSize: a.min_cluster,
+                                                    maxStrength: a.max_strength, tier: a.tier }),
+  },
+  consolidate_run: {
+    description: 'Collapse a candidate cluster into one consolidated semantic summary; supersedes the sources (which get faster decay).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        agent_id: { type: 'string' },
+        prefix:   { type: 'string' },
+        summary:  { type: 'string' },
+        tier:     { type: 'string', enum: ['PUBLIC','SHARED','PRIVATE','SOVEREIGN'], default: 'PRIVATE' },
+      },
+      required: ['prefix', 'summary'],
+    },
+    handler: async (a) => {
+      const r = consolidator.consolidate({ ownerId: a.agent_id || defaultRequester(a), ...a });
+      if (r.ok) await persist();
+      return r;
+    },
+  },
+
+  // ── REINFORCEMENT (PROTOCOL_19) ─────────────────────────────────────
+
+  reinforcement_reinforce: {
+    description: "Mark an entry as validated (AI used it successfully). Resets confidence to 1.0 and clears stale flag.",
+    inputSchema: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] },
+    handler: async (a) => { const r = reinforcement.reinforce(a.key); await persist(); return r; },
+  },
+  reinforcement_read: {
+    description: 'Record a non-validating read (looked but did not confirm). Bumps read counter.',
+    inputSchema: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] },
+    handler: async (a) => { const r = reinforcement.read(a.key); await persist(); return r; },
+  },
+  reinforcement_beat: {
+    description: 'Apply one φ-decay beat to all reinforcement records older than minQuiet (default 60s). Marks any below 0.05 as stale.',
+    inputSchema: { type: 'object', properties: { min_quiet_ms: { type: 'number' } } },
+    handler: async (a) => { const r = reinforcement.beat({ minQuietMs: a.min_quiet_ms }); await persist(); return r; },
+  },
+  reinforcement_list: {
+    description: 'List reinforcement records, optionally filtered by stale flag or min confidence.',
+    inputSchema: {
+      type: 'object',
+      properties: { stale: { type: 'boolean' }, min_confidence: { type: 'number' }, limit: { type: 'number', default: 50 } },
+    },
+    handler: async (a) => ({ ok: true, records: reinforcement.list({ stale: a.stale, minConfidence: a.min_confidence, limit: a.limit }) }),
+  },
+  reinforcement_stats: {
+    description: 'Aggregate stats on reinforcement: total records, stale count, mean confidence, validated_total.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...reinforcement.stats() }),
   },
 
   // ── SEMANTIC RECALL via φ-spectral fingerprints ─────────────────────
