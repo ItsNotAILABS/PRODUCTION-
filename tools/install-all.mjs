@@ -17,13 +17,16 @@ const OPERATOR = process.env.MEDINA_OPERATOR_ID
 const MEDINA_HOME = process.env.MEDINA_HOME ?? join(homedir(), '.medina');
 
 const SERVERS = [
-  { name: 'medina-vault',   path: join(ROOT, 'products/medina-vault/src/server.mjs'),
+  { name: 'loom',         path: join(ROOT, 'products/medina-vault/src/server.mjs'),
     env: { MEDINA_OPERATOR_ID: OPERATOR, MEDINA_VAULT_PATH: join(MEDINA_HOME, 'vault.json') } },
-  { name: 'medina-council', path: join(ROOT, 'products/medina-council/src/server.mjs'),
+  { name: 'loom-council', path: join(ROOT, 'products/medina-council/src/server.mjs'),
     env: { MEDINA_OPERATOR_ID: OPERATOR } },
-  { name: 'medina-signal',  path: join(ROOT, 'products/medina-signal/src/server.mjs'),
+  { name: 'loom-signal',  path: join(ROOT, 'products/medina-signal/src/server.mjs'),
     env: { MEDINA_OPERATOR_ID: OPERATOR, MEDINA_SIGNAL_PATH: join(MEDINA_HOME, 'signal.json') } },
 ];
+
+// Legacy server names to clean up from existing client configs.
+const LEGACY_NAMES = ['medina-vault', 'medina-council', 'medina-signal'];
 
 const G = s => `\x1b[32m${s}\x1b[0m`, Y = s => `\x1b[33m${s}\x1b[0m`,
       R = s => `\x1b[31m${s}\x1b[0m`, C = s => `\x1b[36m${s}\x1b[0m`,
@@ -84,6 +87,10 @@ async function writeJsonMcp(p, rootKey) {
   if (await exists(p)) { try { obj = JSON.parse(await fs.readFile(p,'utf8')) || {}; } catch {} }
   obj[rootKey] = obj[rootKey] || {};
   let changed = false;
+  // Remove legacy server entries (medina-* renamed to loom*)
+  for (const legacy of LEGACY_NAMES) {
+    if (obj[rootKey][legacy]) { delete obj[rootKey][legacy]; changed = true; }
+  }
   for (const srv of SERVERS) {
     const before = JSON.stringify(obj[rootKey][srv.name] || null);
     obj[rootKey][srv.name] = jsonSnippet(srv);

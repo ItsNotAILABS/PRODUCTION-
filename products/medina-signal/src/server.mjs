@@ -5,7 +5,7 @@
 import { stdin, stdout, stderr, env, argv } from 'node:process';
 import { SignalBus, defaultBusPath, loadSnapshot, saveSnapshot, TYPES, PRIORITIES } from './bus.mjs';
 
-const SERVER_NAME    = 'medina-signal';
+const SERVER_NAME    = 'loom-signal';
 const SERVER_VERSION = '0.1.0';
 const PROTOCOL       = 'MEDINA-PROTOCOL/0.1';
 const MCP_VERSION    = '2024-11-05';

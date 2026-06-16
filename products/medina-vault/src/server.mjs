@@ -36,13 +36,15 @@ import { PlanLedger } from './plans.mjs';
 import { ContextLog } from './context.mjs';
 import { MemoryConsolidator } from './consolidation.mjs';
 import { Reinforcement } from './reinforcement.mjs';
+import { SkillCache } from './cache.mjs';
+import { BudgetTracker } from './budget.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // ── Identity ────────────────────────────────────────────────────────────
 
-const SERVER_NAME    = 'medina-vault';
+const SERVER_NAME    = 'loom';
 const SERVER_VERSION = '0.1.0';
 const PROTOCOL       = 'MEDINA-PROTOCOL/0.1';
 const MCP_VERSION    = '2024-11-05';
@@ -86,6 +88,10 @@ const ctxLog        = new ContextLog();   ctxLog.loadFromMeta(existing?._meta);
 const reinforcement = new Reinforcement(); reinforcement.loadFromMeta(existing?._meta);
 const consolidator  = new MemoryConsolidator({ vault, receipts, graph });
 
+// Efficiency layer (PROTOCOL_20..21): skill cache + budget tracker
+const cache  = new SkillCache();    cache.loadFromMeta(existing?._meta);
+const budget = new BudgetTracker(); budget.loadFromMeta(existing?._meta);
+
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
   try {
@@ -126,6 +132,8 @@ async function persist() {
       ...plans.toMeta(),
       ...ctxLog.toMeta(),
       ...reinforcement.toMeta(),
+      ...cache.toMeta(),
+      ...budget.toMeta(),
       custom_skills: customTemplates,
       custos: { online: true, last_persist: Date.now() },
     };
@@ -486,10 +494,20 @@ const tools = {
     },
     handler: async (a) => {
       const requester = defaultRequester(a);
-      const r = await skills.run(a.name, a.input || {}, { agent_id: requester });
+      // Efficiency: try cache first
+      const cached = cache.get(a.name, a.input || {});
+      let r, fromCache = false;
+      if (cached) { r = { ...cached, _cache_hit: true }; fromCache = true; }
+      else {
+        const t0 = Date.now();
+        r = await skills.run(a.name, a.input || {}, { agent_id: requester });
+        cache.set(a.name, a.input || {}, r, { ms: Date.now() - t0 });
+      }
+      // Budget tracking
+      budget.record(requester, a.name, { input: a.input, output: r });
       // Receipt + graph for every skill run (regardless of artifact store)
       receipts.append({ kind: 'skill_run', ref: a.name, agent: requester,
-                        meta: { ok: !!r.ok, reason: r.reason ?? null } });
+                        meta: { ok: !!r.ok, reason: r.reason ?? null, cached: fromCache } });
       const skillNodeId = `skill:${a.name}`;
       graph.addNode({ id: skillNodeId, kind: 'skill', label: a.name });
       graph.link(`agent:${requester}`, skillNodeId, 'called');
@@ -990,6 +1008,58 @@ const tools = {
     description: 'Aggregate stats on reinforcement: total records, stale count, mean confidence, validated_total.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => ({ ok: true, ...reinforcement.stats() }),
+  },
+
+  // ── EFFICIENCY (PROTOCOL_20): skill cache ───────────────────────────
+
+  cache_view: {
+    description: "Skill-cache stats: size, hits, misses, hit_rate, estimated saved_ms. Loom caches deterministic skill results so the AI doesn't re-pay for the same call.",
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...cache.view() }),
+  },
+  cache_clear: {
+    description: 'Clear the skill cache (e.g., after a logic change that invalidates prior results).',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => { cache.clear(); await persist(); return { ok: true }; },
+  },
+
+  // ── EFFICIENCY (PROTOCOL_21): budget tracker ────────────────────────
+
+  budget_set: {
+    description: "Set per-agent caps on tool calls and/or estimated tokens. AIs can check budget_view to throttle before burning more.",
+    inputSchema: {
+      type: 'object',
+      properties: { agent_id: { type: 'string' }, tool_calls: { type: 'number' }, estimated_tokens: { type: 'number' } },
+    },
+    handler: async (a) => { const r = budget.setCap(a.agent_id || 'claude', a); await persist(); return r; },
+  },
+  budget_check: {
+    description: 'Quick within-budget check; returns percent_used + warning if ≥80% / ≥100%.',
+    inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } } },
+    handler: async (a) => budget.check(a.agent_id || 'claude'),
+  },
+  budget_view: {
+    description: "Full budget view for an agent: counts, caps, top skills, sessions, started.",
+    inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } } },
+    handler: async (a) => budget.view(a.agent_id || 'claude'),
+  },
+  budget_reset: {
+    description: 'Zero out an agent\'s tool_calls + estimated_tokens for a fresh measurement window.',
+    inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } } },
+    handler: async (a) => { const r = budget.reset(a.agent_id || 'claude'); await persist(); return r; },
+  },
+
+  // ── EFFICIENCY: context delta resume ────────────────────────────────
+
+  session_resume_delta: {
+    description: 'Open a session and receive ONLY what changed since since_hash. If unknown, returns the full latest snapshot. Saves tokens vs. session_open which always returns the full prior snapshot.',
+    inputSchema: {
+      type: 'object',
+      properties: { session_id: { type: 'string' }, agent_id: { type: 'string' }, since_hash: { type: 'string' } },
+    },
+    handler: async (a) => ctxLog.openDelta({ session_id: a.session_id || graph.session.id,
+                                              agent: a.agent_id || 'claude',
+                                              since_hash: a.since_hash }),
   },
 
   // ── SEMANTIC RECALL via φ-spectral fingerprints ─────────────────────

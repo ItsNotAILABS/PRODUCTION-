@@ -37,6 +37,8 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_layer_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · workspace/plans/context/consolidation/reinforcement`,
                 process.execPath, ['src/_workspace_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · efficiency (cache/budget/context-delta)`,
+                process.execPath, ['src/_efficiency_smoke.mjs'], cwd) && allOk;
   }
 }
 

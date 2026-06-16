@@ -44,7 +44,7 @@ try {
 
   send({ jsonrpc:'2.0', id:1, method:'initialize', params:{ protocolVersion:'2024-11-05', capabilities:{} }});
   const init = await waitFor(1);
-  assert('initialize', init.result?.serverInfo?.name === 'medina-signal');
+  assert('initialize', init.result?.serverInfo?.name === 'loom-signal');
 
   send({ jsonrpc:'2.0', method:'notifications/initialized' });
 

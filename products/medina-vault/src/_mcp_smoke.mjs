@@ -64,7 +64,7 @@ try {
          params: { protocolVersion: '2024-11-05', capabilities: {} } });
   const init = await waitFor(1);
   assert('initialize replies with serverInfo',
-    init.result?.serverInfo?.name === 'medina-vault',
+    init.result?.serverInfo?.name === 'loom',
     `name=${init.result?.serverInfo?.name}`);
 
   send({ jsonrpc: '2.0', method: 'notifications/initialized' });
@@ -72,8 +72,8 @@ try {
   send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   const list = await waitFor(2);
   const toolNames = list.result.tools.map((t) => t.name);
-  assert('tools/list exposes ≥49 vault tools (vault + inside + keys + skills + workflows + spectral + knowledge layer + workspace layer + pro)',
-    toolNames.length >= 49 &&
+  assert('tools/list exposes ≥56 vault tools (+ efficiency layer)',
+    toolNames.length >= 56 &&
     toolNames.includes('vault_store') &&
     toolNames.includes('vault_custos') &&
     toolNames.includes('keys_set') &&

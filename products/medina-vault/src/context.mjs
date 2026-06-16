@@ -73,6 +73,40 @@ export class ContextLog {
     };
   }
 
+  /**
+   * EFFICIENCY: resume the DELTA only. Returns what changed since `since_hash`
+   * (a prior snapshot's hash). Lets the next session avoid reloading already-
+   * known context. If since_hash is unknown, returns the full prior snapshot.
+   */
+  openDelta({ session_id, agent = 'claude', since_hash }) {
+    const prev = this.latest({ agent });
+    if (!prev) return { ok: true, session_id, resumed_from: null, delta: null };
+    if (!since_hash || prev.hash === since_hash) {
+      return { ok: true, session_id, resumed_from: prev.hash, no_change: prev.hash === since_hash, delta: null };
+    }
+    const base = this.snapshots.find(s => s.hash === since_hash && s.agent === agent);
+    if (!base) {
+      // Caller doesn't know our state; send the latest in full.
+      return { ok: true, session_id, resumed_from: prev.hash, full: prev, delta: null };
+    }
+    const setOf = (arr, keyFn) => new Set(arr.map(keyFn));
+    const baseFocus = setOf(base.focus || [], f => f.key);
+    const basePlans = setOf(base.active_plans || [], p => p.id);
+    const basePromises = new Set(base.open_promises || []);
+    const baseDecisions = new Set(base.decisions || []);
+    const delta = {
+      added_focus:      (prev.focus || []).filter(f => !baseFocus.has(f.key)),
+      removed_focus:    (base.focus || []).filter(f => !setOf(prev.focus || [], x => x.key).has(f.key)),
+      new_plans:        (prev.active_plans || []).filter(p => !basePlans.has(p.id)),
+      new_promises:     (prev.open_promises || []).filter(p => !basePromises.has(p)),
+      resolved_promises:(base.open_promises || []).filter(p => !new Set(prev.open_promises || []).has(p)),
+      new_decisions:    (prev.decisions || []).filter(d => !baseDecisions.has(d)),
+      summary_changed:  base.summary !== prev.summary,
+      summary:          prev.summary,
+    };
+    return { ok: true, session_id, resumed_from: prev.hash, since_hash, delta };
+  }
+
   stats() {
     const byAgent = {};
     for (const s of this.snapshots) byAgent[s.agent] = (byAgent[s.agent] || 0) + 1;
