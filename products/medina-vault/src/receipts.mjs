@@ -21,6 +21,8 @@ const RECEIPT_KINDS = new Set([
   'efficiency_event',
   // Failure receipts — system observes errors, learns patterns, proposes fixes.
   'failure_observed', 'failure_pattern_detected', 'failure_fix_proposed', 'failure_fix_applied',
+  // Agent receipts — embedded agents work async, leave outputs in the workspace.
+  'agent_dispatched', 'agent_completed', 'agent_failed',
 ]);
 
 export class ReceiptLedger {

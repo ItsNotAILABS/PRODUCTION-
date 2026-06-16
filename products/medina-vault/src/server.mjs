@@ -40,6 +40,7 @@ import { SkillCache } from './cache.mjs';
 import { BudgetTracker } from './budget.mjs';
 import { EfficiencyEngine } from './efficiency.mjs';
 import { FailureRegistry } from './failures.mjs';
+import { AgentRegistry } from './agents.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -97,6 +98,9 @@ const efficiency = new EfficiencyEngine({ receipts, registry: skills });
 efficiency.loadFromMeta(existing?._meta);
 const failures = new FailureRegistry({ receipts });
 failures.loadFromMeta(existing?._meta);
+const agents = new AgentRegistry({ vault, skills, receipts, knowledge,
+                                    consolidator, failures, efficiency, graph });
+agents.loadFromMeta(existing?._meta);
 
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
@@ -142,6 +146,7 @@ async function persist() {
       ...budget.toMeta(),
       ...efficiency.toMeta(),
       ...failures.toMeta(),
+      ...agents.toMeta(),
       custom_skills: customTemplates,
       custos: { online: true, last_persist: Date.now() },
     };
@@ -1169,6 +1174,59 @@ const tools = {
     description: 'Dismiss an open proposal (the pattern is real but not worth fixing).',
     inputSchema: { type: 'object', properties: { sig: { type: 'string' } }, required: ['sig'] },
     handler: async (a) => { const r = failures.dismiss(a.sig); await persist(); return r; },
+  },
+
+  // ── EMBEDDED AGENTS (native, async; leave deliverables in workspace) ──
+
+  agents_list: {
+    description: 'List the embedded native agents (synthesizer, auditor, researcher, curator, scribe) — what they do, what input they take, what they can do.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, agents: agents.list() }),
+  },
+  agents_dispatch: {
+    description: 'Dispatch an agent. Returns task_id immediately; the agent runs in background and stores its deliverable in vault under agents/<agent>/<task_id>/report. Use agents_status to check, agents_collect to retrieve.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        agent:    { type: 'string', description: 'synthesizer | auditor | researcher | curator | scribe' },
+        input:    { type: 'object' },
+        agent_id: { type: 'string', description: 'Who owns the resulting workspace entry. Default: claude.' },
+      },
+      required: ['agent'],
+    },
+    handler: async (a) => {
+      const r = agents.dispatch(a.agent, a.input || {}, { agent_id: a.agent_id || 'claude' });
+      await persist();
+      return r;
+    },
+  },
+  agents_status: {
+    description: 'Get status of a dispatched task: queued | running | done | failed | cancelled.',
+    inputSchema: { type: 'object', properties: { task_id: { type: 'string' } }, required: ['task_id'] },
+    handler: async (a) => agents.status(a.task_id),
+  },
+  agents_collect: {
+    description: "Collect the final output of a completed task. Returns the deliverable (markdown + structured findings) and the vault key where it was stored.",
+    inputSchema: { type: 'object', properties: { task_id: { type: 'string' } }, required: ['task_id'] },
+    handler: async (a) => agents.collect(a.task_id),
+  },
+  agents_tasks: {
+    description: 'List recent dispatched tasks. Filter by agent name or status. Newest first.',
+    inputSchema: {
+      type: 'object',
+      properties: { agent: { type: 'string' }, status: { type: 'string' }, limit: { type: 'number', default: 25 } },
+    },
+    handler: async (a) => ({ ok: true, tasks: agents.listTasks(a) }),
+  },
+  agents_cancel: {
+    description: 'Cancel a queued task (cannot cancel running/done/failed).',
+    inputSchema: { type: 'object', properties: { task_id: { type: 'string' } }, required: ['task_id'] },
+    handler: async (a) => { const r = agents.cancel(a.task_id); await persist(); return r; },
+  },
+  agents_stats: {
+    description: 'Aggregate agent activity: total tasks, by_agent breakdown, by_status breakdown, available agents.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...agents.stats() }),
   },
 
   // ── SEMANTIC RECALL via φ-spectral fingerprints ─────────────────────

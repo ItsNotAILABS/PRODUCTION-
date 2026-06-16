@@ -43,6 +43,8 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_engine_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · failure registry (pattern detection, auto-fix proposal)`,
                 process.execPath, ['src/_failures_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · embedded agents (5 native, async dispatch)`,
+                process.execPath, ['src/_agents_smoke.mjs'], cwd) && allOk;
   }
 }
 
