@@ -1,0 +1,23 @@
+{
+  "name": "@medina/signal",
+  "version": "0.1.0",
+  "description": "Sovereign cross-AI signal bus. MCP server with BROADCAST/DIRECT/ROLE/URGENT routing and priority delivery.",
+  "type": "module",
+  "main": "src/server.mjs",
+  "bin": { "medina-signal": "src/server.mjs" },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "smoke": "node src/_smoke.mjs",
+    "smoke:mcp": "node src/_mcp_smoke.mjs",
+    "test": "node src/_smoke.mjs && node src/_mcp_smoke.mjs"
+  },
+  "keywords": ["ai","signal","pubsub","mcp","sovereign","local","medina"],
+  "license": "MIT",
+  "author": "Medina — built with Claude (Opus 4.7) under the Creator's License",
+  "engines": { "node": ">=20" },
+  "medina": {
+    "conformance": "MEDINA-PROTOCOL/0.1",
+    "tier": "FREE_LOCAL",
+    "role": "SIGNAL_BUS"
+  }
+}

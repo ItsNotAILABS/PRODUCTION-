@@ -19,6 +19,7 @@ import { MedinaVault } from './vault.mjs';
 import { defaultVaultPath, loadSnapshot, saveSnapshot } from './snapshot.mjs';
 import { hashEntry } from './laws.mjs';
 import { chartManifest } from '../charter/charter.mjs';
+import { PRO_TOOLS, PRO_STATUS } from './pro.mjs';
 
 // ── Identity ────────────────────────────────────────────────────────────
 
@@ -204,8 +205,14 @@ const tools = {
       vault_path: VAULT_PATH,
       tiers: vault.status(),
       charter: chartManifest(),
+      pro_licensed: PRO_STATUS.licensed(),
     }),
   },
+
+  // PRO bridge tools — advertised in tools/list. Without MEDINA_PRO_LICENSE
+  // they return { ok:false, reason:'UPGRADE_REQUIRED' } so the AI sees the
+  // upgrade path as a structured value, not a missing tool.
+  ...PRO_TOOLS,
 };
 
 // ── JSON-RPC stdio framing ───────────────────────────────────────────────

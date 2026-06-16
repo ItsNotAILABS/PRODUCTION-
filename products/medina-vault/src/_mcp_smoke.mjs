@@ -72,12 +72,20 @@ try {
   send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   const list = await waitFor(2);
   const toolNames = list.result.tools.map((t) => t.name);
-  assert('tools/list exposes 9 vault tools',
-    toolNames.length === 9 &&
+  assert('tools/list exposes 12 vault tools (9 free + 3 pro)',
+    toolNames.length === 12 &&
     toolNames.includes('vault_store') &&
     toolNames.includes('vault_search') &&
-    toolNames.includes('vault_lineage'),
+    toolNames.includes('vault_lineage') &&
+    toolNames.includes('memory_palace_search'),
     toolNames.join(','));
+
+  send({ jsonrpc:'2.0', id:90, method:'tools/call', params:{
+    name:'memory_palace_search', arguments:{ query:'anything' }}});
+  const proRes = JSON.parse((await waitFor(90)).result.content[0].text);
+  assert('pro tool surfaces UPGRADE_REQUIRED when unlicensed',
+    !proRes.ok && proRes.reason === 'UPGRADE_REQUIRED' && proRes.tier === 'PRO_RESONANT',
+    `reason=${proRes.reason}`);
 
   send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: {
     name: 'vault_store',
