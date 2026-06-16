@@ -47,6 +47,10 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_agents_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · root vault (frozen, compressed, fingerprinted)`,
                 process.execPath, ['src/_root_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · semantic compression (symbol table, formulas)`,
+                process.execPath, ['src/_compression_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · API gateway (external AIs over HTTP)`,
+                process.execPath, ['src/_gateway_smoke.mjs'], cwd) && allOk;
   }
 }
 

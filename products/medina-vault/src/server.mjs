@@ -42,6 +42,9 @@ import { EfficiencyEngine } from './efficiency.mjs';
 import { FailureRegistry } from './failures.mjs';
 import { AgentRegistry } from './agents.mjs';
 import { RootVault } from './root_vault.mjs';
+import { SymbolTable, minePhrases, tryFormula, decodeFormula } from './compression.mjs';
+import { AutoDoctrine } from './auto_doctrine.mjs';
+import { ApiGateway, issueApiKey } from './api_gateway.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -107,6 +110,18 @@ const rootVault = new RootVault();
 await rootVault.load();
 const OPERATOR = env.MEDINA_OPERATOR_ID || env.USER || env.USERNAME || 'operator';
 
+// Semantic compression layer
+const symbolTable = new SymbolTable();
+symbolTable.loadFromMeta(existing?._meta);
+
+// Auto-doctrine — sweeps efficiency/failures/knowledge for emergent patterns
+const autoDoctrine = new AutoDoctrine({ rootVault, receipts, efficiency, failures, knowledge });
+autoDoctrine.loadFromMeta(existing?._meta);
+
+// HTTP API gateway — started LAZILY via api_gateway_start so we don't bind a
+// port unless the operator wants to expose Loom to external AIs.
+let apiGateway = null;
+
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
   try {
@@ -152,6 +167,8 @@ async function persist() {
       ...efficiency.toMeta(),
       ...failures.toMeta(),
       ...agents.toMeta(),
+      ...symbolTable.toMeta(),
+      ...autoDoctrine.toMeta(),
       custom_skills: customTemplates,
       custos: { online: true, last_persist: Date.now() },
     };
@@ -1350,6 +1367,139 @@ const tools = {
     description: 'ROOT stats: total entries, by_kind, by_category, head_hash, compression savings.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => ({ ok: true, path: RootVault.path, ...rootVault.stats() }),
+  },
+
+  // ── SEMANTIC COMPRESSION (symbol table, Fibonacci-indexed, formula compression) ──
+
+  compression_mine: {
+    description: 'Mine load-bearing phrases from a corpus (or the live vault). Returns rank-ordered phrases by savings. Does NOT ingest — call compression_ingest to commit picks to the dictionary.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        corpus:    { type: 'array', items: { type: 'string' }, description: 'Texts to mine. Omit to mine the live vault PRIVATE+SHARED tier.' },
+        agent_id:  { type: 'string' },
+        min_freq:  { type: 'number', default: 3 },
+        max_k:     { type: 'number', default: 32 },
+      },
+    },
+    handler: async (a) => {
+      let corpus = a.corpus;
+      if (!corpus) {
+        const owner = a.agent_id || defaultRequester(a);
+        corpus = vault.list(owner, {}).map(e => {
+          const live = vault.entries.get(e.key);
+          return typeof live?.value === 'string' ? live.value : JSON.stringify(live?.value || '');
+        });
+      }
+      const phrases = minePhrases(corpus, { minFreq: a.min_freq, maxK: a.max_k });
+      const total_savings = phrases.reduce((s, p) => s + p.savings, 0);
+      return { ok: true, candidate_count: phrases.length, total_savings, phrases };
+    },
+  },
+
+  compression_ingest: {
+    description: 'Commit mined phrases into the symbol dictionary. Symbols are append-only and Fibonacci-indexed (§F2, §F3, §F5, §F8, …).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        phrases: { type: 'array', items: { type: 'object',
+          properties: { phrase: { type: 'string' }, freq: { type: 'number' } },
+          required: ['phrase'] } },
+      },
+      required: ['phrases'],
+    },
+    handler: async (a) => { const r = symbolTable.ingest(a.phrases); await persist(); return { ok: true, ...r }; },
+  },
+
+  compression_apply: {
+    description: 'Compress a text using the current symbol dictionary. Returns the compressed string, the symbols used, and the ratio.',
+    inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
+    handler: async (a) => ({ ok: true, ...symbolTable.compress(a.text) }),
+  },
+
+  compression_expand: {
+    description: 'Decompress a text that was produced by compression_apply, using the current symbol dictionary. Lossless.',
+    inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
+    handler: async (a) => ({ ok: true, text: symbolTable.expand(a.text) }),
+  },
+
+  compression_formula_try: {
+    description: 'Try to match a text against the known structural formulas (decision-because, observed-pattern, doctrine-negative, doctrine-positive). Returns the encoded slots if matched.',
+    inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
+    handler: async (a) => tryFormula(a.text),
+  },
+
+  compression_formula_decode: {
+    description: 'Decode a formula representation back to text. Lossless for matched formulas.',
+    inputSchema: {
+      type: 'object',
+      properties: { formula: { type: 'string' }, slots: { type: 'object' } },
+      required: ['formula', 'slots'],
+    },
+    handler: async (a) => { const text = decodeFormula(a); return text ? { ok: true, text } : { ok: false, reason: 'UNKNOWN_FORMULA' }; },
+  },
+
+  compression_stats: {
+    description: 'Symbol table stats: total symbols, dictionary bytes, top 10 by frequency, next Fibonacci index.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...symbolTable.stats() }),
+  },
+
+  // ── AUTO-DOCTRINE (system writes to ROOT from observed activity) ──
+
+  auto_doctrine_sweep: {
+    description: 'Sweep efficiency totals, failure patterns, and knowledge token unwraps for emergent doctrine. Auto-writes findings to ROOT vault under doctrine/* and learning/*. Called periodically; can be invoked manually.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => { const r = await autoDoctrine.sweep({ operator: OPERATOR });
+                          await rootVault.persist(); await persist(); return r; },
+  },
+
+  // ── HTTP API GATEWAY (lets ChatGPT/other AIs reach Loom) ──
+
+  api_gateway_start: {
+    description: 'Start the HTTP API gateway so external AIs (ChatGPT, Cursor extensions, others) can call Loom over REST. Default port 8732. Endpoints: /v1/tools (list), POST /v1/tools/<name> (invoke), /.well-known/openai-functions (OpenAI custom GPT schema), /health.',
+    inputSchema: { type: 'object', properties: { port: { type: 'number', default: 8732 } } },
+    handler: async (a) => {
+      if (apiGateway) return { ok: true, already_running: true, port: apiGateway.port };
+      // Mirror EVERY MCP tool over HTTP — single source of truth.
+      const toolMap = {};
+      for (const [name, t] of Object.entries(TOOLS)) toolMap[name] = t;
+      apiGateway = new ApiGateway({ tools: toolMap, rootVault, receipts, port: a.port || 8732 });
+      await apiGateway.start();
+      return { ok: true, port: apiGateway.port,
+               url: `http://localhost:${apiGateway.port}`,
+               openai_schema: `http://localhost:${apiGateway.port}/.well-known/openai-functions`,
+               next: 'Issue an API key with api_gateway_issue_key, then external AIs use Authorization: Bearer <key>.' };
+    },
+  },
+
+  api_gateway_stop: {
+    description: 'Stop the HTTP API gateway.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => { if (!apiGateway) return { ok: false, reason: 'NOT_RUNNING' };
+                          await apiGateway.stop(); apiGateway = null; return { ok: true }; },
+  },
+
+  api_gateway_issue_key: {
+    description: 'Issue an API key for an external AI to call the HTTP gateway. Key is stored in ROOT under api/keys/<name> — operator cannot retrieve it. Returned ONCE; save it.',
+    inputSchema: {
+      type: 'object',
+      properties: { name: { type: 'string' }, agent_id: { type: 'string' } },
+      required: ['name'],
+    },
+    handler: async (a) => {
+      const r = issueApiKey({ rootVault, name: a.name, agent_id: a.agent_id, operator: OPERATOR });
+      if (r.ok) await rootVault.persist();
+      return r;
+    },
+  },
+
+  api_gateway_status: {
+    description: 'Whether the HTTP gateway is running, on what port, and how many tools are exposed.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => apiGateway
+      ? { ok: true, running: true, port: apiGateway.port, tool_count: Object.keys(apiGateway.tools).length }
+      : { ok: true, running: false },
   },
 
   // ── SEMANTIC RECALL via φ-spectral fingerprints ─────────────────────
