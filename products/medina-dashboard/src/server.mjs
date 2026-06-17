@@ -24,6 +24,9 @@ const { ReceiptLedger }    = await import(pathToFileURL(join(VAULT_SRC, 'receipt
 const { SkillSandbox }     = await import(pathToFileURL(join(VAULT_SRC, 'sandbox.mjs')).href);
 const { KeyVault }         = await import(pathToFileURL(join(VAULT_SRC, 'keys.mjs')).href);
 const { buildGitHubSkills } = await import(pathToFileURL(join(VAULT_SRC, 'integrations/github.mjs')).href);
+const { RootVault }        = await import(pathToFileURL(join(VAULT_SRC, 'root_vault.mjs')).href);
+const { ApiGateway, issueApiKey } = await import(pathToFileURL(join(VAULT_SRC, 'api_gateway.mjs')).href);
+const { EngineRegistry }   = await import(pathToFileURL(join(VAULT_SRC, 'engines.mjs')).href);
 const { Workspace }        = await import(pathToFileURL(join(VAULT_SRC, 'workspace.mjs')).href);
 const { PlanLedger }       = await import(pathToFileURL(join(VAULT_SRC, 'plans.mjs')).href);
 const { ContextLog }       = await import(pathToFileURL(join(VAULT_SRC, 'context.mjs')).href);
@@ -52,6 +55,13 @@ const workspace = new Workspace();
 const planLedger = new PlanLedger();
 const ctxLog    = new ContextLog();
 const reinforcement = new Reinforcement();
+const rootVault = new RootVault();
+await rootVault.load();
+let apiGateway = null;
+const engines = new EngineRegistry({ skills, agents: null, vault, rootVault, receipts,
+                                      knowledge, failures: null, efficiency: null,
+                                      consolidator: null, reinforcement, ctxLog,
+                                      autoDoctrine: null, symbolTable: null });
 
 // One-time hydrate from disk so live writes don't drop existing state.
 const _initial = await readJsonSafe(VAULT_PATH);
@@ -287,6 +297,63 @@ const server = createServer(async (req, res) => {
       }
       return json(res, r);
     }
+    // ── API GATEWAY CONTROL ───────────────────────────────────────────
+    if (req.method === 'POST' && url.pathname === '/api/gateway/start') {
+      const b = await readBody(req);
+      if (apiGateway) return json(res, { ok: true, already_running: true, port: apiGateway.port });
+      const port = b.port || 8732;
+      // Build a tool map mirroring the dashboard's own callable surface.
+      const toolMap = {
+        vault_store: { description: 'Store an entry.', inputSchema: { type:'object' },
+          handler: async (a) => vault.store({ key: a.key, value: a.value, tier: a.tier || 'PRIVATE',
+                                              ownerId: a.agent_id || OPERATOR, metadata: a.metadata }) },
+        vault_list: { description: 'List entries.', inputSchema: { type:'object' },
+          handler: async (a) => ({ ok: true, entries: vault.list(a.agent_id || OPERATOR, { tier: a.tier }) }) },
+        root_list: { description: 'List ROOT entries (system/AI only).', inputSchema: { type:'object' },
+          handler: async (a) => rootVault.list({ agent_id: a.agent_id, operator: OPERATOR, kind: a.kind, tag: a.tag }) },
+        root_read: { description: 'Read a ROOT entry.', inputSchema: { type:'object' },
+          handler: async (a) => rootVault.read({ key: a.key, agent_id: a.agent_id, operator: OPERATOR }) },
+        root_write: { description: 'Write a ROOT entry.', inputSchema: { type:'object' },
+          handler: async (a) => {
+            const r = rootVault.write({ key: a.key, value: a.value, agent_id: a.agent_id,
+                                         kind: a.kind, operator: OPERATOR }, { tags: a.tags });
+            if (r.ok) await rootVault.persist();
+            return r;
+          }},
+        engines_list: { description: 'List named engines.', inputSchema: { type:'object' },
+          handler: async () => ({ ok: true, engines: engines.list() }) },
+        engines_run: { description: 'Run a named engine.', inputSchema: { type:'object' },
+          handler: async (a) => engines.run(a.name, a.input || {}, { operator: OPERATOR }) },
+        skills_list: { description: 'List skills.', inputSchema: { type:'object' },
+          handler: async (a) => ({ ok: true, skills: skills.list({ prefix: a.prefix }) }) },
+        skills_run: { description: 'Run a skill.', inputSchema: { type:'object' },
+          handler: async (a) => skills.run(a.name, a.input || {}, { agent_id: a.agent_id || 'external' }) },
+      };
+      apiGateway = new ApiGateway({ tools: toolMap, rootVault, receipts, port });
+      await apiGateway.start();
+      return json(res, { ok: true, port: apiGateway.port,
+                         url: `http://localhost:${apiGateway.port}`,
+                         openai_schema: `http://localhost:${apiGateway.port}/.well-known/openai-functions`,
+                         tool_count: Object.keys(toolMap).length });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/gateway/stop') {
+      if (!apiGateway) return json(res, { ok: false, reason: 'NOT_RUNNING' });
+      await apiGateway.stop();
+      apiGateway = null;
+      return json(res, { ok: true });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/gateway/issue_key') {
+      const b = await readBody(req);
+      const r = issueApiKey({ rootVault, name: b.name, agent_id: b.agent_id, operator: OPERATOR });
+      if (r.ok) await rootVault.persist();
+      return json(res, r);
+    }
+    if (req.method === 'GET' && url.pathname === '/api/gateway/status') {
+      return json(res, apiGateway
+        ? { ok: true, running: true, port: apiGateway.port, tool_count: Object.keys(apiGateway.tools).length }
+        : { ok: true, running: false });
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/session/close') {
       const b = await readBody(req);
       const recent = receipts.list({ limit: 10 });

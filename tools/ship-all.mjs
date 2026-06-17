@@ -51,6 +51,8 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_compression_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · API gateway (external AIs over HTTP)`,
                 process.execPath, ['src/_gateway_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · named engines (10 callable workflows)`,
+                process.execPath, ['src/_engines_smoke.mjs'], cwd) && allOk;
   }
 }
 

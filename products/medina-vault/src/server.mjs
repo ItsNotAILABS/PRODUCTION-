@@ -45,6 +45,8 @@ import { RootVault } from './root_vault.mjs';
 import { SymbolTable, minePhrases, tryFormula, decodeFormula } from './compression.mjs';
 import { AutoDoctrine } from './auto_doctrine.mjs';
 import { ApiGateway, issueApiKey } from './api_gateway.mjs';
+import { EngineRegistry } from './engines.mjs';
+import { namespaced, whoOwns } from './namespace.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -121,6 +123,12 @@ autoDoctrine.loadFromMeta(existing?._meta);
 // HTTP API gateway — started LAZILY via api_gateway_start so we don't bind a
 // port unless the operator wants to expose Loom to external AIs.
 let apiGateway = null;
+
+// Named engines — high-level callable workflows
+const engines = new EngineRegistry({
+  skills, agents, vault, rootVault, receipts, knowledge, failures,
+  efficiency, consolidator, reinforcement, ctxLog, autoDoctrine, symbolTable,
+});
 
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
@@ -1500,6 +1508,42 @@ const tools = {
     handler: async () => apiGateway
       ? { ok: true, running: true, port: apiGateway.port, tool_count: Object.keys(apiGateway.tools).length }
       : { ok: true, running: false },
+  },
+
+  // ── NAMED ENGINES (high-level callable workflows) ──
+
+  engines_list: {
+    description: 'List the named engines available — high-level workflows you can hit by name. Each engine fans out across skills + agents + layers and returns a structured result.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, engines: engines.list() }),
+  },
+
+  engines_run: {
+    description: 'Run a named engine. Input must match the engine\'s schema. Returns { ok, steps, summary, deliverables }. Examples: morning_briefing, session_wrapup, health_check, consolidate_cold, compress_vault, train_on_failures, research_dossier, knowledge_check, daily_save, onboard_matter.',
+    inputSchema: {
+      type: 'object',
+      properties: { name: { type: 'string' }, input: { type: 'object' } },
+      required: ['name'],
+    },
+    handler: async (a) => {
+      const r = await engines.run(a.name, a.input || {}, { operator: OPERATOR });
+      await persist();
+      return r;
+    },
+  },
+
+  engines_stats: {
+    description: 'Engine run history: total runs, by_engine counts, last 10 runs.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...engines.stats() }),
+  },
+
+  // ── NAMESPACE / OWNERSHIP HELPERS ──
+
+  namespace_who_owns: {
+    description: 'Given a key, return the namespace and (if AI) the agent. Helps reason about who owns what across the vault.',
+    inputSchema: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] },
+    handler: async (a) => ({ ok: true, ...whoOwns(a.key) }),
   },
 
   // ── SEMANTIC RECALL via φ-spectral fingerprints ─────────────────────
