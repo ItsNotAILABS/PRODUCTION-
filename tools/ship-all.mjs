@@ -57,6 +57,10 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_runspace_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · runspace governance (two-reviewer)`,
                 process.execPath, ['src/_governance_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · ai registry + tier gating`,
+                process.execPath, ['src/_ai_registry_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · deposits (AES-256-GCM, agent-scoped)`,
+                process.execPath, ['src/_deposits_smoke.mjs'], cwd) && allOk;
   }
 }
 

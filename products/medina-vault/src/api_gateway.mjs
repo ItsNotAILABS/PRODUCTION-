@@ -15,10 +15,11 @@ import { createServer } from 'node:http';
 import { createHash, randomBytes } from 'node:crypto';
 
 export class ApiGateway {
-  constructor({ tools, rootVault, receipts, port = 8732 }) {
+  constructor({ tools, rootVault, receipts, port = 8732, aiRegistry = null }) {
     this.tools = tools;          // { tool_name: { description, inputSchema, handler } }
     this.rootVault = rootVault;
     this.receipts = receipts;
+    this.aiRegistry = aiRegistry;
     this.port = port;
     this.allowedOrigin = process.env.MEDINA_API_ALLOWED_ORIGIN || '*';
     this.server = null;
@@ -79,16 +80,55 @@ export class ApiGateway {
         if (req.method === 'GET' && url.pathname === '/health')
           return send(200, { ok: true, port: this.port, tool_count: Object.keys(this.tools).length });
 
-        // List tools (auth-gated)
+        // List tools (auth-gated, tier-filtered)
         if (req.method === 'GET' && url.pathname === '/v1/tools') {
           const auth = this._checkAuth(req);
           if (!auth.ok) return send(401, auth);
+          const aiRecord = this.aiRegistry?.get?.(auth.agent_id);
+          const visible = Object.entries(this.tools).filter(([name]) =>
+            !this.aiRegistry || !aiRecord?.ok ||
+            this.aiRegistry.permits(auth.agent_id, name)
+          );
           return send(200, {
             ok: true, agent_id: auth.agent_id,
-            tools: Object.entries(this.tools).map(([name, t]) => ({
+            tier: aiRecord?.tier || 'BASIC',
+            tools: visible.map(([name, t]) => ({
               name, description: t.description, inputSchema: t.inputSchema,
             })),
           });
+        }
+
+        // SELF-INTROSPECTION: who am I, what's my tier, what can I call?
+        if (req.method === 'GET' && url.pathname === '/v1/me') {
+          const auth = this._checkAuth(req);
+          if (!auth.ok) return send(401, auth);
+          const me = this.aiRegistry?.get?.(auth.agent_id);
+          if (!me?.ok) return send(200, {
+            ok: true, agent_id: auth.agent_id, tier: 'BASIC',
+            note: 'Not registered in AI directory yet. Operator can register you.',
+          });
+          return send(200, me);
+        }
+
+        // PROTOCOL DOCUMENTS: how to behave inside Loom
+        if (req.method === 'GET' && url.pathname === '/v1/protocol') {
+          const auth = this._checkAuth(req);
+          if (!auth.ok) return send(401, auth);
+          if (!this.rootVault) return send(200, { ok: true, protocols: [] });
+          const docs = [...this.rootVault.entries.values()]
+            .filter(e => e.key.startsWith('protocol/'))
+            .map(e => ({ key: e.key, kind: e.kind, front_page: e.front_page, ts: e.ts }));
+          return send(200, { ok: true, protocols: docs });
+        }
+
+        // HANDOFFS: shared/ entries addressed to this agent
+        if (req.method === 'GET' && url.pathname === '/v1/handoffs') {
+          const auth = this._checkAuth(req);
+          if (!auth.ok) return send(401, auth);
+          // Look for vault entries prefixed shared/<them>/<auth.agent_id>/
+          // (We don't have direct vault access here; return empty placeholder.)
+          return send(200, { ok: true, handoffs: [],
+            note: 'Use vault_list with prefix shared/ from /v1/tools/vault_list to find inbound handoffs.' });
         }
 
         // Invoke a tool
@@ -98,13 +138,17 @@ export class ApiGateway {
           const toolName = url.pathname.replace('/v1/tools/', '');
           const tool = this.tools[toolName];
           if (!tool) return send(404, { ok: false, reason: 'TOOL_NOT_FOUND', tool: toolName });
+
+          // ── TIER GATE ───────────────────────────────────────────────
+          if (this.aiRegistry && !this.aiRegistry.permits(auth.agent_id, toolName)) {
+            return send(403, { ok: false, reason: 'TIER_INSUFFICIENT', tool: toolName,
+                                tier: this.aiRegistry.get(auth.agent_id)?.tier || 'BASIC',
+                                hint: 'Operator can elevate your tier via ai_registry_set_tier.' });
+          }
+
           const body = await readJson(req);
 
           // ── MULTI-TENANT ISOLATION ─────────────────────────────────
-          // Every external call is automatically attributed to the authenticated
-          // agent_id. Even if the body tries to pass a different agent_id, the
-          // authenticated one wins. Writes auto-prefix so ChatGPT can't touch
-          // operator/* or other AIs' namespaces.
           const isolated = { ...body, agent_id: auth.agent_id };
           if (typeof isolated.key === 'string' &&
               !isolated.key.startsWith('ai/') &&
@@ -112,6 +156,9 @@ export class ApiGateway {
               !isolated.key.startsWith('operator/')) {
             isolated.key = `ai/${auth.agent_id}/${isolated.key}`;
           }
+
+          // Touch the AI's last-seen + call count
+          this.aiRegistry?.touch?.(auth.agent_id);
 
           const t0 = Date.now();
           let result;

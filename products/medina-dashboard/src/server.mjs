@@ -27,6 +27,8 @@ const { buildGitHubSkills } = await import(pathToFileURL(join(VAULT_SRC, 'integr
 const { RootVault }        = await import(pathToFileURL(join(VAULT_SRC, 'root_vault.mjs')).href);
 const { ApiGateway, issueApiKey } = await import(pathToFileURL(join(VAULT_SRC, 'api_gateway.mjs')).href);
 const { EngineRegistry }   = await import(pathToFileURL(join(VAULT_SRC, 'engines.mjs')).href);
+const { AIRegistry }       = await import(pathToFileURL(join(VAULT_SRC, 'ai_registry.mjs')).href);
+const { DepositLedger }    = await import(pathToFileURL(join(VAULT_SRC, 'deposits.mjs')).href);
 const { Workspace }        = await import(pathToFileURL(join(VAULT_SRC, 'workspace.mjs')).href);
 const { PlanLedger }       = await import(pathToFileURL(join(VAULT_SRC, 'plans.mjs')).href);
 const { ContextLog }       = await import(pathToFileURL(join(VAULT_SRC, 'context.mjs')).href);
@@ -58,6 +60,8 @@ const reinforcement = new Reinforcement();
 const rootVault = new RootVault();
 await rootVault.load();
 let apiGateway = null;
+const aiRegistry = new AIRegistry({ receipts });
+const deposits = new DepositLedger({ receipts, vault });
 const engines = new EngineRegistry({ skills, agents: null, vault, rootVault, receipts,
                                       knowledge, failures: null, efficiency: null,
                                       consolidator: null, reinforcement, ctxLog,
@@ -108,6 +112,8 @@ async function rehydrate() {
   planLedger.loadFromMeta(v?._meta);
   ctxLog.loadFromMeta(v?._meta);
   reinforcement.loadFromMeta(v?._meta);
+  aiRegistry.loadFromMeta(v?._meta);
+  deposits.loadFromMeta(v?._meta);
 }
 
 async function readJsonSafe(p) {
@@ -328,13 +334,40 @@ const server = createServer(async (req, res) => {
           handler: async (a) => ({ ok: true, skills: skills.list({ prefix: a.prefix }) }) },
         skills_run: { description: 'Run a skill.', inputSchema: { type:'object' },
           handler: async (a) => skills.run(a.name, a.input || {}, { agent_id: a.agent_id || 'external' }) },
+        deposit_create: { description: 'Deposit an encrypted artifact (zip/json/etc).', inputSchema: { type:'object' },
+          handler: async (a) => deposits.create(a) },
+        deposit_list: { description: 'List own deposits.', inputSchema: { type:'object' },
+          handler: async (a) => ({ ok: true, deposits: deposits.list({ agent_id: a.agent_id, limit: a.limit }) }) },
+        deposit_get: { description: 'Retrieve own deposit.', inputSchema: { type:'object' },
+          handler: async (a) => deposits.get({ deposit_id: a.deposit_id, agent_id: a.agent_id }) },
+        deposit_stats: { description: 'Deposit stats.', inputSchema: { type:'object' },
+          handler: async () => ({ ok: true, ...deposits.stats() }) },
+        loom_status_proof: { description: 'One-call proof surface.', inputSchema: { type:'object' },
+          handler: async () => {
+            const recVerify = receipts.verify();
+            const rootVerify = rootVault.verify();
+            return {
+              ok: true, version: '0.3.0',
+              architecture_statement: 'Loom v0.3 establishes a governed multi-tenant AI memory gateway: agents can read and write only inside scoped namespaces, execution is pre-reviewed before runspace access, and chain integrity is exposed through a single status layer.',
+              layers: { vault: vault.entries.size, root: rootVault.entries.size,
+                        receipts: receipts.receipts.length, knowledge: knowledge.tokens.size,
+                        deposits: deposits.manifests.size, ais: aiRegistry.list().length },
+              chain_integrity: { receipts: recVerify, root: rootVerify, all_intact: recVerify.ok && rootVerify.ok },
+              tenant_isolation: { rule: 'agent_id → ai/<agent_id>/*',
+                                  denied: ['operator/*','ai/<other>/*','root/*'],
+                                  registered_ais: aiRegistry.list().map(a => ({ id: a.agent_id, tier: a.tier })) },
+              last_receipts: receipts.list({ limit: 10 }).map(r => ({ seq: r.seq, kind: r.kind, ref: r.ref, agent: r.agent, hash: r.hash.slice(0,16) })),
+              ts: new Date().toISOString(),
+            };
+          }},
       };
-      apiGateway = new ApiGateway({ tools: toolMap, rootVault, receipts, port });
+      apiGateway = new ApiGateway({ tools: toolMap, rootVault, receipts, port, aiRegistry });
       await apiGateway.start();
       return json(res, { ok: true, port: apiGateway.port,
                          url: `http://localhost:${apiGateway.port}`,
                          openai_schema: `http://localhost:${apiGateway.port}/.well-known/openai-functions`,
-                         tool_count: Object.keys(toolMap).length });
+                         tool_count: Object.keys(toolMap).length,
+                         tier_gated: true });
     }
     if (req.method === 'POST' && url.pathname === '/api/gateway/stop') {
       if (!apiGateway) return json(res, { ok: false, reason: 'NOT_RUNNING' });
@@ -352,6 +385,18 @@ const server = createServer(async (req, res) => {
       return json(res, apiGateway
         ? { ok: true, running: true, port: apiGateway.port, tool_count: Object.keys(apiGateway.tools).length }
         : { ok: true, running: false });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/ai/register') {
+      await rehydrate();
+      const b = await readBody(req);
+      const r = aiRegistry.register(b);
+      // Save back via root vault meta — no operator vault write needed since AI registry
+      // is system state. Persist root_vault so it sticks.
+      return json(res, r);
+    }
+    if (req.method === 'GET' && url.pathname === '/api/ai/list') {
+      await rehydrate();
+      return json(res, { ok: true, ais: aiRegistry.list() });
     }
 
     if (req.method === 'POST' && url.pathname === '/api/session/close') {
