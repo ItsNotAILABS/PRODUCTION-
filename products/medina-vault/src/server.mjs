@@ -47,6 +47,8 @@ import { AutoDoctrine } from './auto_doctrine.mjs';
 import { ApiGateway, issueApiKey } from './api_gateway.mjs';
 import { EngineRegistry } from './engines.mjs';
 import { namespaced, whoOwns } from './namespace.mjs';
+import { Runspace } from './runspace.mjs';
+import { multiHash, sha3_256, sha256 as cSha256, hmac, hmacVerify, verifyChain, randomToken, genesisFor } from './crypto_ext.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -129,6 +131,9 @@ const engines = new EngineRegistry({
   skills, agents, vault, rootVault, receipts, knowledge, failures,
   efficiency, consolidator, reinforcement, ctxLog, autoDoctrine, symbolTable,
 });
+
+// Runspace — Loom's own sandboxed code execution folder
+const runspace = new Runspace({ rootVault, receipts });
 
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
@@ -1544,6 +1549,146 @@ const tools = {
     description: 'Given a key, return the namespace and (if AI) the agent. Helps reason about who owns what across the vault.',
     inputSchema: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] },
     handler: async (a) => ({ ok: true, ...whoOwns(a.key) }),
+  },
+
+  // ── RUNSPACE — Loom's local sandboxed code execution folder ──
+  //
+  // Each job is an isolated ~/.medina/runspace/<job_id>/ folder. Loom can
+  // write files, run an allow-listed command (node/python/sh/bash/git/npm/pip),
+  // capture output, and persist results — entirely local, no network required.
+
+  runspace_create_job: {
+    description: "Create an isolated runspace job folder. Returns { id, path } where Loom can write files and execute scripts. Persistent until cleanup.",
+    inputSchema: { type: 'object', properties: { label: { type: 'string' } } },
+    handler: async (a) => runspace.createJob({ label: a.label }),
+  },
+
+  runspace_write_file: {
+    description: 'Write a file into a runspace job. Path must be relative to the job folder; traversal blocked. Max 5MB per file.',
+    inputSchema: {
+      type: 'object',
+      properties: { job_id: { type: 'string' }, path: { type: 'string' }, content: {} },
+      required: ['job_id', 'path', 'content'],
+    },
+    handler: async (a) => runspace.writeFile(a.job_id, { path: a.path, content: a.content }),
+  },
+
+  runspace_exec: {
+    description: 'Execute a command inside a runspace job. command must be one of: node, python, python3, sh, bash, cmd, powershell, pwsh, git, npm, pip. Returns stdout/stderr/exit_code. Default timeout 30s, max 5min. Default max output 256KB. No shell, env restricted to PATH.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        job_id: { type: 'string' },
+        command: { type: 'string' },
+        args: { type: 'array', items: { type: 'string' } },
+        timeout_ms: { type: 'number' },
+        max_output_bytes: { type: 'number' },
+      },
+      required: ['job_id', 'command'],
+    },
+    handler: async (a) => runspace.exec(a.job_id, {
+      command: a.command, args: a.args || [],
+      timeout_ms: a.timeout_ms, max_output_bytes: a.max_output_bytes,
+    }),
+  },
+
+  runspace_collect: {
+    description: 'List all files in the job folder + last 10 run outputs. Files include ones the script created.',
+    inputSchema: { type: 'object', properties: { job_id: { type: 'string' } }, required: ['job_id'] },
+    handler: async (a) => runspace.collect(a.job_id),
+  },
+
+  runspace_persist_to_root: {
+    description: 'Save a file from the job folder into ROOT vault under runspace/<job_id>/<path>. agent_id must not equal the operator.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        job_id: { type: 'string' }, file_path: { type: 'string' },
+        agent_id: { type: 'string' },
+      },
+      required: ['job_id', 'file_path', 'agent_id'],
+    },
+    handler: async (a) => runspace.persistToRoot(a.job_id, a.file_path, { agent_id: a.agent_id, operator: OPERATOR }),
+  },
+
+  runspace_cleanup: {
+    description: 'Delete the job folder and remove from registry.',
+    inputSchema: { type: 'object', properties: { job_id: { type: 'string' } }, required: ['job_id'] },
+    handler: async (a) => runspace.cleanup(a.job_id),
+  },
+
+  runspace_list: {
+    description: 'List active runspace jobs.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, jobs: runspace.list() }),
+  },
+
+  runspace_stats: {
+    description: 'Runspace stats: total jobs, root path, allowed commands, limits.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...runspace.stats() }),
+  },
+
+  // ── CRYPTOGRAPHIC HASHING — real, computed locally, beyond SHA-256 ──
+  //
+  // node:crypto only. SHA-256 + SHA3-256 (Keccak) + combined multi-hash.
+  // An attacker must break BOTH families to forge a combined hash.
+
+  crypto_multi_hash: {
+    description: 'Compute SHA-256 + SHA3-256 + combined multi-hash for arbitrary text. The combined hash is canonical — breaking it requires breaking both algorithm families. Fully local; no API calls.',
+    inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
+    handler: async (a) => ({ ok: true, ...multiHash(a.text) }),
+  },
+
+  crypto_sha3_256: {
+    description: 'SHA3-256 (Keccak) of an arbitrary text. Different internal structure from SHA-2 → independent guarantee.',
+    inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
+    handler: async (a) => ({ ok: true, sha3_256: sha3_256(a.text) }),
+  },
+
+  crypto_hmac: {
+    description: 'HMAC-SHA-256 keyed integrity. Returns hex digest. Verify with crypto_hmac_verify.',
+    inputSchema: {
+      type: 'object',
+      properties: { key: { type: 'string' }, text: { type: 'string' } },
+      required: ['key', 'text'],
+    },
+    handler: async (a) => ({ ok: true, hmac: hmac(a.key, a.text) }),
+  },
+
+  crypto_hmac_verify: {
+    description: 'Constant-time HMAC verification.',
+    inputSchema: {
+      type: 'object',
+      properties: { key: { type: 'string' }, text: { type: 'string' }, expected: { type: 'string' } },
+      required: ['key', 'text', 'expected'],
+    },
+    handler: async (a) => ({ ok: hmacVerify(a.key, a.text, a.expected) }),
+  },
+
+  crypto_random_token: {
+    description: 'Cryptographically strong random token (base64url). Default 24 bytes.',
+    inputSchema: { type: 'object', properties: { bytes: { type: 'number', default: 24 } } },
+    handler: async (a) => ({ ok: true, token: randomToken(a.bytes || 24) }),
+  },
+
+  crypto_genesis: {
+    description: 'Genesis multi-hash for a named chain. Use as the prev_hash for the first entry.',
+    inputSchema: { type: 'object', properties: { label: { type: 'string' } }, required: ['label'] },
+    handler: async (a) => ({ ok: true, genesis: genesisFor(a.label) }),
+  },
+
+  crypto_verify_chain: {
+    description: 'Verify a chain of entries against the multi-hash algorithm. Each entry: { prev_hash, payload, hash }. Returns ok or first_broken_index.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        entries: { type: 'array' },
+        genesis: { type: 'string', description: 'The genesis hash to verify against. Use crypto_genesis to derive.' },
+      },
+      required: ['entries', 'genesis'],
+    },
+    handler: async (a) => verifyChain(a.entries, { genesis: a.genesis }),
   },
 
   // ── SEMANTIC RECALL via φ-spectral fingerprints ─────────────────────

@@ -53,6 +53,8 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_gateway_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · named engines (10 callable workflows)`,
                 process.execPath, ['src/_engines_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · runspace + crypto_ext (sandboxed exec + multi-hash)`,
+                process.execPath, ['src/_runspace_smoke.mjs'], cwd) && allOk;
   }
 }
 
