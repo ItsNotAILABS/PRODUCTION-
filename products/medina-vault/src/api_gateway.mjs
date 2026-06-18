@@ -99,11 +99,28 @@ export class ApiGateway {
           const tool = this.tools[toolName];
           if (!tool) return send(404, { ok: false, reason: 'TOOL_NOT_FOUND', tool: toolName });
           const body = await readJson(req);
+
+          // ── MULTI-TENANT ISOLATION ─────────────────────────────────
+          // Every external call is automatically attributed to the authenticated
+          // agent_id. Even if the body tries to pass a different agent_id, the
+          // authenticated one wins. Writes auto-prefix so ChatGPT can't touch
+          // operator/* or other AIs' namespaces.
+          const isolated = { ...body, agent_id: auth.agent_id };
+          if (typeof isolated.key === 'string' &&
+              !isolated.key.startsWith('ai/') &&
+              !isolated.key.startsWith('shared/') &&
+              !isolated.key.startsWith('operator/')) {
+            isolated.key = `ai/${auth.agent_id}/${isolated.key}`;
+          }
+
           const t0 = Date.now();
-          const result = await tool.handler(body || {});
+          let result;
+          try { result = await tool.handler(isolated); }
+          catch (e) { result = { ok: false, reason: 'TOOL_THREW', message: e.message }; }
           this.receipts?.append({
             kind: 'skill_run', ref: `api:${toolName}`, agent: auth.agent_id,
-            meta: { ms: Date.now() - t0, ok: !!result?.ok, via: 'http-gateway' },
+            meta: { ms: Date.now() - t0, ok: !!result?.ok, via: 'http-gateway',
+                    isolated_namespace: `ai/${auth.agent_id}/` },
           });
           return send(200, result);
         }

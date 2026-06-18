@@ -55,6 +55,8 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_engines_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · runspace + crypto_ext (sandboxed exec + multi-hash)`,
                 process.execPath, ['src/_runspace_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · runspace governance (two-reviewer)`,
+                process.execPath, ['src/_governance_smoke.mjs'], cwd) && allOk;
   }
 }
 

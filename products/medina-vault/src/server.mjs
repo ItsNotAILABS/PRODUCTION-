@@ -48,6 +48,7 @@ import { ApiGateway, issueApiKey } from './api_gateway.mjs';
 import { EngineRegistry } from './engines.mjs';
 import { namespaced, whoOwns } from './namespace.mjs';
 import { Runspace } from './runspace.mjs';
+import { RunspaceGovernance, governedExec } from './runspace_governance.mjs';
 import { multiHash, sha3_256, sha256 as cSha256, hmac, hmacVerify, verifyChain, randomToken, genesisFor } from './crypto_ext.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -134,6 +135,7 @@ const engines = new EngineRegistry({
 
 // Runspace — Loom's own sandboxed code execution folder
 const runspace = new Runspace({ rootVault, receipts });
+const governance = new RunspaceGovernance({ receipts });
 
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
@@ -1627,6 +1629,84 @@ const tools = {
     description: 'Runspace stats: total jobs, root path, allowed commands, limits.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => ({ ok: true, ...runspace.stats() }),
+  },
+
+  // ── RUNSPACE GOVERNANCE — two-reviewer code scoring before execution ──
+
+  runspace_review: {
+    description: 'Score a code blob with two reviewers (strict + permissive). Returns score [-100,+100] and decision: TRUSTED | ALLOW | REVIEW_REQUIRED | DENY. Cites specific dangerous patterns with line numbers. Fires sandbox_test receipt.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code:     { type: 'string' },
+        language: { type: 'string', description: 'node|python|sh|bash|...' },
+        filename: { type: 'string' },
+      },
+      required: ['code'],
+    },
+    handler: async (a) => governance.review(a),
+  },
+
+  runspace_exec_governed: {
+    description: 'Convenience: review the code, then write + execute only if decision is ALLOW or TRUSTED (or override=true). Returns { review, write, exec }. Use this from external AIs (ChatGPT) to keep them out of trouble.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        job_id:       { type: 'string' },
+        file_content: { type: 'string' },
+        file_path:    { type: 'string' },
+        command:      { type: 'string' },
+        args:         { type: 'array', items: { type: 'string' } },
+        language:     { type: 'string' },
+        override:     { type: 'boolean', description: 'Force-run even if blocked. Operator-only normally.' },
+      },
+      required: ['job_id', 'file_content', 'file_path', 'command'],
+    },
+    handler: async (a) => governedExec({
+      runspace, governance,
+      job_id: a.job_id, file_content: a.file_content, file_path: a.file_path,
+      command: a.command, args: a.args || [], language: a.language, override: a.override,
+    }),
+  },
+
+  runspace_governance_stats: {
+    description: 'Aggregate review stats: total, by_decision, recent 10.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...governance.stats() }),
+  },
+
+  // ── SYSTEM STATUS (single-call overview for any client / dashboard / external AI) ──
+
+  loom_status: {
+    description: 'Top-level status of Loom: version, what is up, chain health, where to find things. Single call for dashboards and external AIs to ask "is it up?"',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => {
+      const recVerify = receipts.verify();
+      const rootVerify = rootVault.verify();
+      return {
+        ok: true,
+        product: 'Loom',
+        protocol: 'MEDINA-PROTOCOL/0.3',
+        version: '0.3.0',
+        operator: OPERATOR,
+        layers: {
+          vault:        { entries: vault.entries.size },
+          root:         { entries: rootVault.entries.size, head: rootVerify.head_hash?.slice(0, 16), intact: rootVerify.ok },
+          receipts:     { total: receipts.receipts.length, head: recVerify.head_hash?.slice(0, 16), intact: recVerify.ok },
+          knowledge:    { tokens: knowledge.tokens.size },
+          agents:       { total: agents.list().length, active_tasks: [...agents.tasks.values()].filter(t => t.status === 'running').length },
+          engines:      { total: engines.engines.size },
+          skills:       { total: skills.list().length },
+          runspace:     { jobs: runspace.list().length, path: Runspace.path },
+          governance:   { reviews: governance.reviews.length },
+          gateway:      apiGateway
+            ? { running: true, port: apiGateway.port, tool_count: Object.keys(apiGateway.tools).length }
+            : { running: false },
+        },
+        healthy: recVerify.ok && rootVerify.ok,
+        ts: new Date().toISOString(),
+      };
+    },
   },
 
   // ── CRYPTOGRAPHIC HASHING — real, computed locally, beyond SHA-256 ──

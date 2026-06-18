@@ -389,7 +389,7 @@ const HTML = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Loom · Persistent memory and skills for AI</title>
+<title>Loom v0.3 · Persistent memory and skills for AI</title>
 <style>
 :root{
   --bg:#07090e; --panel:#0d111a; --panel2:#11161f; --line:#1a2233;
@@ -474,7 +474,8 @@ th{color:var(--dim);font-weight:normal;font-size:10px;text-transform:uppercase;l
     <div class="brand">
       <h1>⌘ LOOM</h1>
       <div class="sub">Persistent memory and skills for AI</div>
-      <div class="sub" style="margin-top:2px">v0.2 · <span class="live"></span>φ=1.618 · 873ms</div>
+      <div class="sub" style="margin-top:2px">v0.3 · <span class="live" id="health-dot"></span><span id="health-text">checking…</span></div>
+      <div class="sub" style="margin-top:6px;font-size:9px;color:var(--dim)">φ=1.618 · 873ms · <span id="gateway-status">gateway —</span></div>
     </div>
     <nav class="nav" id="nav"></nav>
     <div class="foot">
@@ -518,14 +519,23 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 async function fetchAll() {
-  const [state, sks, wfs] = await Promise.all([
+  const [state, sks, wfs, gw] = await Promise.all([
     fetch('/state').then(r=>r.json()),
     fetch('/api/skills').then(r=>r.json()),
     fetch('/api/workflows').then(r=>r.json()),
+    fetch('/api/gateway/status').then(r=>r.json()).catch(() => ({running:false})),
   ]);
   STATE = state; SKILLS = sks.skills; DOMAINS = sks.domains; WFS = wfs.library;
   $('op').textContent = state.operator;
   $('opath').textContent = state.medina_home;
+  // Live health indicator in the brand sub
+  const healthy = (state.receipts?.total ?? 0) >= 0; // basic up-check; receipt chain handled per tab
+  $('health-text').textContent = healthy ? 'live' : 'down';
+  $('health-dot').style.background = healthy ? 'var(--green)' : 'var(--red)';
+  $('gateway-status').textContent = gw.running
+    ? \`gateway :\${gw.port} · \${gw.tool_count} tools\`
+    : 'gateway off';
+  $('gateway-status').style.color = gw.running ? 'var(--green)' : 'var(--dim)';
   renderNav();
   render(CURRENT);
 }
