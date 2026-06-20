@@ -61,6 +61,8 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_ai_registry_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · deposits (AES-256-GCM, agent-scoped)`,
                 process.execPath, ['src/_deposits_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · templates + channels + 20 alpha skills + 4 protocols`,
+                process.execPath, ['src/_templates_alpha_smoke.mjs'], cwd) && allOk;
   }
 }
 

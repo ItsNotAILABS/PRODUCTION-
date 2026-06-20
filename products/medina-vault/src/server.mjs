@@ -47,6 +47,10 @@ import { AutoDoctrine } from './auto_doctrine.mjs';
 import { ApiGateway, issueApiKey } from './api_gateway.mjs';
 import { AIRegistry } from './ai_registry.mjs';
 import { DepositLedger } from './deposits.mjs';
+import { TemplateRegistry } from './templates.mjs';
+import { ChannelRegistry } from './channels.mjs';
+import { buildAlphaSkills } from './alpha_skills.mjs';
+import { LivingProtocols, LIVING_PROTOCOLS } from './living_protocols.mjs';
 import { EngineRegistry } from './engines.mjs';
 import { namespaced, whoOwns } from './namespace.mjs';
 import { Runspace } from './runspace.mjs';
@@ -137,6 +141,27 @@ aiRegistry.loadFromMeta(existing?._meta);
 const deposits = new DepositLedger({ receipts, vault });
 deposits.loadFromMeta(existing?._meta);
 
+// Templates registry (20 cloneable templates in 4 families)
+const templates = new TemplateRegistry();
+
+// Frequency-based AI-to-AI channels
+const channels = new ChannelRegistry({ receipts });
+channels.loadFromMeta(existing?._meta);
+
+// 20 alpha skills — register into the skill registry so they show up everywhere.
+// runspace is initialized further down; alpha skills don't need it directly.
+for (const a of buildAlphaSkills({ skills, agents, vault, knowledge, failures,
+                                    efficiency, receipts, rootVault })) {
+  // wrap to inject channels ctx
+  const origRun = a.run.bind(a);
+  a.run = (input) => origRun(input, { channels });
+  skills.register(a);
+}
+
+// Install the 4 living protocols into ROOT (idempotent — same content returns DUPLICATE)
+await LivingProtocols.install({ rootVault, operator: OPERATOR });
+await rootVault.persist();
+
 // Named engines — high-level callable workflows
 const engines = new EngineRegistry({
   skills, agents, vault, rootVault, receipts, knowledge, failures,
@@ -196,6 +221,7 @@ async function persist() {
       ...autoDoctrine.toMeta(),
       ...aiRegistry.toMeta(),
       ...deposits.toMeta(),
+      ...channels.toMeta(),
       custom_skills: customTemplates,
       custos: { online: true, last_persist: Date.now() },
     };
@@ -1924,6 +1950,106 @@ const tools = {
     description: 'Aggregate deposit stats: total count, by_agent, by_kind, total raw bytes, total encrypted bytes, root path.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => ({ ok: true, ...deposits.stats() }),
+  },
+
+  // ── TEMPLATES ("the plus button") ─────────────────────────────────
+
+  templates_list: {
+    description: 'List 20 cloneable templates across 4 families: notebook, document, code, data. Filter by family.',
+    inputSchema: { type: 'object', properties: { family: { type: 'string' } } },
+    handler: async (a) => ({ ok: true, templates: templates.list({ family: a.family }) }),
+  },
+  templates_families: {
+    description: 'List template families with the templates they contain.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, families: templates.families(), stats: templates.stats() }),
+  },
+  templates_pull: {
+    description: 'Pull the raw template body (for inspection or external editing).',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    handler: async (a) => templates.pull(a.id),
+  },
+  templates_clone: {
+    description: 'Clone a template with input fills. Returns a vault-ready value you can pass directly to vault_store. ("The plus button.")',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' }, input: { type: 'object' },
+                    agent_id: { type: 'string' }, name: { type: 'string' } },
+      required: ['id'],
+    },
+    handler: async (a) => templates.clone(a.id, { input: a.input || {}, agent_id: a.agent_id, name: a.name }),
+  },
+
+  // ── CHANNELS (frequency-based AI-to-AI pub/sub) ───────────────────
+
+  channel_create: {
+    description: 'Create a communication channel. Frequency (Hz) is the topic identity; AIs subscribe by tuning to it.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' }, frequency_hz: { type: 'number' },
+        description: { type: 'string' }, access: { type: 'array', items: { type: 'string' } },
+        agent_id: { type: 'string' },
+      },
+      required: ['name'],
+    },
+    handler: async (a) => { const r = channels.create(a); await persist(); return r; },
+  },
+  channel_list: {
+    description: 'List all channels, sorted by frequency.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, channels: channels.list() }),
+  },
+  channel_subscribe: {
+    description: 'Subscribe to a channel (tune in).',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' }, agent_id: { type: 'string' } }, required: ['id', 'agent_id'] },
+    handler: async (a) => { const r = channels.subscribe(a.id, a.agent_id); await persist(); return r; },
+  },
+  channel_publish: {
+    description: 'Publish a message to a channel. Subscribers can read via channel_read.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' }, body: {}, kind: { type: 'string' }, agent_id: { type: 'string' } },
+      required: ['id', 'body', 'agent_id'],
+    },
+    handler: async (a) => { const r = channels.publish(a.id, a); await persist(); return r; },
+  },
+  channel_read: {
+    description: 'Read messages from a channel since a timestamp or msg_id.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' }, since_ts: { type: 'number' }, since_msg_id: { type: 'string' },
+                    limit: { type: 'number', default: 50 }, agent_id: { type: 'string' } },
+      required: ['id', 'agent_id'],
+    },
+    handler: async (a) => channels.read(a.id, a),
+  },
+  channel_stats: {
+    description: 'Channel stats: total, total messages, total subscriptions, by_frequency.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...channels.stats() }),
+  },
+
+  // ── LIVING PROTOCOLS ──────────────────────────────────────────────
+
+  protocols_living_list: {
+    description: 'List the 4 canonical Loom protocols: CHARTER, SYSTEM, OS, AGENTS. Each is doctrine + live conformance contract.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, protocols: LivingProtocols.list() }),
+  },
+  protocols_living_get: {
+    description: 'Get one canonical protocol by name (CHARTER | SYSTEM | OS | AGENTS).',
+    inputSchema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+    handler: async (a) => LivingProtocols.get(a.name),
+  },
+  protocols_living_install: {
+    description: 'Re-install all 4 living protocols into ROOT. Idempotent for unchanged content; new versions auto-suffix -v2.',
+    inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } } },
+    handler: async (a) => {
+      const r = await LivingProtocols.install({ rootVault, operator: OPERATOR, agent_id: a.agent_id });
+      await rootVault.persist();
+      return r;
+    },
   },
 
   // ── CRYPTOGRAPHIC HASHING — real, computed locally, beyond SHA-256 ──
