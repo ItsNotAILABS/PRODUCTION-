@@ -55,6 +55,8 @@ import { EngineRegistry } from './engines.mjs';
 import { namespaced, whoOwns } from './namespace.mjs';
 import { Runspace } from './runspace.mjs';
 import { RunspaceGovernance, governedExec } from './runspace_governance.mjs';
+import { SandboxMarket } from './sandbox_market.mjs';
+import { ApiLedger } from './api_ledger.mjs';
 import { multiHash, sha3_256, sha256 as cSha256, hmac, hmacVerify, verifyChain, randomToken, genesisFor } from './crypto_ext.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -171,6 +173,12 @@ const engines = new EngineRegistry({
 // Runspace — Loom's own sandboxed code execution folder
 const runspace = new Runspace({ rootVault, receipts });
 const governance = new RunspaceGovernance({ receipts });
+
+// Sandbox marketplace — 10 named execution environments
+const sandboxMarket = new SandboxMarket();
+
+// API ledger — per-route intelligent call tracking (auto-populated by dispatch)
+const apiLedger = new ApiLedger();
 
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
@@ -2148,6 +2156,81 @@ const tools = {
     },
   },
 
+  // ── SANDBOX MARKETPLACE — 10 named execution environments ──────────
+
+  market_list: {
+    description: 'List named sandbox environments. Each sandbox is a pre-configured execution environment (node, python, sh, git) with a tier requirement. Filter by tag (js, python, data, crypto, test, etc.).',
+    inputSchema: { type: 'object', properties: { tag: { type: 'string' } } },
+    handler: async (a) => ({ ok: true, sandboxes: sandboxMarket.list({ tag: a.tag }) }),
+  },
+
+  market_get: {
+    description: 'Get full details on a named sandbox: command, entry_file, starter code, tier_required.',
+    inputSchema: { type: 'object', properties: { sandbox_id: { type: 'string' } }, required: ['sandbox_id'] },
+    handler: async (a) => sandboxMarket.get(a.sandbox_id),
+  },
+
+  market_build_job: {
+    description: 'Build a runspace job spec from a named sandbox. Returns command/entry_file/code ready for runspace_create → runspace_write → runspace_exec. Optionally override starter code with your own.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sandbox_id:  { type: 'string', description: 'Sandbox ID from market_list' },
+        code:        { type: 'string', description: 'Override starter code. If omitted, uses sandbox default.' },
+        agent_id:    { type: 'string' },
+        timeout_ms:  { type: 'number', default: 30000 },
+      },
+      required: ['sandbox_id'],
+    },
+    handler: async (a) => sandboxMarket.buildJob(a.sandbox_id, {
+      code: a.code, agent_id: a.agent_id, timeout_ms: a.timeout_ms,
+    }),
+  },
+
+  market_tags: {
+    description: 'List all tags across the sandbox catalog.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, tags: sandboxMarket.tags() }),
+  },
+
+  market_stats: {
+    description: 'Sandbox market stats: total sandboxes, by tier, by tag.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...sandboxMarket.stats() }),
+  },
+
+  // ── INTELLIGENT API LEDGER — per-route call tracking ────────────────
+
+  ledger_intelligence: {
+    description: 'AI-level intelligence across all tracked routes. Surfaces critical/degraded/warning routes, busiest routes, slowest p95, overall error rate. The ledger knows its own health.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => apiLedger.intelligence(),
+  },
+
+  ledger_route_stats: {
+    description: 'Stats for one route: calls, ok/fail, error_rate, avg_ms, p50/p95/p99, top callers, top errors.',
+    inputSchema: { type: 'object', properties: { route: { type: 'string' } }, required: ['route'] },
+    handler: async (a) => apiLedger.routeStats(a.route),
+  },
+
+  ledger_all_stats: {
+    description: 'Stats for every tracked route, sorted by call volume descending.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, routes: apiLedger.allStats() }),
+  },
+
+  ledger_all_health: {
+    description: 'Health status for every tracked route, sorted critical-first. Statuses: CRITICAL, DEGRADED, WARNING, HEALTHY.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, health: apiLedger.allHealth() }),
+  },
+
+  ledger_list_routes: {
+    description: 'List all route names the ledger is tracking.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, routes: apiLedger.listRoutes() }),
+  },
+
   // PRO bridge tools — advertised in tools/list. Without MEDINA_PRO_LICENSE
   // they return { ok:false, reason:'UPGRADE_REQUIRED' } so the AI sees the
   // upgrade path as a structured value, not a missing tool.
@@ -2205,10 +2288,14 @@ async function handle(message) {
     case 'tools/call': {
       const t = tools[params?.name];
       if (!t) return replyError(id, -32601, `Unknown tool: ${params?.name}`);
+      const _t0 = Date.now();
+      const _agent = params.arguments?.agent_id || 'mcp';
       try {
         const out = await t.handler(params.arguments ?? {});
+        apiLedger.route(params.name).record({ agent_id: _agent, ok: out?.ok !== false, ms: Date.now() - _t0 });
         return reply(id, toolContent(out));
       } catch (e) {
+        apiLedger.route(params.name).record({ agent_id: _agent, ok: false, ms: Date.now() - _t0, error: e.message?.slice(0, 80) });
         return reply(id, toolContent({ ok: false, reason: 'INTERNAL_ERROR', message: e.message }));
       }
     }
