@@ -57,6 +57,7 @@ import { Runspace } from './runspace.mjs';
 import { RunspaceGovernance, governedExec } from './runspace_governance.mjs';
 import { SandboxMarket } from './sandbox_market.mjs';
 import { ApiLedger } from './api_ledger.mjs';
+import { DesignEngine } from './design_engine.mjs';
 import { multiHash, sha3_256, sha256 as cSha256, hmac, hmacVerify, verifyChain, randomToken, genesisFor } from './crypto_ext.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -65,8 +66,8 @@ import { fileURLToPath } from 'node:url';
 // ── Identity ────────────────────────────────────────────────────────────
 
 const SERVER_NAME    = 'loom';
-const SERVER_VERSION = '0.1.0';
-const PROTOCOL       = 'MEDINA-PROTOCOL/0.1';
+const SERVER_VERSION = '0.4.0';
+const PROTOCOL       = 'MEDINA-PROTOCOL/0.4';
 const MCP_VERSION    = '2024-11-05';
 
 // ── State ────────────────────────────────────────────────────────────────
@@ -179,6 +180,9 @@ const sandboxMarket = new SandboxMarket();
 
 // API ledger — per-route intelligent call tracking (auto-populated by dispatch)
 const apiLedger = new ApiLedger();
+
+// Design engine — Python/Node build intelligence
+const designEngine = new DesignEngine();
 
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
@@ -2154,6 +2158,62 @@ const tools = {
       const ranked = rankBySimilarity(a.text, browse, { limit: a.limit, minScore: a.min_score });
       return { ok: true, results: ranked };
     },
+  },
+
+  // ── DESIGN ENGINE — Python/Node build intelligence ──────────────────
+  // Compile a complete build foundation from a description. Output is a
+  // BuildPlan with all files + exec_plan ready to feed into runspace.
+
+  design_list: {
+    description: 'List available build archetypes (fastapi-service, data-pipeline, cli-tool, ml-experiment, node-server). Each archetype compiles a complete file tree + exec plan.',
+    inputSchema: { type: 'object', properties: { tag: { type: 'string', description: 'Filter by tag: python, node, api, data, ml, cli' } } },
+    handler: async (a) => ({
+      ok: true,
+      archetypes: a.tag ? designEngine.archetypes_by_tag(a.tag) : designEngine.list(),
+    }),
+  },
+
+  design_get: {
+    description: 'Get full detail on an archetype including all file templates.',
+    inputSchema: { type: 'object', properties: { archetype_id: { type: 'string' } }, required: ['archetype_id'] },
+    handler: async (a) => designEngine.get(a.archetype_id),
+  },
+
+  design_compile: {
+    description: 'Compile a complete build plan: all source files + exec_plan. Returns every file\'s content ready to write to runspace or disk. Archetypes: fastapi-service, data-pipeline, cli-tool, ml-experiment, node-server.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        archetype_id: { type: 'string' },
+        name:         { type: 'string', description: 'Human name, e.g. "User Auth Service"' },
+        description:  { type: 'string', description: 'Optional override description' },
+        extra_vars:   { type: 'object', description: 'Extra template variables' },
+      },
+      required: ['archetype_id', 'name'],
+    },
+    handler: async (a) => designEngine.compile(a.archetype_id, {
+      name: a.name, description: a.description, extra_vars: a.extra_vars,
+    }),
+  },
+
+  design_preview: {
+    description: 'Preview a build plan (file list + sizes + exec steps) without returning full file contents. Use design_compile to get actual source.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        archetype_id: { type: 'string' },
+        name:         { type: 'string' },
+        description:  { type: 'string' },
+      },
+      required: ['archetype_id', 'name'],
+    },
+    handler: async (a) => designEngine.preview(a.archetype_id, { name: a.name, description: a.description }),
+  },
+
+  design_stats: {
+    description: 'Design engine stats: total archetypes, by tag.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => ({ ok: true, ...designEngine.stats() }),
   },
 
   // ── SANDBOX MARKETPLACE — 10 named execution environments ──────────

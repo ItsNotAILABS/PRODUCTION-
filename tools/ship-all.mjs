@@ -65,6 +65,8 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_templates_alpha_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · sandbox marketplace + intelligent API ledger`,
                 process.execPath, ['src/_sandbox_ledger_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · design engine (5 archetypes, compile, fill, exec_plan)`,
+                process.execPath, ['src/_design_smoke.mjs'], cwd) && allOk;
   }
 }
 

@@ -33,6 +33,10 @@ const { Workspace }        = await import(pathToFileURL(join(VAULT_SRC, 'workspa
 const { PlanLedger }       = await import(pathToFileURL(join(VAULT_SRC, 'plans.mjs')).href);
 const { ContextLog }       = await import(pathToFileURL(join(VAULT_SRC, 'context.mjs')).href);
 const { Reinforcement }    = await import(pathToFileURL(join(VAULT_SRC, 'reinforcement.mjs')).href);
+const { DesignEngine }     = await import(pathToFileURL(join(VAULT_SRC, 'design_engine.mjs')).href);
+const { SandboxMarket }    = await import(pathToFileURL(join(VAULT_SRC, 'sandbox_market.mjs')).href);
+const { Runspace }         = await import(pathToFileURL(join(VAULT_SRC, 'runspace.mjs')).href);
+const { RunspaceGovernance } = await import(pathToFileURL(join(VAULT_SRC, 'runspace_governance.mjs')).href);
 
 const PORT = Number(process.env.MEDINA_DASHBOARD_PORT || 8731);
 const MEDINA_HOME = process.env.MEDINA_HOME || join(homedir(), '.medina');
@@ -53,6 +57,11 @@ const workflows = new WorkflowRunner({ registry: skills });
 const graph    = new SessionGraph();
 const knowledge = new KnowledgeLedger();
 const sandbox   = new SkillSandbox({ registry: skills, runner: workflows });
+const designEngine = new DesignEngine();
+const sandboxMarket = new SandboxMarket();
+const runspace = new Runspace({ rootVault, receipts });
+const governance = new RunspaceGovernance({ receipts });
+const dashLedger = { routes: [], calls: [] };  // lightweight ledger proxy for dashboard view
 const workspace = new Workspace();
 const planLedger = new PlanLedger();
 const ctxLog    = new ContextLog();
@@ -399,6 +408,44 @@ const server = createServer(async (req, res) => {
       return json(res, { ok: true, ais: aiRegistry.list() });
     }
 
+    // ── Design engine API ──────────────────────────────────────────
+    if (req.method === 'GET' && url.pathname === '/api/design/list') {
+      return json(res, { ok: true, archetypes: designEngine.list() });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/design/compile') {
+      const b = await readBody(req);
+      return json(res, designEngine.compile(b.archetype_id, { name: b.name, description: b.description, extra_vars: b.extra_vars }));
+    }
+    if (req.method === 'POST' && url.pathname === '/api/design/preview') {
+      const b = await readBody(req);
+      return json(res, designEngine.preview(b.archetype_id, { name: b.name, description: b.description }));
+    }
+
+    // ── Sandbox market + runspace execution API ────────────────────
+    if (req.method === 'GET' && url.pathname === '/api/market/list') {
+      return json(res, { ok: true, sandboxes: sandboxMarket.list() });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/sandbox/run') {
+      const b = await readBody(req);
+      const spec = sandboxMarket.buildJob(b.sandbox_id, { code: b.code, agent_id: 'operator' });
+      if (!spec.ok) return json(res, spec);
+      const review = governance.review({ code: spec.code, language: spec.command, filename: spec.entry_file });
+      if (review.decision === 'DENY') return json(res, { ok: false, reason: 'GOVERNANCE_DENY', decision: review.decision, score: review.score, flags: review.flags });
+      const job = await runspace.createJob({ label: b.sandbox_id });
+      await runspace.writeFile(job.id, { path: spec.entry_file, content: spec.code });
+      const result = await runspace.exec(job.id, { command: spec.command, args: [spec.entry_file], timeout_ms: spec.timeout_ms });
+      await runspace.cleanup(job.id);
+      return json(res, { ok: result.exit_code === 0, sandbox_id: b.sandbox_id, review: { decision: review.decision, score: review.score }, ...result });
+    }
+
+    // ── API ledger (reads from MCP vault meta if available) ────────
+    if (req.method === 'GET' && url.pathname === '/api/ledger') {
+      const snap = await readJsonSafe(VAULT_PATH);
+      const ledgerData = snap?._meta?.api_ledger;
+      if (!ledgerData?.routes?.length) return json(res, { ok: true, routes: [], intelligence: { total_calls: 0, routes_tracked: 0, assessment: 'No calls recorded yet' } });
+      return json(res, { ok: true, ...ledgerData });
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/session/close') {
       const b = await readBody(req);
       const recent = receipts.list({ limit: 10 });
@@ -422,8 +469,9 @@ function json(res, body) {
 }
 
 server.listen(PORT, () => {
-  console.log(`\n  Medina Dashboard — http://localhost:${PORT}`);
-  console.log(`  ${skills.list().length} skills · ${Object.keys(WORKFLOW_LIBRARY).length} workflows · MEDINA-PROTOCOL/0.2\n`);
+  console.log(`\n  Loom Dashboard v0.4 — http://localhost:${PORT}`);
+  console.log(`  ${skills.list().length} skills · ${Object.keys(WORKFLOW_LIBRARY).length} workflows · 5 archetypes · 10 sandboxes`);
+  console.log(`  MEDINA-PROTOCOL/0.4 · operator=${OPERATOR}\n`);
 });
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -434,98 +482,138 @@ const HTML = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Loom v0.3 · Persistent memory and skills for AI</title>
+<title>Loom v0.4 · AI Memory Infrastructure</title>
 <style>
 :root{
-  --bg:#07090e; --panel:#0d111a; --panel2:#11161f; --line:#1a2233;
-  --ink:#e5e8ef; --ink-dim:#9aa3b2; --dim:#6b7280;
-  --gold:#d4a843; --green:#34d399; --red:#ef4444; --blue:#60a5fa;
-  --pri:#6366f1; --sov:#ef4444; --sha:#06b6d4; --pub:#94a3b8;
-  --mono: ui-monospace, "JetBrains Mono", Consolas, monospace;
-  --sans: -apple-system, "Segoe UI", system-ui, sans-serif;
+  --bg:#060810; --panel:#0b0f1a; --panel2:#0f1422; --line:#182038;
+  --ink:#e8ecf5; --ink-dim:#8d97ae; --dim:#5a6478;
+  --gold:#c9993a; --gold-bright:#e5b84a; --green:#2dd4a0; --red:#f05252; --blue:#5b9cf6;
+  --pri:#7c6af7; --sov:#f05252; --sha:#22cce0; --pub:#7f8fa6;
+  --mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  --sans: "Inter", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --radius: 6px;
+  --shadow: 0 2px 12px rgba(0,0,0,.4);
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:13px/1.5 var(--mono)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:13px/1.6 var(--sans)}
 a{color:var(--blue);text-decoration:none}
-button{font:inherit;cursor:pointer;background:var(--panel2);color:var(--ink);border:1px solid var(--line);padding:6px 12px;border-radius:3px}
-button:hover{background:var(--panel);border-color:var(--gold)}
-button.primary{background:var(--gold);color:#0b0b0b;border-color:var(--gold);font-weight:600}
-button.primary:hover{filter:brightness(1.1)}
-input,textarea,select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);padding:6px 8px;border-radius:3px;width:100%}
-input:focus,textarea:focus,select:focus{outline:none;border-color:var(--gold)}
-code{color:var(--gold)}
-.app{display:grid;grid-template-columns:240px 1fr;height:100vh;overflow:hidden}
+button{font:inherit;cursor:pointer;background:var(--panel2);color:var(--ink);border:1px solid var(--line);padding:7px 14px;border-radius:var(--radius);transition:all .12s}
+button:hover{background:var(--panel);border-color:var(--gold);color:var(--gold-bright)}
+button.primary{background:linear-gradient(135deg,#c9993a,#e5b84a);color:#09090b;border:none;font-weight:600;letter-spacing:.02em}
+button.primary:hover{filter:brightness(1.08)}
+button.ghost{background:none;border-color:var(--line);color:var(--ink-dim)}
+button.ghost:hover{border-color:var(--gold);color:var(--gold-bright);background:none}
+input,textarea,select{font:inherit;background:rgba(255,255,255,.03);color:var(--ink);border:1px solid var(--line);padding:7px 10px;border-radius:var(--radius);width:100%;transition:border-color .12s}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 2px rgba(201,153,58,.12)}
+code{font-family:var(--mono);color:var(--gold);font-size:.92em}
+.app{display:grid;grid-template-columns:256px 1fr;height:100vh;overflow:hidden}
+
 /* ── sidebar ── */
-.side{background:#04060a;border-right:1px solid var(--line);display:flex;flex-direction:column}
-.brand{padding:18px 16px;border-bottom:1px solid var(--line)}
-.brand h1{margin:0;font-size:14px;letter-spacing:.2em;color:var(--gold)}
-.brand .sub{font-size:10px;color:var(--dim);margin-top:4px;letter-spacing:.1em}
-.nav{flex:1;padding:8px 0;overflow:auto}
-.nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;border-left:2px solid transparent;background:none;color:var(--ink-dim);padding:10px 16px;border-radius:0;font-size:12px;letter-spacing:.05em}
-.nav button:hover{background:#0a0e16;color:var(--ink)}
-.nav button.active{background:#0a0e16;border-left-color:var(--gold);color:var(--gold)}
-.nav .icon{font-size:14px;width:18px;text-align:center}
-.nav .count{margin-left:auto;font-size:10px;color:var(--dim);background:var(--panel);padding:2px 6px;border-radius:8px}
+.side{background:#060810;border-right:1px solid var(--line);display:flex;flex-direction:column;position:relative}
+.side::after{content:'';position:absolute;top:0;right:0;bottom:0;width:1px;background:linear-gradient(to bottom,transparent,var(--gold) 30%,var(--gold) 70%,transparent);opacity:.15;pointer-events:none}
+.brand{padding:20px 18px 16px;border-bottom:1px solid var(--line)}
+.brand-row{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.brand-icon{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#c9993a22,#c9993a44);border:1px solid #c9993a44;display:flex;align-items:center;justify-content:center;font-size:14px}
+.brand h1{margin:0;font-size:15px;font-weight:700;letter-spacing:.12em;color:var(--ink);font-family:var(--mono)}
+.brand h1 span{color:var(--gold)}
+.brand .sub{font-size:10px;color:var(--dim);letter-spacing:.06em;line-height:1.6}
+.brand .version-row{display:flex;align-items:center;gap:6px;margin-top:4px}
+.vbadge{font-size:9px;background:linear-gradient(135deg,#c9993a22,#c9993a33);color:var(--gold);border:1px solid #c9993a33;padding:1px 7px;border-radius:20px;letter-spacing:.08em;font-weight:600;font-family:var(--mono)}
+.nav{flex:1;padding:10px 8px;overflow:auto}
+.nav-section{font-size:9px;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;padding:12px 10px 4px;font-family:var(--mono)}
+.nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;border-radius:var(--radius);background:none;color:var(--ink-dim);padding:8px 10px;font-size:12px;letter-spacing:.02em;margin-bottom:1px}
+.nav button:hover{background:rgba(255,255,255,.04);color:var(--ink);border:none}
+.nav button.active{background:rgba(201,153,58,.1);color:var(--gold-bright);border:none;font-weight:500}
+.nav .icon{font-size:13px;width:18px;text-align:center;opacity:.7}
+.nav button.active .icon{opacity:1}
+.nav .count{margin-left:auto;font-size:10px;color:var(--dim);background:rgba(255,255,255,.05);padding:1px 6px;border-radius:8px;font-family:var(--mono)}
+.nav button.active .count{background:rgba(201,153,58,.15);color:var(--gold)}
 .side .foot{padding:12px 16px;border-top:1px solid var(--line);font-size:10px;color:var(--dim)}
-.live{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:middle;animation:pulse 1.4s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:middle;animation:pulse 2s infinite;box-shadow:0 0 6px var(--green)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
 /* ── main ── */
-.main{overflow:auto;padding:24px 32px}
-.head{display:flex;align-items:center;gap:16px;margin-bottom:20px}
-.head h2{margin:0;font-size:20px;letter-spacing:.05em;color:var(--ink)}
-.head .pill{font-size:10px;color:var(--gold);background:#1f1605;border:1px solid #3a2a06;padding:3px 8px;border-radius:10px;letter-spacing:.1em}
-.stats{display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap}
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:14px 18px;min-width:120px}
-.stat .n{font-size:22px;color:var(--gold);font-weight:600}
-.stat .l{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.12em;margin-top:2px}
+.main{overflow:auto;padding:28px 36px}
+.head{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+.head h2{margin:0;font-size:22px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.head .pill{font-size:10px;color:var(--gold);background:rgba(201,153,58,.1);border:1px solid rgba(201,153,58,.25);padding:3px 10px;border-radius:20px;letter-spacing:.08em;font-weight:500;font-family:var(--mono)}
+.stats{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 20px;min-width:120px;position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent)}
+.stat .n{font-size:26px;color:var(--gold-bright);font-weight:700;font-family:var(--mono);letter-spacing:-.02em}
+.stat .l{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-top:3px}
 .cards{display:grid;grid-template-columns:repeat(auto-fill, minmax(280px,1fr));gap:12px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:14px;cursor:pointer;transition:all .12s}
-.card:hover{border-color:var(--gold);background:var(--panel2);transform:translateY(-1px)}
-.card .name{color:var(--gold);font-size:12px;margin-bottom:4px}
-.card .desc{color:var(--ink-dim);font-size:11px;line-height:1.45;height:48px;overflow:hidden}
-.card .meta{display:flex;justify-content:space-between;margin-top:8px;font-size:10px;color:var(--dim)}
-.domain-pill{display:inline-block;padding:2px 6px;border-radius:2px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;background:var(--bg);color:var(--ink-dim);border:1px solid var(--line)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;cursor:pointer;transition:all .14s;position:relative}
+.card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(201,153,58,.08);transform:translateY(-2px)}
+.card .name{color:var(--gold-bright);font-size:12px;font-weight:600;margin-bottom:5px;font-family:var(--mono)}
+.card .desc{color:var(--ink-dim);font-size:11px;line-height:1.5;height:48px;overflow:hidden}
+.card .meta{display:flex;justify-content:space-between;margin-top:10px;font-size:10px;color:var(--dim);align-items:center}
+.domain-pill{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;background:rgba(255,255,255,.04);color:var(--ink-dim);border:1px solid var(--line)}
 table{width:100%;border-collapse:collapse;font-size:12px}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--dim);font-weight:normal;font-size:10px;text-transform:uppercase;letter-spacing:.1em;background:var(--panel2);position:sticky;top:0}
-.tier{display:inline-block;padding:1px 6px;border-radius:2px;font-size:9px;letter-spacing:.1em}
-.tier-PUBLIC{background:#1e293b;color:var(--pub)}
-.tier-SHARED{background:#0e3a4c;color:var(--sha)}
-.tier-PRIVATE{background:#1e1b4b;color:var(--pri)}
-.tier-SOVEREIGN{background:#4c1d1d;color:var(--sov)}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.1em;background:var(--panel2);position:sticky;top:0;font-family:var(--mono)}
+tr:hover td{background:rgba(255,255,255,.015)}
+.tier{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;letter-spacing:.08em;font-weight:600;font-family:var(--mono)}
+.tier-PUBLIC{background:rgba(127,143,166,.15);color:var(--pub)}
+.tier-SHARED{background:rgba(34,204,224,.1);color:var(--sha)}
+.tier-PRIVATE{background:rgba(124,106,247,.15);color:var(--pri)}
+.tier-SOVEREIGN{background:rgba(240,82,82,.15);color:var(--sov)}
 .preview{color:var(--ink-dim);max-width:480px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.empty{color:var(--dim);padding:32px;text-align:center;font-style:italic}
+.empty{color:var(--dim);padding:40px;text-align:center;font-style:italic;font-size:12px}
 .toolbar{display:flex;gap:8px;margin-bottom:16px;align-items:center}
-.toolbar input{max-width:280px}
-/* ── modal / drawer ── */
-.drawer{position:fixed;top:0;right:0;width:540px;max-width:95vw;height:100vh;background:var(--panel);border-left:1px solid var(--gold);box-shadow:-8px 0 32px rgba(0,0,0,.6);transform:translateX(100%);transition:transform .18s;z-index:10;display:flex;flex-direction:column}
+.toolbar input{max-width:300px}
+.section-head{font-size:11px;color:var(--gold);letter-spacing:.12em;text-transform:uppercase;margin:24px 0 8px;font-family:var(--mono);font-weight:600;border-bottom:1px solid var(--line);padding-bottom:6px}
+.health-row{display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:10px}
+.health-ok{color:var(--green)}
+.health-bad{color:var(--red)}
+
+/* ── drawer ── */
+.drawer{position:fixed;top:0;right:0;width:560px;max-width:95vw;height:100vh;background:var(--panel);border-left:1px solid var(--line);box-shadow:-12px 0 48px rgba(0,0,0,.7);transform:translateX(100%);transition:transform .2s cubic-bezier(.4,0,.2,1);z-index:10;display:flex;flex-direction:column}
 .drawer.open{transform:translateX(0)}
-.drawer .dh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
-.drawer .dh h3{margin:0;font-size:14px;color:var(--gold);flex:1}
-.drawer .dh button.close{padding:4px 10px}
-.drawer .db{padding:16px 20px;flex:1;overflow:auto}
-.drawer .df{padding:12px 20px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;background:var(--panel2)}
-.field{margin-bottom:12px}
-.field label{display:block;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
-.field .help{font-size:10px;color:var(--dim);margin-top:2px}
-.result{background:var(--bg);border:1px solid var(--line);border-radius:3px;padding:12px;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:340px;overflow:auto;color:var(--green)}
+.drawer .dh{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.drawer .dh h3{margin:0;font-size:14px;color:var(--gold-bright);flex:1;font-weight:600}
+.drawer .dh button.close{padding:4px 10px;font-size:16px;line-height:1}
+.drawer .db{padding:18px 22px;flex:1;overflow:auto}
+.drawer .df{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;background:var(--panel2)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px;font-family:var(--mono)}
+.field .help{font-size:10px;color:var(--dim);margin-top:3px;line-height:1.5}
+.result{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:var(--radius);padding:14px;font-size:11px;font-family:var(--mono);white-space:pre-wrap;word-break:break-word;max-height:360px;overflow:auto;color:var(--green);line-height:1.5}
 .result.err{color:var(--red)}
-.tag{display:inline-block;padding:1px 6px;font-size:9px;color:var(--ink-dim);background:var(--bg);border:1px solid var(--line);border-radius:2px;margin-right:4px}
+.tag{display:inline-block;padding:2px 7px;font-size:9px;color:var(--ink-dim);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:3px;margin-right:4px;margin-bottom:3px;font-family:var(--mono)}
+
+/* ── status indicators ── */
+.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.dot-green{background:var(--green);box-shadow:0 0 5px var(--green)}
+.dot-yellow{background:#f59e0b;box-shadow:0 0 5px #f59e0b}
+.dot-red{background:var(--red);box-shadow:0 0 5px var(--red)}
+.dot-gray{background:var(--dim)}
+.arch-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;cursor:pointer;transition:all .14s;border-top:2px solid var(--gold)}
+.arch-card:hover{border-color:var(--gold);box-shadow:0 4px 24px rgba(201,153,58,.1);transform:translateY(-2px)}
+.arch-card .arch-name{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.arch-card .arch-desc{font-size:11px;color:var(--ink-dim);margin-bottom:10px;line-height:1.5}
+.arch-card .arch-meta{display:flex;gap:6px;flex-wrap:wrap}
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="side">
     <div class="brand">
-      <h1>⌘ LOOM</h1>
-      <div class="sub">Persistent memory and skills for AI</div>
-      <div class="sub" style="margin-top:2px">v0.3 · <span class="live" id="health-dot"></span><span id="health-text">checking…</span></div>
-      <div class="sub" style="margin-top:6px;font-size:9px;color:var(--dim)">φ=1.618 · 873ms · <span id="gateway-status">gateway —</span></div>
+      <div class="brand-row">
+        <div class="brand-icon">⌘</div>
+        <h1>LOOM<span style="color:var(--dim);font-size:11px;font-weight:400"> v0.4</span></h1>
+      </div>
+      <div class="sub">AI Memory Infrastructure</div>
+      <div class="version-row">
+        <span class="vbadge">MEDINA-PROTOCOL/0.4</span>
+        <span style="color:var(--dim);font-size:9px"><span class="live" id="health-dot"></span><span id="health-text">checking…</span></span>
+      </div>
+      <div class="sub" style="margin-top:5px;font-size:9px">φ=1.618 · 873ms heartbeat · <span id="gateway-status" style="color:var(--dim)">gateway —</span></div>
     </div>
     <nav class="nav" id="nav"></nav>
     <div class="foot">
-      operator <code id="op">…</code><br>
-      <span id="opath">…</span>
+      <code id="op">…</code><br>
+      <span id="opath" style="word-break:break-all">…</span>
     </div>
   </aside>
   <main class="main" id="main">
@@ -544,21 +632,25 @@ th{color:var(--dim);font-weight:normal;font-size:10px;text-transform:uppercase;l
 
 <script>
 const TABS = [
-  { id:'workspace', label:'Workspace', icon:'☉' },
-  { id:'plans',     label:'Plans',     icon:'☷' },
-  { id:'vault',     label:'Vault',     icon:'⟁' },
-  { id:'skills',    label:'Skills',    icon:'✦' },
-  { id:'workflows', label:'Workflows', icon:'⇄' },
-  { id:'knowledge', label:'Knowledge', icon:'◇' },
-  { id:'graph',     label:'Graph',     icon:'⌬' },
-  { id:'sandbox',   label:'Sandbox',   icon:'◐' },
-  { id:'receipts',  label:'Receipts',  icon:'⛓' },
-  { id:'keys',      label:'Keys',      icon:'⚷' },
-  { id:'tokens',    label:'Tokens',    icon:'◈' },
-  { id:'signal',    label:'Signal',    icon:'⇋' },
-  { id:'runs',      label:'Activity',  icon:'⏱' },
+  { id:'overview',  label:'Overview',  icon:'◈', group:'SYSTEM' },
+  { id:'vault',     label:'Vault',     icon:'⟁', group:'MEMORY' },
+  { id:'workspace', label:'Workspace', icon:'☉', group:'MEMORY' },
+  { id:'plans',     label:'Plans',     icon:'☷', group:'MEMORY' },
+  { id:'knowledge', label:'Knowledge', icon:'◇', group:'MEMORY' },
+  { id:'graph',     label:'Graph',     icon:'⌬', group:'MEMORY' },
+  { id:'design',    label:'Design Engine', icon:'◆', group:'BUILD' },
+  { id:'market',    label:'Sandbox Market', icon:'◐', group:'BUILD' },
+  { id:'skills',    label:'Skills',    icon:'✦', group:'BUILD' },
+  { id:'workflows', label:'Workflows', icon:'⇄', group:'BUILD' },
+  { id:'sandbox',   label:'Skill Sandbox', icon:'⬡', group:'BUILD' },
+  { id:'ledger',    label:'API Ledger', icon:'◉', group:'INFRA' },
+  { id:'receipts',  label:'Receipts',  icon:'⛓', group:'INFRA' },
+  { id:'keys',      label:'Keys',      icon:'⚷', group:'INFRA' },
+  { id:'tokens',    label:'Tokens',    icon:'◈', group:'INFRA' },
+  { id:'signal',    label:'Signal',    icon:'⇋', group:'INFRA' },
+  { id:'runs',      label:'Activity',  icon:'⏱', group:'INFRA' },
 ];
-let STATE = null, SKILLS = [], DOMAINS = [], WFS = [], CURRENT = 'vault';
+let STATE = null, SKILLS = [], DOMAINS = [], WFS = [], CURRENT = 'overview';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -587,6 +679,7 @@ async function fetchAll() {
 
 function renderNav() {
   const counts = {
+    overview:  '',
     vault:     STATE.vault.total,
     skills:    SKILLS.length,
     workflows: WFS.length,
@@ -599,25 +692,35 @@ function renderNav() {
     keys:      STATE.meta.keys.length,
     tokens:    STATE.meta.tokens.length,
     signal:    STATE.signal.total,
+    design:    '5',
+    market:    '10',
+    ledger:    '',
     runs:      '',
   };
-  $('nav').innerHTML = TABS.map(t =>
-    \`<button class="\${CURRENT===t.id?'active':''}" onclick="go('\${t.id}')">
-      <span class="icon">\${t.icon}</span><span>\${t.label}</span>
-      <span class="count">\${counts[t.id] ?? ''}</span>
-    </button>\`).join('');
+  const groups = [...new Set(TABS.map(t=>t.group))];
+  $('nav').innerHTML = groups.map(g =>
+    \`<div class="nav-section">\${g}</div>\` +
+    TABS.filter(t=>t.group===g).map(t =>
+      \`<button class="\${CURRENT===t.id?'active':''}" onclick="go('\${t.id}')">
+        <span class="icon">\${t.icon}</span><span>\${t.label}</span>
+        <span class="count">\${counts[t.id] ?? ''}</span>
+      </button>\`).join('')
+  ).join('');
 }
 
 function go(tab) { CURRENT = tab; renderNav(); render(tab); }
 
 function render(tab) {
   const m = $('main');
-  if (tab === 'vault')     m.innerHTML = renderVault();
+  if (tab === 'overview')   m.innerHTML = renderOverview();
+  else if (tab === 'vault')     m.innerHTML = renderVault();
   else if (tab === 'skills')    m.innerHTML = renderSkills();
   else if (tab === 'workflows') m.innerHTML = renderWorkflows();
   else if (tab === 'keys')      m.innerHTML = renderKeys();
   else if (tab === 'tokens')    m.innerHTML = renderTokens();
   else if (tab === 'signal')    m.innerHTML = renderSignal();
+  else if (tab === 'design')    m.innerHTML = renderDesign();
+  else if (tab === 'market')    m.innerHTML = renderMarket();
   else if (tab === 'runs')      { m.innerHTML = '<div class="empty">loading…</div>'; loadRuns(); }
   else if (tab === 'knowledge') { m.innerHTML = '<div class="empty">loading…</div>'; loadKnowledge(); }
   else if (tab === 'graph')     { m.innerHTML = '<div class="empty">loading…</div>'; loadGraph(); }
@@ -625,6 +728,7 @@ function render(tab) {
   else if (tab === 'sandbox')   { m.innerHTML = '<div class="empty">loading…</div>'; loadSandbox(); }
   else if (tab === 'workspace') { m.innerHTML = '<div class="empty">loading…</div>'; loadWorkspace(); }
   else if (tab === 'plans')     { m.innerHTML = '<div class="empty">loading…</div>'; loadPlans(); }
+  else if (tab === 'ledger')    { m.innerHTML = '<div class="empty">loading…</div>'; loadLedger(); }
 }
 
 async function loadWorkspace() {
@@ -969,6 +1073,249 @@ async function loadRuns() {
     <table><thead><tr><th>time</th><th>skill</th><th>status</th><th>ms</th><th>agent</th></tr></thead><tbody>\${skillRows}</tbody></table>
     <h3 style="font-size:11px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-top:24px">Workflow runs</h3>
     <table><thead><tr><th>time</th><th>workflow</th><th>nodes</th><th>status</th></tr></thead><tbody>\${wfRows}</tbody></table>\`;
+}
+
+// ── OVERVIEW ─────────────────────────────────────────────────────────
+function renderOverview() {
+  const v = STATE.vault;
+  const r = STATE.receipts;
+  const gw = STATE._gw || {};
+  const gwColor = gw.running ? 'var(--green)' : 'var(--dim)';
+  const gwLabel = gw.running ? \`Gateway live · port \${gw.port} · \${gw.tool_count} tools\` : 'Gateway offline';
+  return \`
+    <div class="head"><h2>Overview</h2><span class="pill">MEDINA-PROTOCOL/0.4</span></div>
+    <div class="stats">
+      <div class="stat"><div class="n">\${v.total}</div><div class="l">Vault entries</div></div>
+      <div class="stat"><div class="n">\${r?.total||0}</div><div class="l">Receipts</div></div>
+      <div class="stat"><div class="n">\${SKILLS.length}</div><div class="l">Skills</div></div>
+      <div class="stat"><div class="n">\${STATE.knowledge?.total||0}</div><div class="l">Knowledge tokens</div></div>
+      <div class="stat"><div class="n">5</div><div class="l">Archetypes</div></div>
+      <div class="stat"><div class="n">10</div><div class="l">Sandboxes</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px">
+        <div class="section-head" style="margin-top:0">Gateway Status</div>
+        <div style="font-size:13px;color:\${gwColor}">
+          <span class="status-dot \${gw.running?'dot-green':'dot-gray'}"></span>\${gwLabel}
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--dim)">
+          Start: <code>api_gateway_start</code> in Claude Desktop<br>
+          Issue keys: <code>api_gateway_issue_key</code><br>
+          Schema: <code>/‌.well-known/openai-functions</code>
+        </div>
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px">
+        <div class="section-head" style="margin-top:0">Runtime Laws</div>
+        <div style="font-size:11px;color:var(--ink-dim);line-height:1.8">
+          φ = <code>1.618033988749895</code><br>
+          Heartbeat = <code>873ms</code> (φ⁴ × 7.83 Schumann)<br>
+          Decay/beat = <code>0.382</code> (1 − 1/φ)<br>
+          Hash = <code>sha256 + sha3-256 + combined</code>
+        </div>
+      </div>
+    </div>
+    <div class="section-head">7 Runtime Laws</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      \${['RECITAL_PLUS_ONE — every write chains the previous hash',
+         'DUAL_READ — reads are tier-gated, no elevation without auth',
+         'φ-DECAY — memory salience decays at 0.382 per heartbeat',
+         'GOVERNANCE PIPELINE — code scored before any runspace access',
+         'NAMESPACE ISOLATION — AIs locked to ai/<id>/ prefix',
+         'HONESTY — empty state is honest; no fake demo data',
+         'CHAIN INTEGRITY — tamper breaks chain at a known sequence',
+        ].map(l=>\`<div style="background:rgba(201,153,58,.04);border:1px solid rgba(201,153,58,.12);border-radius:var(--radius);padding:10px 14px;font-size:11px;color:var(--ink-dim)"><span style="color:var(--gold);font-weight:600">\${esc(l.split(' — ')[0])}</span><span style="color:var(--dim)"> — </span>\${esc(l.split(' — ')[1])}</div>\`).join('')}
+    </div>
+    <div class="section-head" style="margin-top:24px">Multi-Tenant Architecture</div>
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;font-size:11px;color:var(--ink-dim);line-height:1.8">
+      <strong style="color:var(--ink)">Operator</strong> → MCP stdio (all tools, no tier restriction)<br>
+      <strong style="color:var(--ink)">External AI</strong> → HTTP Gateway :8732 (Bearer key, tier-gated, namespaced to <code>ai/&lt;agent_id&gt;/</code>)<br>
+      Each AI gets its own namespace. Reads/writes can't escape it.<br>
+      Tier levels: <span class="tier tier-PUBLIC">BASIC</span> <span class="tier tier-SHARED">STANDARD</span> <span class="tier tier-PRIVATE">ELEVATED</span> <span class="tier tier-SOVEREIGN">SOVEREIGN</span>
+    </div>\`;
+}
+
+// ── DESIGN ENGINE ─────────────────────────────────────────────────────
+const ARCHETYPES_META = [
+  { id:'fastapi-service', name:'FastAPI Microservice', desc:'Full FastAPI service with router, models, health endpoint, Dockerfile, tests.', tags:['python','api','docker'], files:6 },
+  { id:'data-pipeline',  name:'Data Pipeline',        desc:'ETL pipeline: extract → validate → transform → load. Pandas + logging + CLI.', tags:['python','data','etl'], files:4 },
+  { id:'cli-tool',       name:'CLI Tool',             desc:'Click-based CLI with subcommands, config file, rich output.', tags:['python','cli'], files:4 },
+  { id:'ml-experiment',  name:'ML Experiment',        desc:'Logistic regression scaffold, stdlib-only. train → evaluate → report.', tags:['python','ml'], files:3 },
+  { id:'node-server',    name:'Node.js Server',       desc:'Production Node.js HTTP service: routes, middleware, tests (no deps).', tags:['node','http','api'], files:5 },
+];
+
+function renderDesign() {
+  const cards = ARCHETYPES_META.map(a => \`
+    <div class="arch-card" onclick="openDesignCompiler('\${esc(a.id)}')">
+      <div class="arch-name">\${esc(a.name)}</div>
+      <div class="arch-desc">\${esc(a.desc)}</div>
+      <div class="arch-meta">
+        \${a.tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')}
+        <span class="tag">\${a.files} files</span>
+      </div>
+    </div>\`).join('');
+  return \`
+    <div class="head"><h2>Design Engine</h2><span class="pill">5 archetypes · Python + Node</span></div>
+    <div style="color:var(--ink-dim);font-size:12px;margin-bottom:20px;max-width:640px;line-height:1.7">
+      Pick an archetype → name it → get a complete, runnable build plan: every file with real source code, a dependency manifest, and an exec plan.
+      Feed the output directly to a runspace job or export to disk.
+    </div>
+    <div class="cards">\${cards}</div>
+    <div class="section-head" style="margin-top:28px">Workflow</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      \${[
+        ['1. Compile', 'design_compile { archetype_id, name }', '→ BuildPlan with all files + exec_plan'],
+        ['2. Write', 'runspace_create + runspace_write per file', '→ Isolated execution folder'],
+        ['3. Execute', 'runspace_exec per exec_plan step', '→ Stdout captured + receipts'],
+        ['4. Store', 'vault_store or deposit_create (zip)', '→ Durable artifact in vault'],
+      ].map(([step,cmd,out])=>\`<div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px">
+        <div style="font-size:10px;color:var(--gold);font-weight:600;font-family:var(--mono);margin-bottom:4px">\${esc(step)}</div>
+        <div style="font-size:10px;font-family:var(--mono);color:var(--ink-dim);margin-bottom:4px">\${esc(cmd)}</div>
+        <div style="font-size:10px;color:var(--dim)">\${esc(out)}</div>
+      </div>\`).join('')}
+    </div>\`;
+}
+
+function openDesignCompiler(archetype_id) {
+  const a = ARCHETYPES_META.find(x=>x.id===archetype_id);
+  if (!a) return;
+  openDrawer('Design: ' + a.name, \`
+    <div style="color:var(--ink-dim);font-size:12px;margin-bottom:16px">\${esc(a.desc)}</div>
+    <div class="field"><label>Project name *</label><input id="design-name" placeholder="e.g. User Auth Service" /></div>
+    <div class="field"><label>Description (optional)</label><input id="design-desc" placeholder="What this build does" /></div>
+    <div id="design-result"></div>\`,
+    \`<button class="ghost" onclick="closeDrawer()">Cancel</button>
+     <button class="primary" onclick="runDesign('\${esc(archetype_id)}')">Compile build plan</button>\`);
+}
+
+async function runDesign(archetype_id) {
+  const name = $('design-name')?.value?.trim();
+  if (!name) { $('design-result').innerHTML = '<div class="result err">Name is required</div>'; return; }
+  const desc = $('design-desc')?.value?.trim();
+  $('design-result').innerHTML = '<div class="result">Compiling…</div>';
+  const r = await fetch('/api/design/compile', {
+    method: 'POST', headers: {'content-type':'application/json'},
+    body: JSON.stringify({ archetype_id, name, description: desc }),
+  }).then(x=>x.json());
+  if (r.ok) {
+    const fileList = r.files.map(f => \`<div style="display:flex;gap:8px;margin:3px 0"><code style="color:var(--green)">\${esc(f.path)}</code><span style="color:var(--dim);font-size:10px">\${f.content?.length||0} bytes</span></div>\`).join('');
+    const steps = r.exec_plan.map(s=>\`<div style="margin:3px 0"><code>\${esc(s.command)} \${esc(s.args?.join(' ')||'')}</code> <span style="color:var(--dim)">— \${esc(s.description)}</span></div>\`).join('');
+    $('design-result').innerHTML = \`
+      <div style="font-size:11px;color:var(--green);margin-bottom:12px">Build plan compiled · \${r.file_count} files · plan_id: <code>\${esc(r.plan_id)}</code></div>
+      <div class="section-head" style="margin-top:0">Files</div>
+      <div style="background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:12px">\${fileList}</div>
+      <div class="section-head">Exec Plan</div>
+      <div style="background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:var(--radius);padding:12px;font-family:var(--mono);font-size:11px">\${steps}</div>
+      <div style="margin-top:12px;font-size:10px;color:var(--dim)">\${esc(r.instructions)}</div>\`;
+  } else {
+    $('design-result').innerHTML = \`<div class="result err">\${esc(JSON.stringify(r,null,2))}</div>\`;
+  }
+}
+
+// ── SANDBOX MARKET ────────────────────────────────────────────────────
+const SANDBOXES_META = [
+  { id:'node-scratch',   name:'Node.js Scratch',  tier:'BASIC',    desc:'Fast JS eval. Algorithms, utilities, quick transforms.', tags:['node'] },
+  { id:'node-test',      name:'Node.js Tests',    tier:'STANDARD', desc:'assert-based test suites using node:assert.', tags:['node','test'] },
+  { id:'python-scratch', name:'Python Scratch',   tier:'STANDARD', desc:'Python 3 stdlib experiments. JSON, math, transforms.', tags:['python'] },
+  { id:'python-ml',      name:'Python ML',        tier:'STANDARD', desc:'Numerical analysis. numpy/pandas assumed available.', tags:['python','ml'] },
+  { id:'python-api-test',name:'Python API Tester',tier:'ELEVATED', desc:'Real HTTP calls. urllib.request or httpx.', tags:['python','http'] },
+  { id:'data-transform', name:'Data Transform',   tier:'STANDARD', desc:'JSONL/CSV in-memory transforms. No I/O side effects.', tags:['data'] },
+  { id:'crypto-verify',  name:'Crypto Verifier',  tier:'STANDARD', desc:'Hash, HMAC, key derivation using node:crypto.', tags:['crypto'] },
+  { id:'schema-validate',name:'Schema Validator', tier:'BASIC',    desc:'JSON object validation. Manual or zod-compatible.', tags:['json'] },
+  { id:'shell-inspect',  name:'Shell Inspector',  tier:'ELEVATED', desc:'Read-only POSIX sh. env, uptime, listings.', tags:['shell'] },
+  { id:'git-audit',      name:'Git Auditor',      tier:'ELEVATED', desc:'Read-only git: log, diff, blame, show.', tags:['git'] },
+];
+
+function renderMarket() {
+  const tierColor = {BASIC:'var(--pub)', STANDARD:'var(--sha)', ELEVATED:'var(--pri)', SOVEREIGN:'var(--sov)'};
+  const tierBg    = {BASIC:'rgba(127,143,166,.1)', STANDARD:'rgba(34,204,224,.1)', ELEVATED:'rgba(124,106,247,.15)', SOVEREIGN:'rgba(240,82,82,.15)'};
+  const rows = SANDBOXES_META.map(s => \`
+    <tr onclick="openSandboxRunner('\${esc(s.id)}')" style="cursor:pointer">
+      <td><code style="color:var(--gold)">\${esc(s.id)}</code></td>
+      <td style="color:var(--ink)">\${esc(s.name)}</td>
+      <td style="color:var(--ink-dim);font-size:11px">\${esc(s.desc)}</td>
+      <td><span style="display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:600;background:\${tierBg[s.tier]};color:\${tierColor[s.tier]};font-family:var(--mono)">\${esc(s.tier)}</span></td>
+      <td>\${s.tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')}</td>
+    </tr>\`).join('');
+  return \`
+    <div class="head"><h2>Sandbox Market</h2><span class="pill">10 environments</span></div>
+    <div style="color:var(--ink-dim);font-size:12px;margin-bottom:20px;max-width:640px;line-height:1.7">
+      Named execution environments — pick by ID, paste code, run. Every execution passes through the governance pipeline before hitting the runspace.
+      Click a row to open the runner.
+    </div>
+    <table>
+      <thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Tier</th><th>Tags</th></tr></thead>
+      <tbody>\${rows}</tbody>
+    </table>\`;
+}
+
+function openSandboxRunner(sandbox_id) {
+  const s = SANDBOXES_META.find(x=>x.id===sandbox_id);
+  if (!s) return;
+  openDrawer(s.name + ' sandbox', \`
+    <div style="color:var(--ink-dim);font-size:12px;margin-bottom:12px">\${esc(s.desc)}</div>
+    <div class="field">
+      <label>Code (leave blank for starter)</label>
+      <textarea id="sb-code" rows="8" placeholder="Paste your code here, or leave blank for the default starter…" style="font-family:var(--mono);font-size:11px"></textarea>
+    </div>
+    <div id="sb-result"></div>\`,
+    \`<button class="ghost" onclick="closeDrawer()">Cancel</button>
+     <button class="primary" onclick="runSandbox('\${esc(sandbox_id)}')">Execute</button>\`);
+}
+
+async function runSandbox(sandbox_id) {
+  const code = $('sb-code')?.value?.trim() || undefined;
+  $('sb-result').innerHTML = '<div class="result">Running in sandbox…</div>';
+  const r = await fetch('/api/sandbox/run', {
+    method:'POST', headers:{'content-type':'application/json'},
+    body: JSON.stringify({ sandbox_id, code }),
+  }).then(x=>x.json());
+  const out = r.stdout || r.result?.stdout || '';
+  const err = r.stderr || r.result?.stderr || '';
+  const exit = r.exit_code ?? r.result?.exit_code;
+  const ok = r.ok && exit === 0;
+  $('sb-result').innerHTML = \`
+    <div class="\${ok?'result':'result err'}">exit \${exit}\n\n\${esc(out)}\${err?'\\n--- stderr ---\\n'+esc(err):''}</div>\`;
+}
+
+// ── API LEDGER ────────────────────────────────────────────────────────
+async function loadLedger() {
+  const r = await fetch('/api/ledger').then(x=>x.json()).catch(()=>({ok:false,routes:[]}));
+  if (!r.ok || !r.routes?.length) {
+    $('main').innerHTML = \`
+      <div class="head"><h2>API Ledger</h2><span class="pill">Per-route intelligence</span></div>
+      <div class="empty">No calls recorded yet. Make some MCP tool calls to see the ledger populate.</div>\`;
+    return;
+  }
+  const intel = r.intelligence || {};
+  const overall_err = ((intel.overall_error_rate||0)*100).toFixed(1);
+  const statusColor = intel.critical_routes?.length ? 'var(--red)' : intel.degraded_routes?.length ? '#f59e0b' : 'var(--green)';
+  const rows = r.routes.map(s => {
+    const errColor = s.error_rate > 0.2 ? 'var(--red)' : s.error_rate > 0.05 ? '#f59e0b' : 'var(--green)';
+    return \`<tr>
+      <td><code>\${esc(s.route)}</code></td>
+      <td style="font-family:var(--mono)">\${s.calls_total}</td>
+      <td style="color:\${errColor};font-family:var(--mono)">\${(s.error_rate*100).toFixed(1)}%</td>
+      <td style="font-family:var(--mono)">\${s.avg_ms}ms</td>
+      <td style="font-family:var(--mono)">\${s.p95_ms}ms</td>
+      <td>\${s.top_callers?.map(c=>'<span class="tag">'+esc(c.agent_id)+'('+c.calls+')</span>').join('')||'—'}</td>
+    </tr>\`;
+  }).join('');
+  $('main').innerHTML = \`
+    <div class="head"><h2>API Ledger</h2><span class="pill">\${r.routes.length} routes · \${intel.total_calls||0} calls</span></div>
+    <div class="stats">
+      <div class="stat"><div class="n">\${intel.total_calls||0}</div><div class="l">Total calls</div></div>
+      <div class="stat"><div class="n" style="color:\${statusColor}">\${overall_err}%</div><div class="l">Error rate</div></div>
+      <div class="stat"><div class="n">\${intel.routes_tracked||0}</div><div class="l">Routes tracked</div></div>
+      <div class="stat"><div class="n" style="color:\${intel.critical_routes?.length?'var(--red)':'var(--green)'}">\${intel.critical_routes?.length||0}</div><div class="l">Critical</div></div>
+    </div>
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:20px;font-size:12px">
+      <span class="status-dot \${intel.critical_routes?.length?'dot-red':intel.degraded_routes?.length?'dot-yellow':'dot-green'}"></span>
+      <span style="color:\${statusColor}">\${esc(intel.assessment||'No data')}</span>
+    </div>
+    <table>
+      <thead><tr><th>Route</th><th>Calls</th><th>Error %</th><th>Avg ms</th><th>p95 ms</th><th>Top callers</th></tr></thead>
+      <tbody>\${rows}</tbody>
+    </table>\`;
 }
 
 function openDrawer(title, body, footer) {
