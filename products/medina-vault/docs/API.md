@@ -1,5 +1,5 @@
 # Loom API Reference
-**MEDINA-PROTOCOL/0.3 · Loom v0.3**
+**MEDINA-PROTOCOL/0.4 · Loom v0.4.0**
 
 Loom exposes two surfaces: **MCP** (stdio JSON-RPC, for Claude/Cursor/Cline/Continue/Zed) and an **HTTP Gateway** (port 8732, for ChatGPT, custom agents, any HTTP client).
 
@@ -275,6 +275,29 @@ Allowed commands: `node`, `python`, `python3`, `sh`, `bash`, `git`, `npm`, `pip`
 | `knowledge_unwrap` | `token_id` | `{ok, label, body, sources[]}` |
 | `knowledge_list` | — | `[{token_id, label}]` |
 
+### Design Engine (v0.4)
+
+Compile full project scaffolds from 5 archetypes. Get back every file's content + a step-by-step `exec_plan`.
+
+| Tool | Inputs | Returns |
+|------|--------|---------|
+| `design_list` | — | `[{id, name, description, tags[], file_count}]` |
+| `design_get` | `archetype_id` | `{ok, id, name, description, files[], exec_plan[]}` |
+| `design_compile` | `archetype_id`, `name`, `description?`, `extra_vars?` | `{ok, plan_id, name_slug, files[], file_count, exec_plan[], fingerprint, instructions}` |
+| `design_preview` | `archetype_id`, `name?` | `{ok, files[{path, bytes}]}` — paths + sizes only, no content |
+| `design_stats` | — | `{total, by_tag}` |
+
+**Archetype IDs**: `fastapi-service` (8 files) · `data-pipeline` (4 files) · `cli-tool` (4 files) · `ml-experiment` (4 files, stdlib-only) · `node-server` (5 files)
+
+Compile example:
+```json
+POST /v1/tools/design_compile
+{ "archetype_id": "fastapi-service", "name": "User Auth Service", "description": "JWT microservice" }
+```
+→ returns `plan_id` + all 8 files fully filled (no `{placeholders}`) + `exec_plan` with `pip install -r requirements.txt`, `python main.py`
+
+`name_slug` is auto-generated from `name` (e.g. `"User Auth Service"` → `"user-auth-service"`).
+
 ### Auto-Doctrine
 
 | Tool | Inputs | Returns |
@@ -355,4 +378,4 @@ All AIs share the same Loom process. Namespaces are isolated. The operator sees 
 
 ---
 
-*Generated from live server.mjs · MEDINA-PROTOCOL/0.3 · 2026-06-25*
+*Generated from live server.mjs · MEDINA-PROTOCOL/0.4 · Loom v0.4.0 · 2026-06-25*
