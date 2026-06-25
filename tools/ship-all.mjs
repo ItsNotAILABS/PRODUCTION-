@@ -22,7 +22,7 @@ function run(label, cmd, args, cwd) {
   return ok;
 }
 
-console.log(C('\n=== SHIP ALL · MEDINA-PROTOCOL/0.2 ===\n'));
+console.log(C('\n=== SHIP ALL · MEDINA-PROTOCOL/0.5 ===\n'));
 let allOk = true;
 for (const p of PRODUCTS) {
   const cwd = join(ROOT, 'products', p);
@@ -67,6 +67,8 @@ for (const p of PRODUCTS) {
                 process.execPath, ['src/_sandbox_ledger_smoke.mjs'], cwd) && allOk;
     allOk = run(`${p} · design engine (5 archetypes, compile, fill, exec_plan)`,
                 process.execPath, ['src/_design_smoke.mjs'], cwd) && allOk;
+    allOk = run(`${p} · zip ingest (parse · extract · vault-index · binary-detect · 59 checks)`,
+                process.execPath, ['src/_zip_test.mjs'], cwd) && allOk;
   }
 }
 
@@ -77,6 +79,6 @@ allOk = run('charter · release-gate', process.execPath,
 
 console.log(C('\n=== VERDICT ===\n'));
 console.log(allOk
-  ? G('  SHIP_ALL · every node green · MEDINA-PROTOCOL/0.1 fully covered\n')
+  ? G('  SHIP_ALL · every node green · MEDINA-PROTOCOL/0.5 fully covered\n')
   : R('  HOLD · one or more checks failed\n'));
 process.exit(allOk ? 0 : 1);

@@ -15,8 +15,9 @@ import { createServer } from 'node:http';
 import { createHash, randomBytes } from 'node:crypto';
 
 export class ApiGateway {
-  constructor({ tools, rootVault, receipts, port = 8732, aiRegistry = null }) {
+  constructor({ tools, publicTools = {}, rootVault, receipts, port = 8732, aiRegistry = null }) {
     this.tools = tools;          // { tool_name: { description, inputSchema, handler } }
+    this.publicTools = publicTools; // tool_name: async fn — no auth required
     this.rootVault = rootVault;
     this.receipts = receipts;
     this.aiRegistry = aiRegistry;
@@ -78,7 +79,38 @@ export class ApiGateway {
 
         // Health
         if (req.method === 'GET' && url.pathname === '/health')
-          return send(200, { ok: true, port: this.port, tool_count: Object.keys(this.tools).length });
+          return send(200, { ok: true, port: this.port, tool_count: Object.keys(this.tools).length,
+                             public_tools: Object.keys(this.publicTools).length });
+
+        // ── PUBLIC TIER — unauthenticated read-only access ──────────────────
+        // Any external AI or HTTP client can call these without a bearer key.
+        // Only exposes PUBLIC vault entries and status data.
+
+        if (req.method === 'GET' && url.pathname === '/v1/public/status')
+          return send(200, {
+            ok: true, product: 'Loom', protocol: 'MEDINA-PROTOCOL/0.5',
+            public: true, gated_tool_count: Object.keys(this.tools).length,
+            public_tool_count: Object.keys(this.publicTools).length,
+            note: 'Public tools require no auth. Issue a bearer key for gated access.',
+          });
+
+        if (req.method === 'GET' && url.pathname === '/v1/public/tools')
+          return send(200, {
+            ok: true, public: true,
+            tools: Object.keys(this.publicTools).map(name => ({ name, auth_required: false })),
+            auth_hint: 'Request a bearer key from the operator to access all ' +
+                       Object.keys(this.tools).length + ' gated tools.',
+          });
+
+        if (url.pathname.startsWith('/v1/public/tools/')) {
+          const toolName = url.pathname.replace('/v1/public/tools/', '');
+          const pub = this.publicTools[toolName];
+          if (!pub) return send(404, { ok: false, reason: 'NOT_PUBLIC',
+                                       tool: toolName, available: Object.keys(this.publicTools) });
+          const body = req.method === 'POST' ? await readJson(req) : {};
+          try { return send(200, await pub(body)); }
+          catch (e) { return send(500, { ok: false, reason: 'TOOL_THREW', message: e.message }); }
+        }
 
         // List tools (auth-gated, tier-filtered)
         if (req.method === 'GET' && url.pathname === '/v1/tools') {

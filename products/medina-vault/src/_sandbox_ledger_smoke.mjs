@@ -12,10 +12,10 @@ console.log(C('\n=== SANDBOX MARKET + API LEDGER — SMOKE ===\n'));
 // ── Sandbox Market ────────────────────────────────────────────────────
 const mkt = new SandboxMarket();
 
-assert(`10 sandboxes in catalog (got ${SANDBOX_CATALOG.length})`, SANDBOX_CATALOG.length === 10);
+assert(`20 sandboxes in catalog (got ${SANDBOX_CATALOG.length})`, SANDBOX_CATALOG.length === 20);
 
 const list = mkt.list();
-assert('list returns 10 items', list.length === 10);
+assert('list returns 20 items', list.length === 20);
 
 const byTag = mkt.list({ tag: 'python' });
 assert('tag filter: python sandboxes ≥ 2', byTag.length >= 2, `got ${byTag.length}`);
@@ -44,8 +44,8 @@ assert('tags() returns sorted array with expected tags',
   Array.isArray(tags) && tags.includes('python') && tags.includes('node') && tags.includes('crypto'));
 
 const stats = mkt.stats();
-assert('stats: total=10, has by_tier and by_tag',
-  stats.total === 10 && typeof stats.by_tier === 'object' && typeof stats.by_tag === 'object');
+assert('stats: total=20, has by_tier and by_tag',
+  stats.total === 20 && typeof stats.by_tier === 'object' && typeof stats.by_tag === 'object');
 assert('stats: BASIC tier has ≥ 1 sandbox', (stats.by_tier['BASIC'] || 0) >= 1);
 assert('stats: ELEVATED tier has ≥ 1 sandbox', (stats.by_tier['ELEVATED'] || 0) >= 1);
 
@@ -54,7 +54,7 @@ const allValid = SANDBOX_CATALOG.every(s =>
   s.id && s.name && s.command && s.entry_file && s.starter &&
   s.tier_required && Array.isArray(s.tags) && s.tags.length > 0
 );
-assert('all 10 sandboxes have id/name/command/entry_file/starter/tier/tags', allValid);
+assert('all 20 sandboxes have id/name/command/entry_file/starter/tier/tags', allValid);
 
 // ── API Ledger ────────────────────────────────────────────────────────
 const ledger = new ApiLedger();
@@ -126,4 +126,4 @@ assert('empty ledger assessment is correct', emptyIntel.assessment.includes('No 
 console.log(C('\n=== RESULT ===\n') +
   (process.exitCode === 1
     ? R('  failure\n')
-    : G('  10 sandboxes · intelligent API ledger · measure() wrapper — all green\n')));
+    : G('  20 sandboxes · intelligent API ledger · measure() wrapper — all green\n')));

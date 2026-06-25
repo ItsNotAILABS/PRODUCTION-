@@ -58,6 +58,7 @@ import { RunspaceGovernance, governedExec } from './runspace_governance.mjs';
 import { SandboxMarket } from './sandbox_market.mjs';
 import { ApiLedger } from './api_ledger.mjs';
 import { DesignEngine } from './design_engine.mjs';
+import { ZipIngest } from './zip_ingest.mjs';
 import { multiHash, sha3_256, sha256 as cSha256, hmac, hmacVerify, verifyChain, randomToken, genesisFor } from './crypto_ext.mjs';
 import { promises as fsp } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -66,8 +67,8 @@ import { fileURLToPath } from 'node:url';
 // ── Identity ────────────────────────────────────────────────────────────
 
 const SERVER_NAME    = 'loom';
-const SERVER_VERSION = '0.4.0';
-const PROTOCOL       = 'MEDINA-PROTOCOL/0.4';
+const SERVER_VERSION = '0.5.0';
+const PROTOCOL       = 'MEDINA-PROTOCOL/0.5';
 const MCP_VERSION    = '2024-11-05';
 
 // ── State ────────────────────────────────────────────────────────────────
@@ -183,6 +184,9 @@ const apiLedger = new ApiLedger();
 
 // Design engine — Python/Node build intelligence
 const designEngine = new DesignEngine();
+
+// Zip ingest — ZIP extraction → vault entries
+const zipIngest = new ZipIngest({ vault, deposits });
 
 // Protocols directory (resolved relative to this server file)
 const PROTOCOLS_DIR = (() => {
@@ -1528,12 +1532,37 @@ const tools = {
       if (apiGateway) return { ok: true, already_running: true, port: apiGateway.port };
       // Mirror EVERY MCP tool over HTTP — single source of truth.
       const toolMap = {};
-      for (const [name, t] of Object.entries(TOOLS)) toolMap[name] = t;
-      apiGateway = new ApiGateway({ tools: toolMap, rootVault, receipts, port: a.port || 8732 });
+      for (const [name, t] of Object.entries(tools)) toolMap[name] = t;
+      // Public tools: no auth required, read-only, PUBLIC tier entries only.
+      const publicTools = {
+        loom_status: async () => ({ ok: true, product: 'Loom', protocol: PROTOCOL, version: SERVER_VERSION }),
+        vault_get_public: async (a) => {
+          const r = vault.retrieve(a.key, 'public');
+          if (!r.ok) return { ok: false, reason: 'NOT_FOUND' };
+          if (r.entry?.tier !== 'PUBLIC') return { ok: false, reason: 'NOT_PUBLIC', tier: r.entry?.tier };
+          return { ok: true, key: r.entry.key, value: r.entry.value, tier: 'PUBLIC' };
+        },
+        vault_list_public: async () => {
+          const entries = vault.list('public', { tier: 'PUBLIC' });
+          return { ok: true, entries: entries.filter(e => e.tier === 'PUBLIC').map(e => ({
+            key: e.key, tier: e.tier, preview: typeof e.value === 'string' ? e.value.slice(0, 120) : JSON.stringify(e.value).slice(0, 120),
+          })) };
+        },
+        channel_list: async () => {
+          const c = channels.list();
+          return { ok: true, channels: c.filter(ch => !ch.access?.length) };
+        },
+        design_list: async () => ({ ok: true, archetypes: designEngine.list() }),
+        market_list: async () => ({ ok: true, sandboxes: sandboxMarket.list() }),
+      };
+      apiGateway = new ApiGateway({ tools: toolMap, publicTools, rootVault, receipts,
+                                    port: a.port || 8732, aiRegistry });
       await apiGateway.start();
       return { ok: true, port: apiGateway.port,
                url: `http://localhost:${apiGateway.port}`,
                openai_schema: `http://localhost:${apiGateway.port}/.well-known/openai-functions`,
+               public_surface: `http://localhost:${apiGateway.port}/v1/public/status`,
+               public_tools: Object.keys(publicTools),
                next: 'Issue an API key with api_gateway_issue_key, then external AIs use Authorization: Bearer <key>.' };
     },
   },
@@ -1782,8 +1811,8 @@ const tools = {
       return {
         ok: true,
         product: 'Loom',
-        protocol: 'MEDINA-PROTOCOL/0.3',
-        version: '0.3.0',
+        protocol: PROTOCOL,
+        version: SERVER_VERSION,
         operator: OPERATOR,
         layers: {
           vault:        { entries: vault.entries.size },
@@ -2289,6 +2318,67 @@ const tools = {
     description: 'List all route names the ledger is tracking.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => ({ ok: true, routes: apiLedger.listRoutes() }),
+  },
+
+  // ── ZIP INGEST ────────────────────────────────────────────────────────────
+
+  zip_list_contents: {
+    description: 'List files inside a ZIP without extracting. Pass a deposit dep_id (must be kind=zip_archive) or raw base64 ZIP bytes. Returns file list with sizes and compression ratios.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dep_id:      { type: 'string', description: 'Deposit ID of a zip_archive deposit.' },
+        content_b64: { type: 'string', description: 'Raw ZIP as base64 (alternative to dep_id).' },
+        agent_id:    { type: 'string' },
+      },
+    },
+    handler: async (a) => zipIngest.listContents({ content_b64: a.content_b64, dep_id: a.dep_id, agent_id: defaultRequester(a) }),
+  },
+
+  zip_ingest_deposit: {
+    description: 'Ingest a zip_archive deposit into vault entries. Decrypts the deposit, extracts all files, stores each as a vault entry at <vault_prefix>/<filename>. Supports deflated and stored compression.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dep_id:       { type: 'string', description: 'Deposit ID (must have kind=zip_archive).' },
+        agent_id:     { type: 'string' },
+        vault_prefix: { type: 'string', description: 'Key prefix for vault entries. Defaults to zip/<dep_id>.' },
+        tier:         { type: 'string', enum: ['PUBLIC','SHARED','PRIVATE','SOVEREIGN'], default: 'PRIVATE' },
+        label:        { type: 'string', description: 'Human label for this ingest.' },
+      },
+      required: ['dep_id'],
+    },
+    handler: async (a) => {
+      const r = await zipIngest.ingestDeposit({
+        dep_id: a.dep_id, agent_id: defaultRequester(a),
+        vault_prefix: a.vault_prefix, tier: a.tier || 'PRIVATE', label: a.label,
+      });
+      if (r.ok) await persist();
+      return r;
+    },
+  },
+
+  zip_ingest_buffer: {
+    description: 'Ingest a raw ZIP (as base64 string) into vault entries. Each file in the ZIP becomes a vault entry. Use this when you have the ZIP bytes directly rather than as a deposit.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        content_b64:  { type: 'string', description: 'ZIP file as base64.' },
+        agent_id:     { type: 'string' },
+        vault_prefix: { type: 'string', default: 'zip/direct' },
+        tier:         { type: 'string', enum: ['PUBLIC','SHARED','PRIVATE','SOVEREIGN'], default: 'PRIVATE' },
+        label:        { type: 'string' },
+      },
+      required: ['content_b64'],
+    },
+    handler: async (a) => {
+      const r = await zipIngest.ingestBuffer({
+        content_b64: a.content_b64, agent_id: defaultRequester(a),
+        vault_prefix: a.vault_prefix, tier: a.tier || 'PRIVATE', label: a.label,
+      });
+      if (r.ok) await persist();
+      return r;
+    },
   },
 
   // PRO bridge tools — advertised in tools/list. Without MEDINA_PRO_LICENSE

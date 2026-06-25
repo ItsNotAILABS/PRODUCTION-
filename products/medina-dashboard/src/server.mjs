@@ -37,6 +37,7 @@ const { DesignEngine }     = await import(pathToFileURL(join(VAULT_SRC, 'design_
 const { SandboxMarket }    = await import(pathToFileURL(join(VAULT_SRC, 'sandbox_market.mjs')).href);
 const { Runspace }         = await import(pathToFileURL(join(VAULT_SRC, 'runspace.mjs')).href);
 const { RunspaceGovernance } = await import(pathToFileURL(join(VAULT_SRC, 'runspace_governance.mjs')).href);
+const { ZipIngest }        = await import(pathToFileURL(join(VAULT_SRC, 'zip_ingest.mjs')).href);
 
 const PORT = Number(process.env.MEDINA_DASHBOARD_PORT || 8731);
 const MEDINA_HOME = process.env.MEDINA_HOME || join(homedir(), '.medina');
@@ -57,17 +58,17 @@ const workflows = new WorkflowRunner({ registry: skills });
 const graph    = new SessionGraph();
 const knowledge = new KnowledgeLedger();
 const sandbox   = new SkillSandbox({ registry: skills, runner: workflows });
+const rootVault = new RootVault();
+await rootVault.load();
 const designEngine = new DesignEngine();
 const sandboxMarket = new SandboxMarket();
 const runspace = new Runspace({ rootVault, receipts });
 const governance = new RunspaceGovernance({ receipts });
-const dashLedger = { routes: [], calls: [] };  // lightweight ledger proxy for dashboard view
 const workspace = new Workspace();
 const planLedger = new PlanLedger();
 const ctxLog    = new ContextLog();
 const reinforcement = new Reinforcement();
-const rootVault = new RootVault();
-await rootVault.load();
+const zipIngest = new ZipIngest({ vault, deposits });
 let apiGateway = null;
 const aiRegistry = new AIRegistry({ receipts });
 const deposits = new DepositLedger({ receipts, vault });
@@ -176,7 +177,7 @@ async function gatherState() {
   return {
     operator:    process.env.MEDINA_OPERATOR_ID || process.env.USERNAME || process.env.USER || 'operator',
     medina_home: MEDINA_HOME,
-    protocol:    'MEDINA-PROTOCOL/0.2',
+    protocol:    'MEDINA-PROTOCOL/0.5',
     phi: PHI, heartbeat_ms: 873,
     vault:  { path: VAULT_PATH,  ...vaultStats(v) },
     signal: { path: SIGNAL_PATH, ...signalStats(s) },
@@ -446,6 +447,29 @@ const server = createServer(async (req, res) => {
       return json(res, { ok: true, ...ledgerData });
     }
 
+    // ── ZIP INGEST ─────────────────────────────────────────────────────────
+    if (req.method === 'POST' && url.pathname === '/api/zip/list') {
+      const b = await readBody(req);
+      return json(res, await zipIngest.listContents({ content_b64: b.content_b64, dep_id: b.dep_id, agent_id: OPERATOR }));
+    }
+    if (req.method === 'POST' && url.pathname === '/api/zip/ingest') {
+      const b = await readBody(req);
+      let r;
+      if (b.dep_id) {
+        r = await zipIngest.ingestDeposit({ dep_id: b.dep_id, agent_id: OPERATOR, vault_prefix: b.vault_prefix, tier: b.tier || 'PRIVATE', label: b.label });
+      } else {
+        r = await zipIngest.ingestBuffer({ content_b64: b.content_b64, agent_id: OPERATOR, vault_prefix: b.vault_prefix || 'zip/direct', tier: b.tier || 'PRIVATE', label: b.label });
+      }
+      if (r.ok) await persist();
+      return json(res, r);
+    }
+
+    // ── PUBLIC GATEWAY STATUS ──────────────────────────────────────────────
+    if (req.method === 'GET' && url.pathname === '/api/gateway/public_tools') {
+      if (!apiGateway) return json(res, { ok: false, reason: 'GATEWAY_NOT_RUNNING' });
+      return json(res, { ok: true, public_tools: Object.keys(apiGateway.publicTools || {}) });
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/session/close') {
       const b = await readBody(req);
       const recent = receipts.list({ limit: 10 });
@@ -469,9 +493,9 @@ function json(res, body) {
 }
 
 server.listen(PORT, () => {
-  console.log(`\n  Loom Dashboard v0.4 — http://localhost:${PORT}`);
-  console.log(`  ${skills.list().length} skills · ${Object.keys(WORKFLOW_LIBRARY).length} workflows · 5 archetypes · 10 sandboxes`);
-  console.log(`  MEDINA-PROTOCOL/0.4 · operator=${OPERATOR}\n`);
+  console.log(`\n  Loom Dashboard v0.5 — http://localhost:${PORT}`);
+  console.log(`  ${skills.list().length} skills · ${Object.keys(WORKFLOW_LIBRARY).length} workflows · 5 archetypes · 20 sandboxes`);
+  console.log(`  MEDINA-PROTOCOL/0.5 · operator=${OPERATOR}\n`);
 });
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -482,7 +506,7 @@ const HTML = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Loom v0.4 · AI Memory Infrastructure</title>
+<title>Loom v0.5 · AI Memory Infrastructure</title>
 <style>
 :root{
   --bg:#060810; --panel:#0b0f1a; --panel2:#0f1422; --line:#182038;
@@ -593,6 +617,20 @@ tr:hover td{background:rgba(255,255,255,.015)}
 .arch-card .arch-name{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:4px}
 .arch-card .arch-desc{font-size:11px;color:var(--ink-dim);margin-bottom:10px;line-height:1.5}
 .arch-card .arch-meta{display:flex;gap:6px;flex-wrap:wrap}
+
+/* ── token modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:50;display:flex;align-items:center;justify-content:center;animation:fadein .15s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:8px;width:520px;max-width:95vw;box-shadow:0 24px 80px rgba(0,0,0,.7);display:flex;flex-direction:column}
+.modal .mh{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.modal .mh h3{margin:0;font-size:15px;font-weight:600;color:var(--ink);flex:1}
+.modal .mb{padding:20px 24px}
+.modal .mf{padding:14px 24px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;background:var(--panel2);border-radius:0 0 8px 8px}
+.key-reveal{background:#030508;border:1px solid var(--gold);border-radius:6px;padding:16px;font-family:var(--mono);font-size:12px;color:var(--gold-bright);word-break:break-all;position:relative;letter-spacing:.04em;line-height:1.6}
+.key-reveal .copy-btn{position:absolute;top:10px;right:10px;padding:4px 10px;font-size:10px;background:rgba(201,153,58,.15);border:1px solid rgba(201,153,58,.3);color:var(--gold);border-radius:4px;cursor:pointer;font-family:var(--mono)}
+.key-reveal .copy-btn:hover{background:rgba(201,153,58,.3)}
+.key-warning{background:rgba(240,82,82,.08);border:1px solid rgba(240,82,82,.3);border-radius:6px;padding:12px 14px;font-size:11px;color:#f87171;margin-top:12px;line-height:1.6}
+.key-warning strong{color:var(--red);display:block;margin-bottom:2px;font-size:12px}
 </style>
 </head>
 <body>
@@ -601,11 +639,11 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <div class="brand">
       <div class="brand-row">
         <div class="brand-icon">⌘</div>
-        <h1>LOOM<span style="color:var(--dim);font-size:11px;font-weight:400"> v0.4</span></h1>
+        <h1>LOOM<span style="color:var(--dim);font-size:11px;font-weight:400"> v0.5</span></h1>
       </div>
       <div class="sub">AI Memory Infrastructure</div>
       <div class="version-row">
-        <span class="vbadge">MEDINA-PROTOCOL/0.4</span>
+        <span class="vbadge">MEDINA-PROTOCOL/0.5</span>
         <span style="color:var(--dim);font-size:9px"><span class="live" id="health-dot"></span><span id="health-text">checking…</span></span>
       </div>
       <div class="sub" style="margin-top:5px;font-size:9px">φ=1.618 · 873ms heartbeat · <span id="gateway-status" style="color:var(--dim)">gateway —</span></div>
@@ -628,6 +666,34 @@ tr:hover td{background:rgba(255,255,255,.015)}
   </div>
   <div class="db" id="dbody"></div>
   <div class="df" id="dfoot"></div>
+</div>
+
+<div id="token-modal" style="display:none">
+  <div class="modal-overlay" onclick="if(event.target===this)closeTokenModal()">
+    <div class="modal">
+      <div class="mh">
+        <h3 id="modal-title">Generate API Token</h3>
+        <button class="ghost" style="padding:4px 10px;font-size:16px" onclick="closeTokenModal()">×</button>
+      </div>
+      <div class="mb" id="modal-body">
+        <div class="field">
+          <label>Token name <span style="color:var(--dim)">(human label)</span></label>
+          <input id="tok-name" placeholder="e.g. chatgpt-integration" />
+          <div class="help">Used to identify this key in the ROOT vault. Cannot be retrieved later.</div>
+        </div>
+        <div class="field">
+          <label>Agent ID <span style="color:var(--dim)">(technical identifier)</span></label>
+          <input id="tok-agent" placeholder="e.g. chatgpt-custom-gpt-v1" />
+          <div class="help">All vault writes from this key auto-prefix to <code>ai/&lt;agent_id&gt;/</code>.</div>
+        </div>
+        <div id="tok-result"></div>
+      </div>
+      <div class="mf">
+        <button class="ghost" onclick="closeTokenModal()">Cancel</button>
+        <button class="primary" id="tok-btn" onclick="generateToken()">Generate Token</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -693,7 +759,7 @@ function renderNav() {
     tokens:    STATE.meta.tokens.length,
     signal:    STATE.signal.total,
     design:    '5',
-    market:    '10',
+    market:    '20',
     ledger:    '',
     runs:      '',
   };
@@ -1029,13 +1095,81 @@ function renderKeys() {
     ? '<tr><td colspan="4" class="empty">no API keys yet — call keys_set from any MCP client</td></tr>'
     : m.keys.map(k => \`<tr><td><code>\${esc(k.name)}</code></td><td><code>\${esc(k.fingerprint||'')}</code></td><td>\${k.usageCount||0}</td><td>\${k.lastUsedAt?new Date(k.lastUsedAt).toLocaleString():'—'}</td></tr>\`).join('');
   return \`
-    <div class="head"><h2>API Keys</h2><span class="pill">AES-256-GCM</span></div>
+    <div class="head"><h2>API Keys</h2><span class="pill">AES-256-GCM</span>
+      <button class="primary" onclick="openTokenModal()" style="margin-left:auto">＋ Generate API Token</button>
+    </div>
     <div style="color:var(--ink-dim);font-size:11px;margin-bottom:14px">
       Keys are encrypted at rest in the vault file. Plaintext never leaves the local process.
       Master key derived per-machine from operator id + host via PBKDF2 (250,000 iterations).
-      Tampered ciphertext fails the GCM auth tag and returns null.
+      <br>Use <b>Generate API Token</b> to issue bearer keys for external AIs (ChatGPT, Codex, other instances).
     </div>
+    <div class="section-head">Gateway API Tokens (bearer keys for external AIs)</div>
+    <div style="margin-bottom:16px;font-size:11px;color:var(--ink-dim)">
+      These are separate from vault keys. Each token is tied to an <code>agent_id</code> — all writes auto-namespace to <code>ai/&lt;agent_id&gt;/</code>. The key is shown ONCE and cannot be retrieved.
+    </div>
+    <div class="toolbar"><button class="primary" onclick="openTokenModal()">＋ Generate New API Token</button></div>
+    <div class="section-head" style="margin-top:24px">Encrypted vault keys</div>
     <table><thead><tr><th>name</th><th>fingerprint</th><th>uses</th><th>last used</th></tr></thead><tbody>\${rows}</tbody></table>\`;
+}
+
+function openTokenModal() {
+  $('tok-name').value = '';
+  $('tok-agent').value = '';
+  $('tok-result').innerHTML = '';
+  $('tok-btn').disabled = false;
+  $('tok-btn').textContent = 'Generate Token';
+  $('token-modal').style.display = '';
+}
+
+function closeTokenModal() {
+  $('token-modal').style.display = 'none';
+}
+
+async function generateToken() {
+  const name = $('tok-name').value.trim();
+  const agent = $('tok-agent').value.trim();
+  if (!name) { $('tok-name').focus(); return; }
+  $('tok-btn').disabled = true;
+  $('tok-btn').textContent = 'Generating…';
+  try {
+    const r = await fetch('/api/gateway/issue_key', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, agent_id: agent || name }),
+    }).then(x => x.json());
+    if (!r.ok) {
+      $('tok-result').innerHTML = \`<div class="key-warning"><strong>Error</strong>\${esc(r.reason || JSON.stringify(r))}</div>\`;
+      $('tok-btn').disabled = false;
+      $('tok-btn').textContent = 'Generate Token';
+      return;
+    }
+    $('tok-result').innerHTML = \`
+      <div class="key-reveal" id="key-display">\${esc(r.key)}
+        <button class="copy-btn" onclick="copyKey()">Copy</button>
+      </div>
+      <div class="key-warning">
+        <strong>⚠ Save this key now — it cannot be retrieved</strong>
+        This bearer token is stored encrypted in ROOT and <b>cannot be shown again</b>.
+        Use it in any HTTP client: <code>Authorization: Bearer \${esc(r.key)}</code>
+      </div>
+      <div style="margin-top:12px;font-size:11px;color:var(--ink-dim)">
+        Agent ID: <code>\${esc(r.name)}</code> · Namespace: <code>ai/\${esc(agent||name)}/</code>
+      </div>\`;
+    $('tok-btn').style.display = 'none';
+  } catch (e) {
+    $('tok-result').innerHTML = \`<div class="key-warning"><strong>Error</strong>\${esc(e.message)}</div>\`;
+    $('tok-btn').disabled = false;
+    $('tok-btn').textContent = 'Generate Token';
+  }
+}
+
+function copyKey() {
+  const key = $('key-display').textContent.replace('Copy','').trim();
+  navigator.clipboard.writeText(key).then(() => {
+    const btn = $('key-display').querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
 }
 function renderTokens() {
   const m = STATE.meta;
