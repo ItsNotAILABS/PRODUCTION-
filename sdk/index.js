@@ -369,5 +369,19 @@ export {
   createWorkerBinding,
 } from './nova-bindings/src/index.js';
 
+// Git Knowledge Engine (@medina/git-knowledge-engine)
+// Entry point to the X ecosystem — indexes any Git repo into a sovereign
+// knowledge graph and dispatches missions through the X protocol layer.
+export {
+  GitKnowledgeEngine,
+  GitIndexer,
+  GitKnowledgeGraph,
+  GitMissionRouter,
+  GitExecutor,
+  GIT_NODE_TYPES,
+  GIT_EDGE_TYPES,
+  MISSION_TYPES as GIT_MISSION_TYPES,
+} from './git-knowledge-engine/src/index.js';
+
 // Default export is the bootstrap function
 export { default } from './runtime/bootstrap.js';
