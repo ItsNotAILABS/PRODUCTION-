@@ -1,8 +1,7 @@
 export { XPlatformConnector }   from './platform-connector.js';
-export { SquareConnector }      from './connectors/square.js';
-export { ShopifyConnector }     from './connectors/shopify.js';
-export { StripeConnector }      from './connectors/stripe.js';
-export { QuickBooksConnector }  from './connectors/quickbooks.js';
-export { PayPalConnector }      from './connectors/paypal.js';
-export { WooCommerceConnector } from './connectors/woocommerce.js';
-export { GenericRestConnector } from './connectors/generic-rest.js';
+
+// All 50 platform connectors
+export * from './connectors/index.js';
+
+export const X_PLATFORM_CONNECTORS_VERSION = '2.0.0';
+export const X_PLATFORM_CONNECTORS_COUNT   = 50;

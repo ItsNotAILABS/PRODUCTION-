@@ -245,3 +245,26 @@ export { ComplianceAuditProtocol, AUDIT_SEVERITY, COMPLIANCE_STATUS }           
 export { ResourceAllocationProtocol, ALLOCATION_STATUS }                           from './operations/resource-allocation-protocol.js';
 export { KnowledgeSynthesisProtocol, KNOWLEDGE_TYPE }                             from './operations/knowledge-synthesis-protocol.js';
 export { OPERATIONS_PROTOCOL_VERSION, OPERATIONS_PROTOCOL_COUNT }                 from './operations/index.js';
+
+// ─── Integration Sub-Protocols (PROTO-I001 – PROTO-I020) ─────────────────────
+export { MCPGatewayProtocol }                                  from './integrations/mcp-gateway-protocol.js';
+export { IntegrationOrchestrationProtocol, WORKFLOW_STATUS }   from './integrations/integration-orchestration-protocol.js';
+export { DataNormalizationProtocol }                           from './integrations/data-normalization-protocol.js';
+export { RateLimitManagerProtocol }                            from './integrations/rate-limit-manager-protocol.js';
+export { WebhookOrchestrationProtocol }                        from './integrations/webhook-orchestration-protocol.js';
+export { OAuthManagerProtocol }                                from './integrations/oauth-manager-protocol.js';
+export { APIKeyManagerProtocol }                               from './integrations/api-key-manager-protocol.js';
+export { DataSchemaProtocol }                                  from './integrations/data-schema-protocol.js';
+export { EventStreamingProtocol }                              from './integrations/event-streaming-protocol.js';
+export { BatchProcessingProtocol }                             from './integrations/batch-processing-protocol.js';
+export { RetryRecoveryProtocol, CIRCUIT_STATE }                from './integrations/retry-recovery-protocol.js';
+export { DataEnrichmentProtocol }                              from './integrations/data-enrichment-protocol.js';
+export { MultiCurrencyProtocol }                               from './integrations/multi-currency-protocol.js';
+export { TaxCalculationProtocol, TAX_TYPE }                    from './integrations/tax-calculation-protocol.js';
+export { ShippingIntelligenceProtocol }                        from './integrations/shipping-intelligence-protocol.js';
+export { LoyaltyRewardsProtocol }                              from './integrations/loyalty-rewards-protocol.js';
+export { ProductCatalogProtocol }                              from './integrations/product-catalog-protocol.js';
+export { OrderRoutingProtocol }                                from './integrations/order-routing-protocol.js';
+export { CustomerIdentityProtocol }                            from './integrations/customer-identity-protocol.js';
+export { AnalyticsAggregationProtocol }                        from './integrations/analytics-aggregation-protocol.js';
+export { INTEGRATIONS_PROTOCOL_VERSION, INTEGRATIONS_PROTOCOL_COUNT } from './integrations/index.js';

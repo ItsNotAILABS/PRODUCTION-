@@ -401,17 +401,35 @@ export {
 } from './x-ecosystem/src/index.js';
 
 // X Platform Connectors (@medina/x-platform-connectors)
-// Commerce platform adapters: Square, Shopify, Stripe, QuickBooks, PayPal,
-// WooCommerce, and a generic REST adapter for any API.
+// 50 platform connectors: e-commerce, payments, accounting, CRM, marketing,
+// analytics, logistics, HR, and productivity adapters.
 export {
   XPlatformConnector,
-  SquareConnector,
-  ShopifyConnector,
-  StripeConnector,
-  QuickBooksConnector,
-  PayPalConnector,
-  WooCommerceConnector,
-  GenericRestConnector,
+  X_PLATFORM_CONNECTORS_VERSION,
+  X_PLATFORM_CONNECTORS_COUNT,
+  // Original 7
+  SquareConnector, ShopifyConnector, StripeConnector, QuickBooksConnector,
+  PayPalConnector, WooCommerceConnector, GenericRestConnector,
+  // E-commerce
+  AmazonSellerConnector, EbayConnector, EtsyConnector, BigCommerceConnector,
+  MagentoConnector, WalmartSellerConnector, TikTokShopConnector, PinterestShoppingConnector,
+  // Payments / Fintech
+  BraintreeConnector, AuthorizeNetConnector, KlarnaConnector, AfterpayConnector,
+  AdyenConnector, PlaidConnector, CoinbaseCommerceConnector, VenmoBusinessConnector,
+  // Accounting / Finance
+  XeroConnector, FreshBooksConnector, WaveConnector, ZohoBooksConnector, NetSuiteConnector, SageConnector,
+  // CRM / Sales
+  SalesforceConnector, HubSpotConnector, PipedriveConnector, ZohoCRMConnector, FreshsalesConnector,
+  // Marketing / Communication
+  MailchimpConnector, KlaviyoConnector, SendGridConnector, TwilioConnector, ActiveCampaignConnector,
+  // Analytics / Data
+  GoogleAnalyticsConnector, MixpanelConnector, SegmentConnector,
+  // Logistics / Shipping
+  ShipStationConnector, EasyPostConnector, FedExConnector, UPSConnector,
+  // HR / Payroll
+  GustoConnector, RipplingConnector,
+  // Productivity / Data
+  AirtableConnector, GoogleSheetsConnector,
 } from './x-platform-connectors/src/index.js';
 
 // X Versioning SDK (@x-ecosystem/x-versioning)
@@ -423,6 +441,18 @@ export {
   CHANGE_TYPE,
   X_VERSIONING_VERSION,
 } from './x-versioning/src/index.js';
+
+// X MCP Servers (@x-ecosystem/x-mcp-servers)
+// BusinessOps, Operations, Platform MCP servers + unified gateway.
+export {
+  BusinessOpsMCPServer,
+  OperationsMCPServer,
+  PlatformMCPServer,
+  XMCPGateway,
+  MCPTransport,
+  MCP_VERSION,
+  X_MCP_SERVERS_VERSION,
+} from './x-mcp-servers/src/index.js';
 
 // Default export is the bootstrap function
 export { default } from './runtime/bootstrap.js';

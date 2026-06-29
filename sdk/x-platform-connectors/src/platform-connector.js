@@ -76,6 +76,11 @@ export class XPlatformConnector {
    */
   _operations() { return {}; }
 
+  /** Throw if the connector has not been connected. Used by operation implementations. @protected */
+  _requireConnected() {
+    if (!this.#connected) throw new Error(`${this.#name}: not connected. Call connect() first.`);
+  }
+
   toJSON() {
     return {
       name:         this.#name,
