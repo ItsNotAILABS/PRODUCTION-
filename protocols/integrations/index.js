@@ -25,6 +25,16 @@ export { OrderRoutingProtocol }                                from './order-rou
 export { CustomerIdentityProtocol }                            from './customer-identity-protocol.js';
 export { AnalyticsAggregationProtocol }                        from './analytics-aggregation-protocol.js';
 export { MultiFederationProtocol, FEDERATION_MSG, MEMBER_HEALTH } from './multi-ai-federation-protocol.js';
+export { SemanticCacheProtocol }                               from './semantic-cache-protocol.js';
+export { ModelRouterProtocol }                                 from './model-router-protocol.js';
+export { SkillCompositionProtocol, SKILL_STRATEGY }            from './skill-composition-protocol.js';
+export { ContextWindowProtocol }                               from './context-window-protocol.js';
+export { VectorEmbeddingProtocol }                             from './vector-embedding-protocol.js';
+export { PromptEngineeringProtocol }                           from './prompt-engineering-protocol.js';
+export { KnowledgeGraphProtocol }                              from './knowledge-graph-protocol.js';
+export { SentimentProtocol }                                   from './sentiment-protocol.js';
+export { MultiModalProtocol }                                  from './multi-modal-protocol.js';
+export { ConsensusVotingProtocol }                             from './consensus-voting-protocol.js';
 
-export const INTEGRATIONS_PROTOCOL_VERSION = '1.1.0';
-export const INTEGRATIONS_PROTOCOL_COUNT   = 21;
+export const INTEGRATIONS_PROTOCOL_VERSION = '1.2.0';
+export const INTEGRATIONS_PROTOCOL_COUNT   = 31;

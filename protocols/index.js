@@ -268,4 +268,14 @@ export { OrderRoutingProtocol }                                from './integrati
 export { CustomerIdentityProtocol }                            from './integrations/customer-identity-protocol.js';
 export { AnalyticsAggregationProtocol }                        from './integrations/analytics-aggregation-protocol.js';
 export { MultiFederationProtocol, FEDERATION_MSG, MEMBER_HEALTH } from './integrations/multi-ai-federation-protocol.js';
+export { SemanticCacheProtocol }                               from './integrations/semantic-cache-protocol.js';
+export { ModelRouterProtocol }                                 from './integrations/model-router-protocol.js';
+export { SkillCompositionProtocol, SKILL_STRATEGY }            from './integrations/skill-composition-protocol.js';
+export { ContextWindowProtocol }                               from './integrations/context-window-protocol.js';
+export { VectorEmbeddingProtocol }                             from './integrations/vector-embedding-protocol.js';
+export { PromptEngineeringProtocol }                           from './integrations/prompt-engineering-protocol.js';
+export { KnowledgeGraphProtocol }                              from './integrations/knowledge-graph-protocol.js';
+export { SentimentProtocol }                                   from './integrations/sentiment-protocol.js';
+export { MultiModalProtocol }                                  from './integrations/multi-modal-protocol.js';
+export { ConsensusVotingProtocol }                             from './integrations/consensus-voting-protocol.js';
 export { INTEGRATIONS_PROTOCOL_VERSION, INTEGRATIONS_PROTOCOL_COUNT } from './integrations/index.js';
