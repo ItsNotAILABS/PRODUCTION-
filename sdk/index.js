@@ -383,5 +383,36 @@ export {
   MISSION_TYPES as GIT_MISSION_TYPES,
 } from './git-knowledge-engine/src/index.js';
 
+// X Ecosystem Engine (@medina/x-ecosystem)
+// Sovereign multi-tenant, multi-platform AI orchestration layer.
+// Binds Git knowledge engine, protocols, microbots, and platforms
+// into a single governed runtime with hash-chained audit.
+export {
+  XEcosystem,
+  XEcosystemConfig,
+  XTenant,
+  X_PERMISSIONS,
+  XGovernanceRuntime,
+  XProtocolRegistry,
+  XPlatformRegistry,
+  XMicrobotOrchestrator,
+  XMissionDispatch,
+  X_MISSION_TYPES,
+} from './x-ecosystem/src/index.js';
+
+// X Platform Connectors (@medina/x-platform-connectors)
+// Commerce platform adapters: Square, Shopify, Stripe, QuickBooks, PayPal,
+// WooCommerce, and a generic REST adapter for any API.
+export {
+  XPlatformConnector,
+  SquareConnector,
+  ShopifyConnector,
+  StripeConnector,
+  QuickBooksConnector,
+  PayPalConnector,
+  WooCommerceConnector,
+  GenericRestConnector,
+} from './x-platform-connectors/src/index.js';
+
 // Default export is the bootstrap function
 export { default } from './runtime/bootstrap.js';
