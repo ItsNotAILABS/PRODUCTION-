@@ -398,6 +398,8 @@ export {
   XMicrobotOrchestrator,
   XMissionDispatch,
   X_MISSION_TYPES,
+  AdaptiveConfig,
+  ADAPT_STRATEGY,
 } from './x-ecosystem/src/index.js';
 
 // X Platform Connectors (@medina/x-platform-connectors)

@@ -24,6 +24,7 @@ export { ProductCatalogProtocol }                              from './product-c
 export { OrderRoutingProtocol }                                from './order-routing-protocol.js';
 export { CustomerIdentityProtocol }                            from './customer-identity-protocol.js';
 export { AnalyticsAggregationProtocol }                        from './analytics-aggregation-protocol.js';
+export { MultiFederationProtocol, FEDERATION_MSG, MEMBER_HEALTH } from './multi-ai-federation-protocol.js';
 
-export const INTEGRATIONS_PROTOCOL_VERSION = '1.0.0';
-export const INTEGRATIONS_PROTOCOL_COUNT   = 20;
+export const INTEGRATIONS_PROTOCOL_VERSION = '1.1.0';
+export const INTEGRATIONS_PROTOCOL_COUNT   = 21;

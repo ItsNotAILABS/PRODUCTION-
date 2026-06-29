@@ -267,4 +267,5 @@ export { ProductCatalogProtocol }                              from './integrati
 export { OrderRoutingProtocol }                                from './integrations/order-routing-protocol.js';
 export { CustomerIdentityProtocol }                            from './integrations/customer-identity-protocol.js';
 export { AnalyticsAggregationProtocol }                        from './integrations/analytics-aggregation-protocol.js';
+export { MultiFederationProtocol, FEDERATION_MSG, MEMBER_HEALTH } from './integrations/multi-ai-federation-protocol.js';
 export { INTEGRATIONS_PROTOCOL_VERSION, INTEGRATIONS_PROTOCOL_COUNT } from './integrations/index.js';
