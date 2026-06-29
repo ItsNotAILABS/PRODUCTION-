@@ -414,5 +414,15 @@ export {
   GenericRestConnector,
 } from './x-platform-connectors/src/index.js';
 
+// X Versioning SDK (@x-ecosystem/x-versioning)
+// Immutable version registry, semver tags, and hash-chained changelog.
+export {
+  XVersionRegistry,
+  XVersionTag,
+  XChangelog,
+  CHANGE_TYPE,
+  X_VERSIONING_VERSION,
+} from './x-versioning/src/index.js';
+
 // Default export is the bootstrap function
 export { default } from './runtime/bootstrap.js';

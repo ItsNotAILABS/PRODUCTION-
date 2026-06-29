@@ -221,3 +221,27 @@ export { AlphaOrchestratorProtocol, ORCHESTRATOR_CONFIG, MESSAGE_TYPES as ORCHES
 
 // PROTO-256: Alpha Conductor — Signal routing, ensemble direction, harmonic coordination, tempo management
 export { AlphaConductorProtocol, CONDUCTOR_CONFIG, MESSAGE_TYPES as CONDUCTOR_MESSAGE_TYPES, CONDUCTOR_STATES as CONDUCTOR_PROTOCOL_STATES, CONDUCTOR_TYPES, ENSEMBLE_ROLES, SIGNAL_TYPES as CONDUCTOR_SIGNAL_TYPES, calculateSignalStrength, calculateHarmony, calculateOptimalTempo, calculateDissonance, calculateRoleWeight } from './alpha-conductor-protocol.js';
+
+// ─── Business Sub-Protocols (PROTO-B001 – PROTO-B010) ────────────────────────
+export { SalesIntelligenceProtocol, SALES_INTEL_VERSION }                          from './business/sales-intelligence-protocol.js';
+export { InventoryOptimizationProtocol, INVENTORY_OPT_VERSION }                    from './business/inventory-optimization-protocol.js';
+export { CustomerSegmentationProtocol, SEGMENTS }                                  from './business/customer-segmentation-protocol.js';
+export { FraudDetectionProtocol, RISK_LEVELS }                                     from './business/fraud-detection-protocol.js';
+export { RevenueForecastProtocol }                                                  from './business/revenue-forecast-protocol.js';
+export { CrossPlatformSyncProtocol, SYNC_STATUS, CONFLICT_STRATEGY }              from './business/cross-platform-sync-protocol.js';
+export { BusinessIntelligenceProtocol }                                            from './business/business-intelligence-protocol.js';
+export { PricingOptimizationProtocol }                                             from './business/pricing-optimization-protocol.js';
+export { SupplyChainProtocol }                                                     from './business/supply-chain-protocol.js';
+export { CustomerRetentionProtocol }                                               from './business/customer-retention-protocol.js';
+export { BUSINESS_PROTOCOL_VERSION, BUSINESS_PROTOCOL_COUNT }                     from './business/index.js';
+
+// ─── Operations Sub-Protocols (PROTO-O001 – PROTO-O008) ──────────────────────
+export { HealthMonitoringProtocol, HEALTH_STATUS }                                 from './operations/health-monitoring-protocol.js';
+export { AlertRoutingProtocol, SEVERITY }                                          from './operations/alert-routing-protocol.js';
+export { PerformanceOptimizationProtocol, PERF_STATUS }                            from './operations/performance-optimization-protocol.js';
+export { DeploymentOrchestrationProtocol, DEPLOY_STATUS, DEPLOY_STRATEGY }        from './operations/deployment-orchestration-protocol.js';
+export { SecurityGatewayProtocol, THREAT_LEVEL, ACCESS_RESULT }                   from './operations/security-gateway-protocol.js';
+export { ComplianceAuditProtocol, AUDIT_SEVERITY, COMPLIANCE_STATUS }             from './operations/compliance-audit-protocol.js';
+export { ResourceAllocationProtocol, ALLOCATION_STATUS }                           from './operations/resource-allocation-protocol.js';
+export { KnowledgeSynthesisProtocol, KNOWLEDGE_TYPE }                             from './operations/knowledge-synthesis-protocol.js';
+export { OPERATIONS_PROTOCOL_VERSION, OPERATIONS_PROTOCOL_COUNT }                 from './operations/index.js';
