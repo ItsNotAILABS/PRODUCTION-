@@ -46,8 +46,23 @@ if (!Object.values(flags).some(Boolean)) {
   Object.keys(flags).forEach(k => flags[k] = true);
 }
 
-const phases = [];
+// Each `node sandcastle-pipeline.js --flag` invocation in CI is a separate
+// process, so phase results can't just live in memory — they're carried
+// forward on disk between steps, otherwise the final --report step (run as
+// its own process) sees an empty phase list no matter what the earlier
+// steps actually did.
+const STATE_FILE = path.join(DOCS, '.sandcastle-state.json');
+
+let phases = [];
+if (fs.existsSync(STATE_FILE)) {
+  try { phases = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { phases = []; }
+}
 const startTime = Date.now();
+
+function persistState() {
+  fs.mkdirSync(DOCS, { recursive: true });
+  fs.writeFileSync(STATE_FILE, JSON.stringify(phases, null, 2));
+}
 
 function phaseResult(name, emoji, status, details = {}) {
   const result = {
@@ -430,7 +445,10 @@ function generateReport() {
 
   fs.mkdirSync(DOCS, { recursive: true });
 
-  const totalDuration = Date.now() - startTime;
+  // Sum of each phase's own duration, not wall-clock since process start —
+  // phases run in separate CI processes/steps, so there is no single
+  // in-process clock spanning all of them.
+  const totalDuration = phases.reduce((sum, p) => sum + (p.duration || 0), 0);
   const allPassed = phases.every(p => p.status !== 'fail');
 
   const lines = [
@@ -526,6 +544,26 @@ function generateReport() {
 
   fs.writeFileSync(path.join(DOCS, 'sandcastle-report.md'), lines.join('\n'));
   console.log(`  📄 Report written to docs/sandcastle-report.md`);
+
+  // Compact machine-readable summary — lets the CI workflow post a PR
+  // comment with the actual numbers from this run instead of static text.
+  const summary = {
+    generatedAt: new Date().toISOString(),
+    sha: process.env.GITHUB_SHA || null,
+    allPassed,
+    totalDurationMs: totalDuration,
+    phases: phases.map(p => ({
+      phase: p.phase, emoji: p.emoji, status: p.status, durationMs: p.duration,
+      detail: p.valid !== undefined ? `${p.valid} valid, ${p.invalid} invalid`
+        : p.built !== undefined && p.extResults ? `${p.built} extensions built, ${p.errors} with issues`
+        : p.built !== undefined ? `${p.built} SDKs built, ${p.skipped} skipped`
+        : p.tests ? `${p.passed} passed, ${p.warned} warned, ${p.failed} failed`
+        : p.connections ? `${p.connections.length} connections verified`
+        : p.message || '',
+    })),
+  };
+  fs.writeFileSync(path.join(DOCS, 'sandcastle-summary.json'), JSON.stringify(summary, null, 2));
+  console.log(`  📄 Summary written to docs/sandcastle-summary.json`);
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -540,7 +578,16 @@ function main() {
   if (flags.buildExtensions) buildExtensions();
   if (flags.integration)     integrationTests();
   if (flags.wiring)          verifyWiring();
-  if (flags.report)          generateReport();
+
+  // Carry phase results forward to the next CI step's process, unless this
+  // invocation is (or includes) the final report — at that point the state
+  // file's job is done and it's removed so the next pipeline run starts clean.
+  if (flags.report) {
+    generateReport();
+    if (fs.existsSync(STATE_FILE)) fs.unlinkSync(STATE_FILE);
+  } else {
+    persistState();
+  }
 
   const failures = phases.filter(p => p.status === 'fail');
   console.log('');

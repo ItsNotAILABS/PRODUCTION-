@@ -65,7 +65,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sandcastle-report-${{ github.sha }}
-          path: docs/sandcastle-report.md
+          path: |
+            docs/sandcastle-report.md
+            docs/sandcastle-summary.json
           retention-days: 14
 
       - name: Label PR as sandcastle-approved
@@ -73,22 +75,40 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               labels: ['sandcastle-approved']
             });
+
+            let body = '🏰 **Sandcastle-bot:** Build-test-land pipeline approved.';
+            try {
+              const summary = JSON.parse(fs.readFileSync('docs/sandcastle-summary.json', 'utf8'));
+              const rows = summary.phases.map(p => {
+                const icon = { pass: '✅', warn: '⚠️', fail: '❌' }[p.status] || '📋';
+                const dur = p.durationMs ? `${(p.durationMs / 1000).toFixed(1)}s` : '—';
+                return `| ${p.emoji} ${p.phase} | ${icon} ${p.status} | ${dur} | ${p.detail} |`;
+              }).join('\n');
+              body = [
+                `🏰 **Sandcastle-bot:** Build-test-land pipeline ${summary.allPassed ? 'approved' : 'completed with warnings'} in ${(summary.totalDurationMs / 1000).toFixed(1)}s.`,
+                '',
+                '| Phase | Status | Duration | Result |',
+                '|-------|--------|----------|--------|',
+                rows,
+                '',
+                `[Full report →](../actions/runs/${context.runId})`,
+              ].join('\n');
+            } catch (e) {
+              body += `\n\n_(summary unavailable: ${e.message})_`;
+            }
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: '🏰 **Sandcastle-bot:** All phases passed. Build-test-land pipeline approved.\n\n' +
-                    '✅ Manifests validated\n' +
-                    '✅ SDKs built\n' +
-                    '✅ Extensions built\n' +
-                    '✅ Integration tests passed\n' +
-                    '✅ Cross-module wiring verified'
+              body,
             });
 
       - name: Commit sandcastle report
