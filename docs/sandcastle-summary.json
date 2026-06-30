@@ -1,14 +1,15 @@
 {
-  "generatedAt": "2026-06-30T04:36:00.037Z",
+  "generatedAt": "2026-06-30T04:52:27.250Z",
   "sha": null,
   "allPassed": true,
-  "totalDurationMs": 36,
+  "hasWarnings": true,
+  "totalDurationMs": 32,
   "phases": [
     {
       "phase": "Validate Manifests",
       "emoji": "🔍",
       "status": "pass",
-      "durationMs": 6,
+      "durationMs": 4,
       "detail": "72 valid, 0 invalid"
     },
     {
@@ -22,22 +23,22 @@
       "phase": "Build Extensions",
       "emoji": "🧩",
       "status": "pass",
-      "durationMs": 9,
+      "durationMs": 4,
       "detail": "43 extensions built, 0 with issues"
     },
     {
       "phase": "Integration Tests",
       "emoji": "🧪",
       "status": "pass",
-      "durationMs": 5,
+      "durationMs": 7,
       "detail": "5 passed, 0 warned, 0 failed"
     },
     {
       "phase": "Cross-Module Wiring",
       "emoji": "🔌",
-      "status": "pass",
-      "durationMs": 12,
-      "detail": "4 connections verified"
+      "status": "warn",
+      "durationMs": 13,
+      "detail": "4 connections, 1 warned"
     }
   ]
 }
