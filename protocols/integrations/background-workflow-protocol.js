@@ -20,6 +20,7 @@ const PHI     = 1.618033988749895;
 const PHI_INV = 1 / PHI;
 const MS_PER_DAY = 86_400_000;
 const MAX_SKILLS_PER_MISSION = 4;
+const MAX_QUEUED_COMMANDS = 200;
 
 export const WORKFLOW_RECURRENCE = Object.freeze({
   ONCE:       'once',
@@ -37,7 +38,7 @@ export class BackgroundWorkflowProtocol {
   #startedAt = Date.now();
 
   constructor(config = {}) {
-    this.version     = '1.1.0';
+    this.version     = '1.2.0';
     this.domain      = 'integrations';
     this.designation = MISSION_ENGINE_DESIGNATION;
     this.metrics     = { ticks: 0, runs: 0, failures: 0, spawned: 0, tokensConsumed: 0, totalRuntimeMs: 0 };
@@ -47,32 +48,49 @@ export class BackgroundWorkflowProtocol {
    * Register a workflow. `handler` is plain local code — never an LLM call —
    * so each run costs runtime, not tokens.
    */
-  registerWorkflow(id, { handler, recurrence = WORKFLOW_RECURRENCE.CONTINUOUS, daysOfWeek = [], intervalMs = null, parentId = null } = {}) {
+  registerWorkflow(id, { handler, recurrence = WORKFLOW_RECURRENCE.CONTINUOUS, daysOfWeek = [], intervalMs = null, parentId = null } = {}, opts) {
     if (typeof handler !== 'function') throw new Error('registerWorkflow requires a handler function');
-    return this.#register(id, { skills: [handler], recurrence, daysOfWeek, intervalMs, parentId });
+    return this.#register(id, { skills: [handler], recurrence, daysOfWeek, intervalMs, parentId }, opts);
   }
 
   /**
    * Register a mission — a workflow loaded with up to 4 skills that run in
    * sequence on each fire. This is the standard unit of the Mission Engine.
    */
-  registerMission(id, { skills = [], recurrence = WORKFLOW_RECURRENCE.CONTINUOUS, daysOfWeek = [], intervalMs = null, parentId = null } = {}) {
+  registerMission(id, { skills = [], recurrence = WORKFLOW_RECURRENCE.CONTINUOUS, daysOfWeek = [], intervalMs = null, parentId = null } = {}, opts) {
     if (!Array.isArray(skills) || skills.length === 0) throw new Error('registerMission requires at least 1 skill');
     if (skills.length > MAX_SKILLS_PER_MISSION) throw new Error(`registerMission supports at most ${MAX_SKILLS_PER_MISSION} skills per mission`);
-    return this.#register(id, { skills, recurrence, daysOfWeek, intervalMs, parentId });
+    return this.#register(id, { skills, recurrence, daysOfWeek, intervalMs, parentId }, opts);
   }
 
-  #register(id, { skills, recurrence, daysOfWeek, intervalMs, parentId }) {
+  /**
+   * Explicitly replace an already-registered mission's skills/schedule —
+   * the only path that's allowed to overwrite an existing id. Run history,
+   * command queue, and parent linkage carry forward instead of resetting,
+   * so a redeploy never silently erases a mission's track record.
+   */
+  redeploy(id, spec) {
+    if (!this.#workflows.has(id)) throw new Error(`Cannot redeploy unknown mission "${id}" — use deploy() to create it first.`);
+    return registrationIsMission(spec)
+      ? this.registerMission(id, spec, { replace: true })
+      : this.registerWorkflow(id, spec, { replace: true });
+  }
+
+  #register(id, { skills, recurrence, daysOfWeek, intervalMs, parentId }, { replace = false } = {}) {
+    const existing = this.#workflows.get(id);
+    if (existing && !replace) {
+      throw new Error(`Mission "${id}" already exists — use redeploy() to replace it (run history is preserved), or choose a different id. Registration never silently overwrites.`);
+    }
     this.#workflows.set(id, {
       skills,
       recurrence,
       daysOfWeek,         // 0=Sun..6=Sat, used when recurrence === WEEKLY
       intervalMs,          // used when recurrence === DAILY/CONTINUOUS as min gap
       nextRunAt: Date.now(),
-      runs: [],
+      runs: existing?.runs || [],
       status: 'idle',
-      parentId,
-      commands: [],
+      parentId: parentId ?? existing?.parentId ?? null,
+      commands: existing?.commands || [],
     });
     if (parentId) {
       if (!this.#children.has(parentId)) this.#children.set(parentId, new Set());
@@ -98,21 +116,38 @@ export class BackgroundWorkflowProtocol {
    */
   spawn(parentId, childId, spec) {
     if (!this.#workflows.has(parentId)) throw new Error(`Cannot spawn from unknown mission "${parentId}"`);
+    if (childId === parentId) throw new Error('A mission cannot spawn itself as its own child');
+    if (this.#isAncestor(childId, parentId)) {
+      throw new Error(`Cannot spawn "${childId}" as a child of "${parentId}" — it is already an ancestor of it (would create a cycle)`);
+    }
     this.metrics.spawned++;
     return registrationIsMission(spec)
       ? this.registerMission(childId, { ...spec, parentId })
       : this.registerWorkflow(childId, { ...spec, parentId });
   }
 
+  #isAncestor(candidateId, startId) {
+    let current = this.#workflows.get(startId)?.parentId;
+    while (current) {
+      if (current === candidateId) return true;
+      current = this.#workflows.get(current)?.parentId;
+    }
+    return false;
+  }
+
   /** Full parent/child process tree — for visualization (dashboards, status views). */
   tree(rootId = null) {
     const roots = rootId ? [rootId] : [...this.#workflows.keys()].filter(id => !this.#workflows.get(id).parentId);
-    const build = (id) => ({
-      id,
-      ...this.health(id),
-      children: [...(this.#children.get(id) || [])].map(build),
-    });
-    return roots.map(build);
+    const build = (id, seen) => {
+      if (seen.has(id)) return { id, error: 'cycle-detected', children: [] };
+      seen.add(id);
+      return {
+        id,
+        ...this.health(id),
+        children: [...(this.#children.get(id) || [])].map(childId => build(childId, seen)),
+      };
+    };
+    return roots.map(id => build(id, new Set()));
   }
 
   /**
@@ -124,6 +159,7 @@ export class BackgroundWorkflowProtocol {
     const wf = this.#workflows.get(id);
     if (!wf) throw new Error(`Unknown mission "${id}"`);
     wf.commands.push({ payload, at: new Date().toISOString() });
+    if (wf.commands.length > MAX_QUEUED_COMMANDS) wf.commands.shift();
     return { id, queued: wf.commands.length };
   }
 
@@ -142,6 +178,24 @@ export class BackgroundWorkflowProtocol {
     }
     this.#chains.set(chainId, workflowIds);
     return { chainId, length: workflowIds.length };
+  }
+
+  /**
+   * Stop and remove a mission from active scheduling. Returns its final
+   * health snapshot so the caller can archive it — unregister never deletes
+   * anything silently, it hands the last-known state back to you.
+   */
+  unregister(id) {
+    const wf = this.#workflows.get(id);
+    if (!wf) throw new Error(`Unknown mission "${id}"`);
+    const snapshot = { id, ...this.health(id) };
+    this.#workflows.delete(id);
+    this.#children.delete(id);
+    for (const childSet of this.#children.values()) childSet.delete(id);
+    for (const [chainId, ids] of this.#chains) {
+      if (ids.includes(id)) this.#chains.set(chainId, ids.filter(x => x !== id));
+    }
+    return snapshot;
   }
 
   /** Advance the heartbeat. Call this on your own interval (e.g. 873ms AetherAgent tick). */
@@ -170,6 +224,9 @@ export class BackgroundWorkflowProtocol {
   }
 
   #isDue(wf, now) {
+    // A mission already mid-run (slow network/disk/canister I/O in a skill)
+    // never gets entered a second time by an overlapping tick.
+    if (wf.status === 'running') return false;
     if (now < wf.nextRunAt) return false;
     if (wf.recurrence === WORKFLOW_RECURRENCE.WEEKLY) {
       const day = new Date(now).getDay();
@@ -182,9 +239,12 @@ export class BackgroundWorkflowProtocol {
     wf.status = 'running';
     const start = Date.now();
     let ok = true, error = null, outputs = [];
-    for (const skill of wf.skills) {
+    // Drained once per run, not once per skill — only the first skill in the
+    // chain receives the queue, matching the documented command-center contract.
+    const commands = this.drainCommands(id);
+    for (let i = 0; i < wf.skills.length; i++) {
       try {
-        outputs.push(await skill(this.drainCommands(id)));
+        outputs.push(await wf.skills[i](i === 0 ? commands : []));
       } catch (e) {
         ok = false; error = e.message;
         this.metrics.failures++;
@@ -257,6 +317,54 @@ export class BackgroundWorkflowProtocol {
       uptimeMs: Date.now() - this.#startedAt,
       note: 'Background ticks execute local skills only — zero tokens per run by design.',
     };
+  }
+
+  /**
+   * Serialize schedule, run history, command queues, and metrics — write this
+   * to disk/KV on an interval so missions survive a process restart. Skills
+   * are functions, not data, so they are NOT included here; `restore()`
+   * re-attaches them from the live process via `skillsById`.
+   */
+  toJSON() {
+    const workflows = [...this.#workflows.entries()].map(([id, wf]) => [id, {
+      recurrence: wf.recurrence,
+      daysOfWeek: wf.daysOfWeek,
+      intervalMs: wf.intervalMs,
+      nextRunAt: wf.nextRunAt,
+      runs: wf.runs,
+      status: wf.status,
+      parentId: wf.parentId,
+      commands: wf.commands,
+      skillCount: wf.skills.length,
+    }]);
+    return {
+      version: this.version,
+      startedAt: this.#startedAt,
+      metrics: this.metrics,
+      workflows,
+      chains: [...this.#chains.entries()],
+      children: [...this.#children.entries()].map(([k, v]) => [k, [...v]]),
+    };
+  }
+
+  /**
+   * Restore engine state from a toJSON() snapshot. `skillsById` (id -> skills[])
+   * must re-supply each mission's actual skill functions — the host process
+   * owns that code, the snapshot only carries schedule and history around it.
+   */
+  restore(snapshot, skillsById = {}) {
+    this.#startedAt = snapshot.startedAt ?? Date.now();
+    this.metrics = { ...this.metrics, ...snapshot.metrics };
+    for (const [id, wf] of snapshot.workflows) {
+      const skills = skillsById[id];
+      if (!Array.isArray(skills) || skills.length === 0) {
+        throw new Error(`restore() requires skills for mission "${id}" via skillsById — skill code is not part of the snapshot`);
+      }
+      this.#workflows.set(id, { ...wf, skills });
+    }
+    for (const [chainId, ids] of snapshot.chains) this.#chains.set(chainId, ids);
+    for (const [parentId, childIds] of snapshot.children) this.#children.set(parentId, new Set(childIds));
+    return { restored: this.#workflows.size, chains: this.#chains.size };
   }
 }
 

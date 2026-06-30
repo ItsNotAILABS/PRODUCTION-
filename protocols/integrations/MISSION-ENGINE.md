@@ -2,7 +2,7 @@
 
 **File:** `protocols/integrations/background-workflow-protocol.js`
 **Export:** `BackgroundWorkflowProtocol` (designation: `"Sovereign Mission Engine"`)
-**Version:** 1.1.0
+**Version:** 1.2.0
 
 ## What it is
 
@@ -120,3 +120,40 @@ calls, disk I/O, canister queries), not inference cost. That's the basis for
 treating long-running missions as "servers" in a product surface: they behave
 like always-on background processes because, mechanically, that's exactly
 what they are.
+
+## Lifecycle, safety, and persistence (v1.2.0)
+
+A "server" needs guarantees a v1.0 task scheduler doesn't: it can't silently
+lose state, can't double-fire while a slow I/O call is in flight, and needs
+to survive a process restart. v1.2.0 adds:
+
+- **No silent overwrite.** Registering an `id` that already exists throws —
+  registration never erases run history by accident. To intentionally update
+  a mission's skills or schedule, use `redeploy(id, spec)`, which carries the
+  existing run history, command queue, and parent link forward instead of
+  resetting them.
+- **Re-entrancy guard.** If a skill is still mid-flight (network call, disk
+  I/O, canister query) when the next heartbeat lands, that mission is skipped
+  for that tick rather than entered a second time concurrently.
+- **Command isolation.** `drainCommands()` runs exactly once per mission run,
+  before the skill chain starts — only skill 1 ever sees the queued commands,
+  skills 2–4 always receive `[]`. A command pushed mid-run can't leak into a
+  later skill in the same chain.
+- **Cycle-safe spawning.** `spawn(parentId, childId, spec)` rejects a child
+  id that is `parentId` itself, or that is already an ancestor of `parentId`
+  — the process tree can grow but can never loop back on itself, and `tree()`
+  has its own cycle guard as a second line of defense.
+- **`unregister(id)`** — the one teardown path. It stops scheduling and
+  returns the mission's final health snapshot so the caller can archive it;
+  nothing is dropped without a return value in hand.
+- **`toJSON()` / `restore(snapshot, skillsById)`** — persistence for
+  longevity across restarts. `toJSON()` serializes schedule, run history,
+  command queues, and engine metrics. Skill functions are code, not data, so
+  they're intentionally excluded — `restore()` takes a `skillsById` map
+  (`id -> skills[]`) supplied by the host process at boot and re-attaches the
+  real functions to the restored schedule/history. Write `toJSON()` to disk
+  or a KV store on an interval (or on `tick()`'s `fired` events) to make a
+  mission survive a crash or redeploy of the host process itself.
+- **Bounded command queue.** `command()` caps a mission's pending queue at
+  200 entries (oldest dropped first) so a paused or `ONCE`-recurrence mission
+  that keeps receiving commands can't grow unbounded in memory.
