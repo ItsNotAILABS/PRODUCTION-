@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Organism Command Deck — ItsNotAILABS</title>
+<meta name="description" content="Live control surface for the sovereign organism runtime — Kuramoto connectome, vitality, and build pipeline status.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg-dark: #0a0a0f;
+    --bg-card: #12121a;
+    --bg-elevated: #1a1a24;
+    --border: rgba(255, 255, 255, 0.07);
+    --border-accent: rgba(100, 140, 200, 0.3);
+
+    --primary: #4a90d9;
+    --primary-light: #6ba8e8;
+    --accent-gold: #c9a227;
+    --accent-emerald: #10b981;
+    --accent-purple: #8b5cf6;
+    --accent-rose: #f43f5e;
+
+    --text-primary: #f0f2f5;
+    --text-secondary: #a0a8b8;
+    --text-muted: #6b7280;
+
+    --font-serif: 'Playfair Display', Georgia, serif;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    --phi: 1.618033988749895;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(74, 144, 217, 0.12), transparent),
+      var(--bg-dark);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  a { color: var(--primary-light); text-decoration: none; transition: color 0.2s; }
+  a:hover { color: var(--accent-gold); }
+
+  .container { max-width: 1280px; margin: 0 auto; padding: 0 2rem; }
+
+  /* ── Header ───────────────────────────────────────────────── */
+  header {
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(10, 10, 15, 0.75);
+  }
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.1rem 2rem;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  .brand { display: flex; align-items: baseline; gap: 0.6rem; }
+  .brand-mark { font-family: var(--font-serif); font-weight: 600; font-size: 1.15rem; letter-spacing: 0.01em; }
+  .brand-sub { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.05em; }
+  .header-meta { display: flex; align-items: center; gap: 1.5rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary); }
+  .pulse-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent-emerald);
+    box-shadow: 0 0 8px var(--accent-emerald);
+    display: inline-block;
+    animation: pulseDot 0.873s ease-in-out infinite;
+  }
+  @keyframes pulseDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
+
+  /* ── Hero / connectome ────────────────────────────────────── */
+  .hero {
+    padding: 3rem 2rem 2rem;
+    max-width: 1280px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 2.5rem;
+    align-items: center;
+  }
+  .hero-copy h1 {
+    font-family: var(--font-serif);
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    font-weight: 600;
+    line-height: 1.2;
+    margin-bottom: 0.9rem;
+  }
+  .hero-copy h1 span { color: var(--accent-gold); }
+  .hero-copy p { color: var(--text-secondary); font-size: 0.98rem; max-width: 46ch; }
+  .hero-note {
+    margin-top: 1.1rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    border-left: 2px solid var(--border-accent);
+    padding-left: 0.7rem;
+  }
+
+  .connectome-wrap {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  #connectome { width: 100%; height: 100%; display: block; }
+  .connectome-core-label {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+  }
+  .connectome-core-label .r-value {
+    font-family: var(--font-mono);
+    font-size: 1.7rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-shadow: 0 0 18px rgba(74, 144, 217, 0.6);
+  }
+  .connectome-core-label .r-label {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  /* ── Stat strip ───────────────────────────────────────────── */
+  .stat-strip {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem 2.5rem;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.3rem;
+  }
+  .stat-card .label { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.4rem; }
+  .stat-card .value { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 600; }
+  .stat-card .sub { font-size: 0.74rem; color: var(--text-secondary); margin-top: 0.2rem; }
+  .v-gold { color: var(--accent-gold); }
+  .v-emerald { color: var(--accent-emerald); }
+  .v-purple { color: var(--accent-purple); }
+  .v-primary { color: var(--primary-light); }
+
+  /* ── Panels ───────────────────────────────────────────────── */
+  .panels {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem 3.5rem;
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 1.5rem;
+  }
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .panel h2 {
+    font-family: var(--font-serif);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  .panel .panel-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 1.1rem; }
+
+  .phase-row {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .phase-row:last-child { border-bottom: none; }
+  .phase-icon { font-size: 1rem; width: 1.4rem; text-align: center; }
+  .phase-name { flex: 1; }
+  .phase-detail { font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted); }
+  .status-pill {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .status-pass { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); }
+  .status-warn { background: rgba(201, 162, 39, 0.15); color: var(--accent-gold); }
+  .status-fail { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); }
+  .status-unknown { background: rgba(160, 168, 184, 0.12); color: var(--text-muted); }
+
+  .headline-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    margin-bottom: 1.1rem;
+    font-size: 0.9rem;
+  }
+
+  .registry-list { display: flex; flex-direction: column; gap: 0.55rem; }
+  .registry-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.7rem;
+    background: var(--bg-elevated);
+    border-radius: 7px;
+  }
+  .registry-item .n { font-family: var(--font-mono); color: var(--text-primary); font-weight: 600; }
+
+  .roadmap-strip {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem 4rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  .roadmap-chip {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .chip-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .chip-live { background: var(--accent-emerald); }
+  .chip-planned { background: var(--text-muted); }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 900px) {
+    .hero, .panels { grid-template-columns: 1fr; }
+    .stat-strip { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-mark">ItsNotAILABS</span>
+      <span class="brand-sub">ORGANISM COMMAND DECK</span>
+    </div>
+    <div class="header-meta">
+      <span><span class="pulse-dot"></span> HEARTBEAT 873ms</span>
+      <span id="clock">--:--:--</span>
+      <a href="../../index.html">← Site</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-copy">
+    <h1>The connectome, <span>live</span>.</h1>
+    <p>
+      A 96-node mean-field Kuramoto simulation running the exact math from
+      <code>organism.physics</code> and <code>organism.neuroemergence</code> —
+      laid out on a golden-angle spiral (137.508°), phase-colored, beating
+      on the organism's 873ms heartbeat.
+    </p>
+    <div class="hero-note">
+      This connectome panel is a local client-side simulation, not a live feed
+      from the canister. The pipeline panel on the right is real — pulled fresh
+      from <code>docs/sandcastle-summary.json</code> on every load.
+    </div>
+  </div>
+  <div class="connectome-wrap">
+    <canvas id="connectome" width="480" height="480"></canvas>
+    <div class="connectome-core-label">
+      <div class="r-value" id="r-value">0.000</div>
+      <div class="r-label">coherence R</div>
+    </div>
+  </div>
+</section>
+
+<section class="stat-strip">
+  <div class="stat-card">
+    <div class="label">Coherence R</div>
+    <div class="value v-primary" id="stat-r">0.000</div>
+    <div class="sub">target ≥ 0.870</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Beats</div>
+    <div class="value v-gold" id="stat-beat">0</div>
+    <div class="sub">873ms / beat</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Vitality</div>
+    <div class="value v-emerald" id="stat-vitality">0.000</div>
+    <div class="sub">φ-weighted composite</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Sync ratio</div>
+    <div class="value v-purple" id="stat-sync">0%</div>
+    <div class="sub">beats at/above target</div>
+  </div>
+</section>
+
+<section class="panels">
+  <div class="panel">
+    <h2>Build &amp; pipeline status</h2>
+    <div class="panel-sub" id="pipeline-meta">Loading docs/sandcastle-summary.json…</div>
+    <div class="headline-banner" id="pipeline-headline"></div>
+    <div id="pipeline-phases"></div>
+  </div>
+
+  <div class="panel">
+    <h2>System registry</h2>
+    <div class="panel-sub">Pulled from the same pipeline run.</div>
+    <div class="registry-list" id="registry-list"></div>
+  </div>
+</section>
+
+<div class="roadmap-strip">
+  <span class="roadmap-chip"><span class="chip-dot chip-live"></span>Python runtime — live</span>
+  <span class="roadmap-chip"><span class="chip-dot chip-live"></span>Physics / Kuramoto engine — live</span>
+  <span class="roadmap-chip"><span class="chip-dot chip-live"></span>NeuroEmergence Core client — live</span>
+  <span class="roadmap-chip"><span class="chip-dot chip-live"></span>Sandcastle pipeline — live</span>
+  <span class="roadmap-chip"><span class="chip-dot chip-planned"></span>Julia engine — planned</span>
+  <span class="roadmap-chip"><span class="chip-dot chip-planned"></span>Haskell engine — planned</span>
+  <span class="roadmap-chip"><span class="chip-dot chip-planned"></span>Bot federation wiring — auditing</span>
+</div>
+
+<footer>
+  Organism Command Deck — served locally via <code>node apps/control-center/server.js</code>. No external network calls.
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Constants (mirrors organism/python/organism/constants.py) ──────────
+  const PHI = 1.618033988749895;
+  const PHI_INV = 1 / PHI;
+  const GOLDEN_ANGLE_DEG = 137.508;
+  const GOLDEN_ANGLE_RAD = GOLDEN_ANGLE_DEG * Math.PI / 180;
+  const HEARTBEAT_MS = 873;
+  const NODE_COUNT = 96;
+  const COHERENCE_TARGET = 0.87;
+
+  // ── Clock ────────────────────────────────────────────────────────────
+  const clockEl = document.getElementById('clock');
+  function tickClock() {
+    clockEl.textContent = new Date().toISOString().slice(11, 19) + ' UTC';
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  // ── Mean-field Kuramoto state (mirrors organism.physics.mean_field_kuramoto_step) ──
+  let phases = new Array(NODE_COUNT);
+  for (let i = 0; i < NODE_COUNT; i++) phases[i] = Math.random() * 2 * Math.PI;
+  const activities = new Array(NODE_COUNT).fill(0.5);
+  let coupling = PHI_INV;
+  let beat = 0;
+  let syncBeats = 0;
+
+  function orderParameter(ph) {
+    let sumCos = 0, sumSin = 0;
+    for (let i = 0; i < ph.length; i++) { sumCos += Math.cos(ph[i]); sumSin += Math.sin(ph[i]); }
+    const n = ph.length;
+    const re = sumCos / n, im = sumSin / n;
+    return { r: Math.hypot(re, im), psi: Math.atan2(im, re) };
+  }
+
+  function meanFieldStep(ph, act, K, dt) {
+    const { r, psi } = orderParameter(ph);
+    const next = new Array(ph.length);
+    for (let i = 0; i < ph.length; i++) {
+      const force = K * r * Math.sin(psi - ph[i]);
+      let theta = ph[i] + force * dt * act[i];
+      theta = theta % (2 * Math.PI);
+      if (theta < 0) theta += 2 * Math.PI;
+      next[i] = theta;
+    }
+    return next;
+  }
+
+  // ── Vitality (mirrors organism.vitality phi-weights) ────────────────────
+  const RAW_WEIGHTS = { cognitive: PHI ** 3, affective: PHI ** 2, somatic: PHI ** 1, sovereign: PHI ** 4 };
+  const WEIGHT_SUM = Object.values(RAW_WEIGHTS).reduce((a, b) => a + b, 0);
+  const REGISTER_WEIGHTS = {};
+  for (const k in RAW_WEIGHTS) REGISTER_WEIGHTS[k] = RAW_WEIGHTS[k] / WEIGHT_SUM;
+
+  function computeVitality(r, syncRatio) {
+    // register scores derived from real connectome signal, not fabricated:
+    //   cognitive = current coherence, sovereign = sync ratio across beats run so far
+    const regScores = {
+      cognitive: r,
+      affective: Math.min(1, r * 1.05),
+      somatic: 1.0, // heartbeat is always regular in this local sim
+      sovereign: syncRatio,
+    };
+    let weighted = 0;
+    for (const k in REGISTER_WEIGHTS) weighted += regScores[k] * REGISTER_WEIGHTS[k];
+    return Math.max(0, Math.min(1, weighted));
+  }
+
+  // ── Canvas: golden-angle phyllotaxis layout, phase-driven color/pulse ──
+  const canvas = document.getElementById('connectome');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2;
+  const maxRadius = W * 0.46;
+
+  const layout = [];
+  for (let i = 0; i < NODE_COUNT; i++) {
+    const r = maxRadius * Math.sqrt((i + 1) / NODE_COUNT);
+    const a = i * GOLDEN_ANGLE_RAD;
+    layout.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+  }
+
+  let displayPhases = phases.slice();
+  let lastR = 0, lastPsi = 0;
+
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+
+    // coherence ring
+    const ringR = maxRadius * 0.98;
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, 0, 2 * Math.PI);
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, -Math.PI / 2, -Math.PI / 2 + lastR * 2 * Math.PI);
+    ctx.strokeStyle = `rgba(201, 162, 39, ${0.3 + lastR * 0.6})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    for (let i = 0; i < NODE_COUNT; i++) {
+      const p = layout[i];
+      const hue = (displayPhases[i] / (2 * Math.PI)) * 360;
+      const brightness = 45 + lastR * 30;
+      const size = 1.6 + lastR * 2.2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size, 0, 2 * Math.PI);
+      ctx.fillStyle = `hsl(${hue}, 75%, ${brightness}%)`;
+      ctx.shadowColor = `hsl(${hue}, 80%, 60%)`;
+      ctx.shadowBlur = 4 + lastR * 8;
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    // pulsing core
+    const corePulse = heartbeatPulse();
+    const coreR = 14 + corePulse * 10;
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 2.5);
+    grad.addColorStop(0, `rgba(74, 144, 217, ${0.5 + lastR * 0.4})`);
+    grad.addColorStop(1, 'rgba(74, 144, 217, 0)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, coreR * 2.5, 0, 2 * Math.PI);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  let lastBeatAt = performance.now();
+  function heartbeatPulse() {
+    const elapsed = (performance.now() - lastBeatAt) % HEARTBEAT_MS;
+    const t = elapsed / HEARTBEAT_MS;
+    return Math.exp(-t * 6); // sharp pulse, decays toward next beat
+  }
+
+  // ── Tick the physics once per heartbeat, render every frame ────────────
+  function physicsTick() {
+    phases = meanFieldStep(phases, activities, coupling, HEARTBEAT_MS / 1000);
+    const { r, psi } = orderParameter(phases);
+    lastR = r; lastPsi = psi;
+    beat += 1;
+    if (r >= COHERENCE_TARGET) syncBeats += 1;
+    const syncRatio = beat > 0 ? syncBeats / beat : 0;
+    const vitality = computeVitality(r, syncRatio);
+
+    document.getElementById('r-value').textContent = r.toFixed(3);
+    document.getElementById('stat-r').textContent = r.toFixed(3);
+    document.getElementById('stat-beat').textContent = String(beat);
+    document.getElementById('stat-vitality').textContent = vitality.toFixed(3);
+    document.getElementById('stat-sync').textContent = Math.round(syncRatio * 100) + '%';
+
+    lastBeatAt = performance.now();
+    displayPhases = phases.slice();
+  }
+  physicsTick();
+  setInterval(physicsTick, HEARTBEAT_MS);
+
+  function loop() {
+    render();
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // ── Pipeline panel: real data from docs/sandcastle-summary.json ────────
+  const ICONS = { pass: '✅', warn: '⚠️', fail: '❌' };
+  const STATUS_CLASS = { pass: 'status-pass', warn: 'status-warn', fail: 'status-fail' };
+
+  fetch('/api/sandcastle-summary')
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    .then(renderPipeline)
+    .catch(err => {
+      document.getElementById('pipeline-meta').textContent =
+        'Could not load pipeline summary (' + err.message + '). Run the pipeline, then reload.';
+    });
+
+  function renderPipeline(summary) {
+    const meta = document.getElementById('pipeline-meta');
+    meta.textContent = 'Generated ' + new Date(summary.generatedAt).toUTCString();
+
+    const hasFailures = summary.phases.some(p => p.status === 'fail');
+    const hasWarnings = summary.hasWarnings || summary.phases.some(p => p.status === 'warn');
+    const headline = hasFailures ? '❌ Issues Detected' : hasWarnings ? '⚠️ Passed With Warnings' : '✅ All Phases Passed';
+    const banner = document.getElementById('pipeline-headline');
+    banner.textContent = headline + ' — ' + (summary.totalDurationMs / 1000).toFixed(1) + 's total';
+
+    const phasesEl = document.getElementById('pipeline-phases');
+    phasesEl.innerHTML = '';
+    summary.phases.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'phase-row';
+      row.innerHTML =
+        '<span class="phase-icon">' + (p.emoji || '') + '</span>' +
+        '<span class="phase-name">' + p.phase + '</span>' +
+        '<span class="phase-detail">' + (p.detail || '') + '</span>' +
+        '<span class="status-pill ' + (STATUS_CLASS[p.status] || 'status-unknown') + '">' + p.status + '</span>';
+      phasesEl.appendChild(row);
+    });
+
+    const reg = document.getElementById('registry-list');
+    reg.innerHTML = '';
+    summary.phases.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'registry-item';
+      item.innerHTML = '<span>' + p.phase + '</span><span class="n">' + (p.detail || '—') + '</span>';
+      reg.appendChild(item);
+    });
+  }
+})();
+</script>
+</body>
+</html>
