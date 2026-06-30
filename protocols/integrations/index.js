@@ -35,6 +35,7 @@ export { KnowledgeGraphProtocol }                              from './knowledge
 export { SentimentProtocol }                                   from './sentiment-protocol.js';
 export { MultiModalProtocol }                                  from './multi-modal-protocol.js';
 export { ConsensusVotingProtocol }                             from './consensus-voting-protocol.js';
+export { BackgroundWorkflowProtocol, WORKFLOW_RECURRENCE }     from './background-workflow-protocol.js';
 
-export const INTEGRATIONS_PROTOCOL_VERSION = '1.2.0';
-export const INTEGRATIONS_PROTOCOL_COUNT   = 31;
+export const INTEGRATIONS_PROTOCOL_VERSION = '1.3.0';
+export const INTEGRATIONS_PROTOCOL_COUNT   = 32;
