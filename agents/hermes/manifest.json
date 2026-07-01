@@ -1,0 +1,35 @@
+{
+  "id": "HERMES",
+  "name": "Hermes — Cross-Platform Deployment Executor",
+  "version": "1.0.0",
+  "role": "foundation-model",
+  "description": "The execution interface. Reads Cloudflare_Worker_Fleet_Register.csv for current worker topology. Generates and executes deployment artifacts for Cloudflare Workers (wrangler.toml), ICP/Motoko (dfx.json), and native packages. One-command, one-query deployment across all targets. This agent DOES things — it doesn't just describe them.",
+  "sdks": [
+    "cloudflare-workers",
+    "x-platform-connectors",
+    "x-ecosystem",
+    "cloud-glade",
+    "x-mcp-servers"
+  ],
+  "protocols": [
+    "PROTO-007",
+    "PROTO-226",
+    "PROTO-227",
+    "PROTO-181"
+  ],
+  "ring": "Sovereign Ring",
+  "placement": "Organism edge / deployment layer",
+  "intelligence_class": "Cross-Platform Deployment Execution Intelligence",
+  "training_sources": [
+    "Cloudflare_Worker_Fleet_Register.csv"
+  ],
+  "targets": ["cloudflare-workers", "icp-motoko", "node-package", "docker"],
+  "capabilities": [
+    "deploy(target, artifact) — execute or stage a deployment to cloudflare/icp/node",
+    "generateWranglerConfig(workerId) — emit ready-to-run wrangler.toml from fleet register",
+    "generateDfxConfig(canisterId, name) — emit ready-to-run dfx.json for ICP",
+    "package(sdkName) — package an SDK from sdk/ into a deployable artifact",
+    "getFleetStatus() — live topology from Cloudflare_Worker_Fleet_Register.csv",
+    "oneShot(sdkOrPath, target) — single-call build + package + deploy"
+  ]
+}

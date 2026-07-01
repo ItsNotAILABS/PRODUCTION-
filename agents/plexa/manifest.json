@@ -1,0 +1,31 @@
+{
+  "id": "PLEXA",
+  "name": "Plexa — Multi-Model Fusion Orchestrator",
+  "version": "1.0.0",
+  "role": "foundation-model",
+  "description": "Reads AI_Model_Families_Register.csv (26+ model families) and Multimodal_Families_Register.csv at boot. Builds a capability matrix from the registers. Recommends model families for tasks by capability matching. Implements phi-decay confidence weighting for ensemble fusion — no external API calls.",
+  "sdks": [
+    "ai-model-engines",
+    "ai-kingdom",
+    "engines"
+  ],
+  "protocols": [
+    "PROTO-005",
+    "PROTO-014",
+    "PROTO-016",
+    "PROTO-017"
+  ],
+  "ring": "Interface Ring",
+  "placement": "Organism core / reasoning layer",
+  "intelligence_class": "Multi-Model Ensemble Fusion Intelligence",
+  "training_sources": [
+    "AI_Model_Families_Register.csv",
+    "Multimodal_Families_Register.csv"
+  ],
+  "capabilities": [
+    "recommend(task) — best model family from register by capability match",
+    "fuse(outputs, weights?) — phi-decay weighted consensus across multiple outputs",
+    "rank(taskType) — ranked model families for a specific capability class",
+    "getCapabilityMatrix() — full model capability matrix from all registers"
+  ]
+}

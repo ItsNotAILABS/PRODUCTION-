@@ -1,0 +1,31 @@
+{
+  "id": "NOVA",
+  "name": "Nova — Neural Emergence Intelligence",
+  "version": "1.0.0",
+  "role": "foundation-model",
+  "description": "Runs the full 96-node mean-field Kuramoto connectome (same validated math as organism.physics.mean_field_kuramoto_step and organism.neuroemergence.NeuroEmergenceCore) entirely in-process in Node. Coherence R drives cognitive attention — high R = focused execution, low R = exploratory diffusion. Integrates all 24 neurochemicals and 4 training protocols from the live NeuroEmergence Core canister spec.",
+  "sdks": [
+    "nova-intelligence",
+    "nova-bindings",
+    "nova-intelligence-bridge"
+  ],
+  "protocols": [
+    "PROTO-003",
+    "PROTO-211",
+    "PROTO-227",
+    "PROTO-183"
+  ],
+  "ring": "Sovereign Ring",
+  "placement": "Organism core / neural emergence layer",
+  "intelligence_class": "Kuramoto Phase-Coupling Neural Intelligence",
+  "canister": "q7ljb-jqaaa-aaaac-qam3a-cai",
+  "coherence_target": 0.87,
+  "capabilities": [
+    "pulse() — step the connectome at the 873ms heartbeat, returns coherence R",
+    "inject(chemical, dose) — neurochemical injection, Hill-equation dose response",
+    "getCoherence() — current Kuramoto order parameter R",
+    "focus(task) — derive cognitive attention mode from current coherence level",
+    "runProtocol(name, ticks) — run a named training protocol on the connectome",
+    "snapshot() — full connectome dashboard snapshot"
+  ]
+}
