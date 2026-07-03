@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Weekly Command Center</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Weekly Command Center</div>
+  <div id="calendar-strip" class="calendar-strip">loading calendars…</div>
+</header>
+
+<main class="grid">
+
+  <section class="panel panel-wide" id="digest-panel">
+    <h2>This Week</h2>
+    <p id="digest-narrative">loading digest…</p>
+    <div class="thread-badge" id="thread-badge"></div>
+  </section>
+
+  <section class="panel" id="deliverables-panel">
+    <h2>Deliverables under pressure</h2>
+    <ul id="deliverables-list" class="clean-list"></ul>
+    <form id="deliverable-form" class="inline-form">
+      <input name="title" placeholder="Deliverable title" required />
+      <input name="project" placeholder="Project" />
+      <input name="due_date" type="date" required />
+      <button type="submit">Add</button>
+    </form>
+  </section>
+
+  <section class="panel" id="tasks-panel">
+    <h2>Tasks (recursive)</h2>
+    <form id="quick-add-form" class="inline-form">
+      <input name="line" placeholder='Draft report due:2026-07-10T17:00 !1 ~2h #client-acme' size="48" />
+      <button type="submit">Add</button>
+    </form>
+    <div id="task-tree"></div>
+    <button id="optimize-btn" class="secondary">Optimize week →</button>
+    <div id="optimize-result"></div>
+  </section>
+
+  <section class="panel" id="documents-panel">
+    <h2>Documents (versioned, recursive folders)</h2>
+    <form id="folder-form" class="inline-form">
+      <input name="name" placeholder="New folder name" required />
+      <button type="submit">+ Folder</button>
+    </form>
+    <div id="folder-tree"></div>
+  </section>
+
+  <section class="panel panel-wide" id="libraries-panel">
+    <h2>Library &amp; dependency registry</h2>
+    <div id="libraries-list" class="lib-grid"></div>
+  </section>
+
+</main>
+
+<div id="doc-modal" class="modal hidden">
+  <div class="modal-content">
+    <h3 id="doc-modal-title">Document</h3>
+    <textarea id="doc-modal-content" rows="14"></textarea>
+    <div class="modal-actions">
+      <button id="doc-modal-save">Save new revision</button>
+      <button id="doc-modal-history-toggle" class="secondary">History</button>
+      <button id="doc-modal-close" class="secondary">Close</button>
+    </div>
+    <ul id="doc-modal-history" class="clean-list hidden"></ul>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

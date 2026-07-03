@@ -1,0 +1,17 @@
+cabal-version:      2.4
+name:               taskrules
+version:            0.1.0.0
+synopsis:           Task-language parser microservice for Weekly Command Center
+build-type:         Simple
+
+executable taskrules
+    main-is:          Main.hs
+    hs-source-dirs:   app, src
+    other-modules:    TaskLang
+    build-depends:    base >=4.14 && <5
+                    , scotty >=0.20
+                    , aeson >=2.0
+                    , text >=1.2
+                    , bytestring >=0.10
+    default-language: Haskell2010
+    ghc-options:      -Wall

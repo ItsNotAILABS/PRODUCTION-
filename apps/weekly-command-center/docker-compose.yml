@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  core-api:
+    build: ./core-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - command-center-data:/app/data
+    environment:
+      - OPTIMIZER_URL=http://optimizer-julia:8100
+      - TASKRULES_URL=http://taskrules-haskell:8200
+    depends_on:
+      - optimizer-julia
+      - taskrules-haskell
+
+  optimizer-julia:
+    build: ./optimizer-julia
+    ports:
+      - "8100:8100"
+
+  taskrules-haskell:
+    build: ./taskrules-haskell
+    ports:
+      - "8200:8200"
+
+  gateway-node:
+    build: ./gateway-node
+    ports:
+      - "3000:3000"
+    environment:
+      - CORE_API_URL=http://core-api:8000
+    depends_on:
+      - core-api
+
+volumes:
+  command-center-data:
