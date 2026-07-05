@@ -7,6 +7,10 @@ const PHI = 1.618033988749895;
 const PHI_INV = 1 / PHI;
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
+let _federationProtocol, _orchestrationProtocol;
+try { _federationProtocol    = require('../../protocols/agent-federation-protocol.js'); } catch {}
+try { _orchestrationProtocol = require('../../protocols/task-orchestration-protocol.js'); } catch {}
+
 class NexusAgent {
   constructor() {
     this.id = 'NEXUS';
@@ -91,11 +95,54 @@ class NexusAgent {
     return this.routingTable;
   }
 
+  /**
+   * Delegate a task to a peer agent via the federation mesh.
+   * Returns the delegation result or an error if no mesh is loaded.
+   */
+  delegate(taskPayload, targetAgentId, ring = 'CognitiveRing') {
+    if (!_federationProtocol) return { ok: false, error: 'agent-federation-protocol not loaded' };
+    const { FederationMesh } = _federationProtocol;
+    if (!this._mesh) {
+      this._mesh = new FederationMesh({ id: this.id, ring });
+    }
+    return this._mesh.delegate(taskPayload, targetAgentId);
+  }
+
+  /**
+   * Add a task to the internal DAG scheduler.
+   * Returns the new task object or error if protocol not loaded.
+   */
+  scheduleTask(taskDef) {
+    if (!_orchestrationProtocol) return { ok: false, error: 'task-orchestration-protocol not loaded' };
+    const { TaskDAG } = _orchestrationProtocol;
+    if (!this._dag) this._dag = new TaskDAG();
+    return this._dag.add(taskDef);
+  }
+
+  /**
+   * Tick the task DAG: return all currently ready tasks.
+   */
+  readyTasks() {
+    if (!this._dag) return [];
+    return this._dag.readyQueue();
+  }
+
+  /**
+   * Mark a scheduled task done or failed.
+   */
+  completeTask(taskId, result = {}, success = true) {
+    if (!this._dag) return false;
+    if (success) return this._dag.markDone(taskId, result);
+    return this._dag.markFailed(taskId, result?.error || 'unknown error');
+  }
+
   status() {
     return {
       id: this.id,
       activeProtocols: this.protocols.length,
       rings: Object.keys(this.routingTable),
+      federationLoaded: !!_federationProtocol,
+      orchestrationLoaded: !!_orchestrationProtocol,
     };
   }
 }

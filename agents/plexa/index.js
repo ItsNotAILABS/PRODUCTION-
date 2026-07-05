@@ -7,6 +7,10 @@ const PHI = 1.618033988749895;
 const PHI_INV = 1 / PHI;
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
+let _websiteGenProtocol, _multimodalProtocol;
+try { _websiteGenProtocol = require('../../protocols/website-generation-protocol.js'); } catch {}
+try { _multimodalProtocol = require('../../protocols/multimodal-synthesis-protocol.js'); } catch {}
+
 // Priority tiers from register: P0 = frontier alpha, P1 = sovereign, P2 = specialist
 const PRIORITY_SCORE = { 'P0': PHI * PHI, 'P1': PHI, 'P2': 1.0 };
 
@@ -129,11 +133,44 @@ class PlexaAgent {
     return this.capabilityMatrix;
   }
 
+  /**
+   * Generate a full site spec (tokens, component tree, routing, deploy config).
+   * spec: { name, description, framework?, pageType?, pages?, accent? }
+   */
+  generateSite(spec = {}) {
+    if (!_websiteGenProtocol) return { ok: false, error: 'website-generation-protocol not loaded' };
+    const { generateSiteSpec } = _websiteGenProtocol;
+    return { ok: true, ...generateSiteSpec(spec) };
+  }
+
+  /**
+   * Generate phi design tokens for a site.
+   * opts: { baseFontPx?, accent?, bg?, text? }
+   */
+  designTokens(opts = {}) {
+    if (!_websiteGenProtocol) return { ok: false, error: 'website-generation-protocol not loaded' };
+    return _websiteGenProtocol.phiDesignTokens(opts);
+  }
+
+  /**
+   * Fuse multimodal inputs (code + text + image descriptions, etc.)
+   * using the synthesis protocol.  Complements the existing text-only fuse().
+   * inputs: [{ modality, content, weight? }, ...]
+   */
+  fuseMultimodal(inputs = []) {
+    if (!_multimodalProtocol) return { ok: false, error: 'multimodal-synthesis-protocol not loaded' };
+    const { MultimodalSynthesizer } = _multimodalProtocol;
+    if (!this._synthesizer) this._synthesizer = new MultimodalSynthesizer();
+    return this._synthesizer.fuse(inputs);
+  }
+
   status() {
     return {
       id: this.id,
       models: this.models.length,
       capabilityClasses: Object.keys(this.capabilityMatrix).length,
+      websiteGenLoaded: !!_websiteGenProtocol,
+      multimodalLoaded: !!_multimodalProtocol,
     };
   }
 }

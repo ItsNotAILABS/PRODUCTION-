@@ -7,6 +7,10 @@ const { loadCsv } = require('../_lib/csv.js');
 const PHI = 1.618033988749895;
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
+let _sovereignFedProtocol, _infraCodegenProtocol;
+try { _sovereignFedProtocol  = require('../../protocols/sovereign-federation-protocol.js'); } catch {}
+try { _infraCodegenProtocol  = require('../../protocols/infrastructure-codegen-protocol.js'); } catch {}
+
 function phiHash(str) {
   let h = 0;
   for (let i = 0; i < str.length; i++) {
@@ -128,6 +132,64 @@ class VigilAgent {
     };
   }
 
+  /**
+   * Initialize and return a SovereignFederation view of the substrate fleet.
+   * Registers each discovered SDK as an EDGE substrate node.
+   */
+  federationView() {
+    if (!_sovereignFedProtocol) return { ok: false, error: 'sovereign-federation-protocol not loaded' };
+    const { SovereignFederation, SubstrateNode, SUBSTRATE } = _sovereignFedProtocol;
+    if (!this._federation) {
+      const self = new SubstrateNode({ id: this.id, name: 'Vigil', substrate: SUBSTRATE.GATEWAY });
+      this._federation = new SovereignFederation(self);
+      for (const sdk of this.sdks) {
+        const node = new SubstrateNode({
+          id:        sdk.name,
+          name:      sdk.name,
+          substrate: SUBSTRATE.EDGE,
+          ring:      'SovereignRing',
+        });
+        this._federation.addNode(node);
+      }
+    }
+    return this._federation.snapshot();
+  }
+
+  /**
+   * Generate infrastructure config for any supported target.
+   * target: 'cloudflare' | 'icp' | 'terraform' | 'compose' | 'github_ci'
+   */
+  generateConfig(target, spec = {}) {
+    if (!_infraCodegenProtocol) return { ok: false, error: 'infrastructure-codegen-protocol not loaded' };
+    const { generate } = _infraCodegenProtocol;
+    try {
+      return { ok: true, ...generate(target, spec) };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  /**
+   * Audit the federation: compare alive substrate nodes vs. full roster,
+   * treat low coherence as a compliance violation.
+   */
+  auditFederation() {
+    if (!_sovereignFedProtocol) return { ok: false, error: 'sovereign-federation-protocol not loaded' };
+    const view = this.federationView();
+    const coherence = parseFloat(view.coherence);
+    const PHI_INV = 0.618033988749895;
+    const violation = coherence < PHI_INV
+      ? { issue: `Federation coherence ${coherence.toFixed(4)} below phi-threshold ${PHI_INV}` }
+      : null;
+    return {
+      coherence,
+      compliant: !violation,
+      violation,
+      aliveNodes: view.nodes?.filter(n => n.alive).length ?? 0,
+      totalNodes: view.nodes?.length ?? 0,
+    };
+  }
+
   status() {
     return {
       id: this.id,
@@ -135,6 +197,8 @@ class VigilAgent {
       sdksTracked: this.sdks.length,
       lastAudit: this.auditedAt,
       violations: this.violations.length,
+      sovereignFedLoaded: !!_sovereignFedProtocol,
+      infraCodegenLoaded: !!_infraCodegenProtocol,
     };
   }
 }

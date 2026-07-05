@@ -7,6 +7,10 @@ const { loadCsv } = require('../_lib/csv.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
+let _infraCodegenProtocol, _workflowProtocol;
+try { _infraCodegenProtocol = require('../../protocols/infrastructure-codegen-protocol.js'); } catch {}
+try { _workflowProtocol     = require('../../protocols/workflow-engine-protocol.js'); } catch {}
+
 function tryExec(cmd) {
   try { return { ok: true, out: execSync(cmd, { cwd: REPO_ROOT, timeout: 60_000, encoding: 'utf8', stdio: ['pipe','pipe','pipe'] }) }; }
   catch (e) { return { ok: false, err: e.message }; }
@@ -137,12 +141,52 @@ class HermesAgent {
     return { sdk: sdkName, target, package: pkg, deploy: dep };
   }
 
+  /**
+   * Generate infrastructure config using the codegen protocol.
+   * target: 'cloudflare' | 'icp' | 'terraform' | 'compose' | 'github_ci'
+   * spec: varies by target (see infrastructure-codegen-protocol.js)
+   */
+  generateInfrastructure(target, spec = {}) {
+    if (!_infraCodegenProtocol) return { ok: false, error: 'infrastructure-codegen-protocol not loaded' };
+    const { generate } = _infraCodegenProtocol;
+    try {
+      return { ok: true, ...generate(target, spec) };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  /**
+   * Create a named workflow for deployment orchestration.
+   * templateName: 'onboarding' | 'release' | 'trade' | 'analysis' | 'build_site' | 'agent_eval'
+   * context: { project?, env?, ... }
+   * agentMap: { task_type: agent_id, ... }
+   */
+  createDeploymentWorkflow(templateName, context = {}, agentMap = {}) {
+    if (!_workflowProtocol) return { ok: false, error: 'workflow-engine-protocol not loaded' };
+    const { WorkflowInstance } = _workflowProtocol;
+    try {
+      const wf = new WorkflowInstance({ templateName, context, agentMap });
+      return { ok: true, workflow: wf.snapshot() };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  /** List available workflow templates. */
+  listDeploymentWorkflows() {
+    if (!_workflowProtocol) return [];
+    return _workflowProtocol.listTemplates();
+  }
+
   status() {
     return {
       id: this.id,
       fleetWorkers: this.fleet.length,
       cloudflareAvailable: isAvailable('wrangler'),
       dfxAvailable: isAvailable('dfx'),
+      infraCodegenLoaded: !!_infraCodegenProtocol,
+      workflowLoaded: !!_workflowProtocol,
     };
   }
 }

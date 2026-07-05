@@ -6,6 +6,10 @@ const { loadCsv } = require('../_lib/csv.js');
 const PHI = 1.618033988749895;
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
+let _multimodalProtocol, _evalProtocol;
+try { _multimodalProtocol = require('../../protocols/multimodal-synthesis-protocol.js'); } catch {}
+try { _evalProtocol       = require('../../protocols/ai-evaluation-protocol.js'); } catch {}
+
 const REGISTERS = [
   { file: 'AI_Protocols_Register.csv',       label: 'protocol',     textFields: ['protocol_name','primary_function','intelligence_class','secondary_functions'] },
   { file: 'AI_Model_Families_Register.csv',  label: 'model',        textFields: ['family_name','primary_capability','secondary_capabilities','intelligence_class'] },
@@ -130,8 +134,47 @@ class PythiaAgent {
     return { totalDocs: this.docs.length, vocabularySize: Object.keys(this.idf).length, byLabel };
   }
 
+  /**
+   * Fuse multimodal inputs (text, code, data, etc.) using the synthesis protocol.
+   * inputs: [{ modality: MODALITY.TEXT, content: '...', weight?: 1.0 }, ...]
+   */
+  fuseModalities(inputs = []) {
+    if (!_multimodalProtocol) return { ok: false, error: 'multimodal-synthesis-protocol not loaded' };
+    const { MultimodalSynthesizer } = _multimodalProtocol;
+    if (!this._synthesizer) this._synthesizer = new MultimodalSynthesizer();
+    return this._synthesizer.fuse(inputs);
+  }
+
+  /**
+   * Record an AI model evaluation result.
+   * dimensions: { accuracy: 0.9, coherence: 0.85, ... }
+   */
+  recordEval(modelId, taskId, dimensions) {
+    if (!_evalProtocol) return { ok: false, error: 'ai-evaluation-protocol not loaded' };
+    const { ModelEvaluator } = _evalProtocol;
+    if (!this._evaluator) this._evaluator = new ModelEvaluator();
+    return this._evaluator.record(modelId, taskId, dimensions);
+  }
+
+  /** Return the model rankings by phi-weighted average score. */
+  modelRankings() {
+    if (!this._evaluator) return [];
+    return this._evaluator.rankings();
+  }
+
+  /** Return the best model for a specific evaluation dimension. */
+  bestModel(dimension) {
+    if (!this._evaluator) return null;
+    return this._evaluator.bestFor(dimension);
+  }
+
   status() {
-    return { id: this.id, ...this.getCorpusStats() };
+    return {
+      id: this.id,
+      ...this.getCorpusStats(),
+      multimodalLoaded: !!_multimodalProtocol,
+      evalLoaded: !!_evalProtocol,
+    };
   }
 }
 

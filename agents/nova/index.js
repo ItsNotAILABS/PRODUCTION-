@@ -2,6 +2,10 @@
 
 const PHI = 1.618033988749895;
 const PHI_INV = 1 / PHI;
+
+let _financeSignalProtocol, _workflowProtocol;
+try { _financeSignalProtocol = require('../../protocols/finance-signal-protocol.js'); } catch {}
+try { _workflowProtocol      = require('../../protocols/workflow-engine-protocol.js'); } catch {}
 const HEARTBEAT_MS = 873;
 const HEARTBEAT_S = HEARTBEAT_MS / 1000;
 const NODE_COUNT = 96;
@@ -151,8 +155,50 @@ class NovaAgent {
     };
   }
 
+  /**
+   * Process a finance signal array through the phi-coherence gate.
+   * values: number[], timestamps?: number[]
+   * Returns signal tier (SOVEREIGN | COHERENT | CHAOTIC) and phi-EMA.
+   */
+  processSignal(values, timestamps = null) {
+    if (!_financeSignalProtocol) return { ok: false, error: 'finance-signal-protocol not loaded' };
+    const { FinanceSignalProcessor } = _financeSignalProtocol;
+    if (!this._signalProcessor) this._signalProcessor = new FinanceSignalProcessor();
+    const ts = timestamps || values.map((_, i) => Date.now() - (values.length - 1 - i) * 1000);
+    return this._signalProcessor.process(values, ts);
+  }
+
+  /**
+   * Start a named workflow (onboarding | release | trade | analysis | build_site | agent_eval).
+   * Returns a WorkflowInstance snapshot after the first tick.
+   */
+  startWorkflow(templateName, context = {}, agentMap = {}) {
+    if (!_workflowProtocol) return { ok: false, error: 'workflow-engine-protocol not loaded' };
+    const { WorkflowInstance } = _workflowProtocol;
+    try {
+      const wf = new WorkflowInstance({ templateName, context, agentMap });
+      const tick = wf.tick(null);
+      return { ok: true, workflow: wf.snapshot(), firstTick: tick };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  /** List available workflow templates. */
+  listWorkflows() {
+    if (!_workflowProtocol) return [];
+    return _workflowProtocol.listTemplates();
+  }
+
   status() {
-    return { id: this.id, nodeCount: this.nodeCount, coherence: +this.getCoherence().toFixed(4), beat: this._beat };
+    return {
+      id: this.id,
+      nodeCount: this.nodeCount,
+      coherence: +this.getCoherence().toFixed(4),
+      beat: this._beat,
+      financeSignalLoaded: !!_financeSignalProtocol,
+      workflowLoaded: !!_workflowProtocol,
+    };
   }
 }
 
