@@ -14,10 +14,17 @@
 const PHI = 1.618033988749895;
 const PHI_INV = 1 / PHI;
 
+// Execution protocol binding — governs action scheduling and workspace ops
+let _workspaceProtocol = null;
+try {
+  _workspaceProtocol = require('../../protocols/agent-workspace-protocol.js');
+} catch { /* protocol optional at runtime; wired when available */ }
+
 class CorpusAgent {
   constructor(engines) {
     this.id = 'CORPUS';
     this.engines = engines;
+    this.protocol = _workspaceProtocol;
     
     // Action queue
     this.actionQueue = [];

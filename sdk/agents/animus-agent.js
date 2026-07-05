@@ -14,10 +14,17 @@
 const PHI = 1.618033988749895;
 const PHI_INV = 1 / PHI;
 
+// Cognitive protocol binding — drives the reflect/decide loop
+let _cognitiveProtocol = null;
+try {
+  _cognitiveProtocol = require('../../protocols/cognitive-architecture-protocol.js');
+} catch { /* protocol optional at runtime; wired when available */ }
+
 class AnimusAgent {
   constructor(engines) {
     this.id = 'ANIMUS';
     this.engines = engines;
+    this.protocol = _cognitiveProtocol;
     
     // Cognitive state
     this.thoughts = [];
