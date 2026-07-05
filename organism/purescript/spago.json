@@ -1,0 +1,23 @@
+{
+  "name": "organism",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "description": "Organism sovereign intelligence runtime — PureScript bridge layer",
+  "dependencies": [
+    "prelude",
+    "effect",
+    "console",
+    "ordered-collections",
+    "foldable-traversable",
+    "maybe",
+    "either",
+    "tuples",
+    "arrays",
+    "strings",
+    "numbers",
+    "integers",
+    "math"
+  ],
+  "packages": "https://registry.purescript.org/sets/latest.json",
+  "sources": ["src/**/*.purs"]
+}

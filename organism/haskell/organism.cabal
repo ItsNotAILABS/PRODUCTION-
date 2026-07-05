@@ -1,0 +1,34 @@
+cabal-version:      3.0
+name:               organism
+version:            1.0.0
+synopsis:           Sovereign Organism Runtime — Haskell
+description:
+    Pure functional implementation of the organism intelligence layer.
+    Protocol type class, phi-weighted routing, Kuramoto physics,
+    phantom-typed state registers. Stdlib only — no Hackage deps.
+author:             ItsNotAILABS
+license:            UNLICENSED
+build-type:         Simple
+
+library
+    hs-source-dirs:   src
+    default-language: GHC2021
+    ghc-options:      -Wall -Wcompat -O2
+    exposed-modules:
+        Organism.Constants
+        Organism.Physics
+        Organism.Protocol
+        Organism.Routing
+        Organism.State
+        Organism.Protocols.PhiRouting
+        Organism.Protocols.ProtocolCompose
+        Organism.Protocols.IntelligencePipeline
+        Organism.Protocols.TypeSafeRegisters
+        Organism.Protocols.LazyScoring
+        Organism.Protocols.ProtocolValidation
+        Organism.Protocols.GraphRouting
+        Organism.Protocols.RingAffinityProtocol
+        Organism.Protocols.CoherenceMonad
+        Organism.Protocols.TemporalReasoning
+    build-depends:
+        base >= 4.17
