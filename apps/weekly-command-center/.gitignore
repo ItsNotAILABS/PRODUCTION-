@@ -1,8 +1,9 @@
 core-api/data/*.db
-core-api/data/inbox/*.eml
+core-api/data/inbox/**/*.eml
 core-api/__pycache__/
 core-api/app/**/__pycache__/
 core-api/.pytest_cache/
 gateway-node/node_modules/
 optimizer-julia/Manifest.toml
 taskrules-haskell/dist-newstyle/
+.env

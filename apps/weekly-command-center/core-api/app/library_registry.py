@@ -116,12 +116,16 @@ def _scan_haskell_cabal() -> list[dict]:
     return out
 
 
-def persist(conn) -> int:
+def persist(db) -> int:
+    """Rescans the real manifests and replaces the shared (non-tenant)
+    libraries_cache table. `db` is a SQLAlchemy Session."""
+    from .db_models import LibraryCacheEntry
+
     entries = scan()
-    conn.execute("DELETE FROM libraries_cache")
-    conn.executemany(
-        "INSERT INTO libraries_cache (language, name, version, source_file) VALUES (?, ?, ?, ?)",
-        [(e["language"], e["name"], e["version"], e["source_file"]) for e in entries],
-    )
-    conn.commit()
+    db.query(LibraryCacheEntry).delete()
+    db.add_all([
+        LibraryCacheEntry(language=e["language"], name=e["name"], version=e["version"], source_file=e["source_file"])
+        for e in entries
+    ])
+    db.commit()
     return len(entries)

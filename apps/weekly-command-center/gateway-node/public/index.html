@@ -7,9 +7,41 @@
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
+<div id="auth-screen" class="auth-screen">
+  <div class="auth-card">
+    <div class="brand">Weekly Command Center</div>
+    <div class="auth-tabs">
+      <button id="tab-login" class="auth-tab active">Log in</button>
+      <button id="tab-signup" class="auth-tab">Start free trial</button>
+    </div>
+
+    <form id="login-form" class="auth-form">
+      <input name="email" type="email" placeholder="Work email" required />
+      <input name="password" type="password" placeholder="Password" required />
+      <button type="submit">Log in</button>
+      <p class="auth-error" id="login-error"></p>
+    </form>
+
+    <form id="signup-form" class="auth-form hidden">
+      <input name="account_name" placeholder="Company / team name" required />
+      <input name="email" type="email" placeholder="Work email" required />
+      <input name="password" type="password" placeholder="Password (min 8 characters)" minlength="8" required />
+      <button type="submit">Create account — Free plan</button>
+      <p class="auth-error" id="signup-error"></p>
+    </form>
+  </div>
+</div>
+
+<div id="app-shell" class="hidden">
 <header class="topbar">
   <div class="brand">Weekly Command Center</div>
   <div id="calendar-strip" class="calendar-strip">loading calendars…</div>
+  <div class="account-badge">
+    <span id="account-name"></span>
+    <span id="account-plan" class="plan-chip"></span>
+    <button id="logout-btn" class="secondary">Log out</button>
+  </div>
 </header>
 
 <main class="grid">
@@ -51,6 +83,12 @@
     <div id="folder-tree"></div>
   </section>
 
+  <section class="panel" id="billing-panel">
+    <h2>Plan &amp; usage</h2>
+    <div id="billing-usage"></div>
+    <div id="billing-plans" class="plan-grid"></div>
+  </section>
+
   <section class="panel panel-wide" id="libraries-panel">
     <h2>Library &amp; dependency registry</h2>
     <div id="libraries-list" class="lib-grid"></div>
@@ -69,6 +107,8 @@
     </div>
     <ul id="doc-modal-history" class="clean-list hidden"></ul>
   </div>
+</div>
+
 </div>
 
 <script src="app.js"></script>

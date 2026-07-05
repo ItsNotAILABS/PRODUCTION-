@@ -1,8 +1,15 @@
 # Weekly Command Center
 
-A multi-stack platform for running an extremely busy professional's week —
-built to actually run today, not just describe itself. This directory is
-self-contained; it does not depend on anything else in this repository.
+A multi-tenant SaaS platform for running an extremely busy professional's
+week — built to actually run today, not just describe itself. This directory
+is self-contained; it does not depend on anything else in this repository.
+
+Every customer gets an isolated account (real signup/login, JWT auth, hard
+row-level tenant isolation in every query — see `core-api/app/auth.py`) and a
+subscription plan with enforced usage limits (`core-api/app/billing.py`).
+Billing itself is a stub — no live payment processor is wired in yet, see
+"What's stubbed" below — but the account/auth/plan-limit machinery around it
+is real.
 
 ## Run it right now (no Docker required)
 
@@ -11,11 +18,12 @@ cd apps/weekly-command-center
 ./run_local.sh
 ```
 
-Then open **http://localhost:3000**. That's the whole platform: this week's
-digest, deliverables under deadline pressure, a recursive task tree with a
-quick-add bar that understands the task language, versioned documents in
-recursive folders, a live calendar strip, and the library/dependency
-registry.
+Then open **http://localhost:3000**, sign up (creates a new account on the
+free plan), and you're in: this week's digest, deliverables under deadline
+pressure, a recursive task tree with a quick-add bar that understands the
+task language, versioned documents in recursive folders, a live calendar
+strip, a plan/usage panel, and the library/dependency registry — all scoped
+to your account and invisible to every other account on the same instance.
 
 `run_local.sh` only needs `python3` and `node` — both already on this
 machine — and starts:
@@ -41,6 +49,31 @@ platform is never blocked on the Julia/Haskell containers being up — they're
 a real accelerant layer, not a hard dependency, which is why `run_local.sh`
 alone is already a complete, usable app.
 
+## Deploying for real customers
+
+`run_local.sh` and `docker-compose.yml` are SQLite-backed, single-process,
+dev-mode conveniences. For a real deployment: **`docker-compose.prod.yml`**
+swaps in Postgres, runs `core-api` under gunicorn with multiple uvicorn
+workers, splits the background housekeeping scheduler into its own
+`core-worker` process (running it inside every web worker would fire each
+job N times), and locks CORS down to a configured origin instead of `*`. See
+**`DEPLOY.md`** for the exact steps (VPS+Caddy, or Fly.io/Render), and
+**`.env.example`** for every secret you need to set first.
+
+## What's real vs. stubbed
+
+- **Real**: signup/login (bcrypt + JWT), per-account data isolation enforced
+  in every query, team invites, plan usage limits that actually 402 a
+  request once a free-plan account hits its cap, and the Postgres-ready
+  production stack described above.
+- **Stubbed**: `POST /billing/upgrade` flips an account's `plan_id` directly
+  with no payment collected — there's no Stripe account wired in. `billing.py`
+  documents exactly where a real Checkout Session integration would replace
+  that call. No transactional email (signup confirmation, password reset)
+  and no DB migrations (schema is created via `create_all`, fine for this
+  initial deploy but not for changing schema after real customer data
+  exists) — both called out explicitly in `DEPLOY.md`.
+
 ## How the requirements map to what's actually implemented
 
 | Ask | Where it lives |
@@ -60,22 +93,33 @@ alone is already a complete, usable app.
 ## Directory layout
 
 ```
-core-api/            Python/FastAPI — source of truth (SQLite), agents, calendars, registry
-optimizer-julia/     Julia/HTTP.jl — week-scheduling optimizer
-taskrules-haskell/   Haskell/Scotty — task-language parser
-gateway-node/        Node/Express — API gateway + static web UI
-docker-compose.yml   Full stack, including the Julia/Haskell services
-run_local.sh         Zero-Docker quickstart (Python + Node only)
+core-api/                 Python/FastAPI — auth, billing, tenancy, agents, calendars, registry
+  app/auth.py              signup/login/invite, JWT, get_current_account dependency
+  app/billing.py           plan catalog, usage metering, upgrade stub
+  app/db_models.py         SQLAlchemy schema (every tenant table carries account_id)
+  app/database.py          engine/session, DATABASE_URL-driven (SQLite dev / Postgres prod)
+  worker.py                standalone inner-agent process for production (see above)
+optimizer-julia/          Julia/HTTP.jl — week-scheduling optimizer
+taskrules-haskell/        Haskell/Scotty — task-language parser
+gateway-node/             Node/Express — API gateway + static web UI (login/signup included)
+docker-compose.yml        Dev full stack (SQLite), including the Julia/Haskell services
+docker-compose.prod.yml   Production stack (Postgres, gunicorn, core-worker, locked CORS)
+.env.example              Every secret docker-compose.prod.yml needs
+DEPLOY.md                 Step-by-step: VPS+Caddy, or Fly.io/Render
+run_local.sh              Zero-Docker quickstart (Python + Node only)
 ```
 
 ## Tests
 
 ```sh
 cd core-api
-pip install -r requirements.txt pytest
+pip install -r requirements.txt pytest httpx
 python3 -m pytest tests/ -v
 ```
 
-Covers: calendar math against known reference dates, week continuity/rollover,
-recursive task trees, deliverable pressure scoring, document revision
-history, and the library registry scanner.
+18 tests covering: calendar math against known reference dates, signup/login/
+invite, **two accounts never see each other's deliverables/tasks/folders**,
+cross-account lookup-by-ID returns 404 (never a leaked object), free-plan
+usage limits actually blocking a request (402) until upgraded, recursive task
+trees, document revision history, week continuity/rollover, and the library
+registry scanner.

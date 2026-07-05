@@ -22,6 +22,9 @@ app.all("/api/*", async (req, res) => {
       method: req.method,
       headers: { "Content-Type": "application/json" },
     };
+    if (req.headers.authorization) {
+      init.headers.Authorization = req.headers.authorization;
+    }
     if (!["GET", "HEAD"].includes(req.method)) {
       init.body = JSON.stringify(req.body);
     }

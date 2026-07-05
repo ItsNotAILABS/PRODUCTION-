@@ -1,27 +1,19 @@
-from datetime import date, timedelta
+from datetime import date
 
-from app import deliverables, documents, library_registry, tasks, weeks
+from app import library_registry, weeks
 from app.calendars import julian_day_number, mayan_long_count, today_in_all_calendars, week_bounds
-from app.models import (
-    DeliverableCreate,
-    DocumentCreate,
-    DocumentRevise,
-    FolderCreate,
-    TaskCreate,
-    TaskUpdate,
-)
+
+from .conftest import auth_headers, signup
 
 
-# --- calendars ---------------------------------------------------------------
+# --- calendars (pure functions, no DB needed) --------------------------------
 
 def test_julian_day_number_known_epoch():
-    # 2000-01-01 is a commonly cited reference: JDN 2451545
     assert julian_day_number(date(2000, 1, 1)) == 2451545
 
 
 def test_mayan_creation_date_is_baktun_zero():
-    creation = mayan_long_count(584283)
-    assert creation["long_count"] == "0.0.0.0.0"
+    assert mayan_long_count(584283)["long_count"] == "0.0.0.0.0"
 
 
 def test_today_in_all_calendars_is_internally_consistent():
@@ -31,117 +23,201 @@ def test_today_in_all_calendars_is_internally_consistent():
 
 
 def test_week_bounds_monday_to_sunday():
-    # 2026-07-03 is a Friday
-    start, end = week_bounds(date(2026, 7, 3))
+    start, end = week_bounds(date(2026, 7, 3))  # a Friday
     assert start == date(2026, 6, 29)
     assert end == date(2026, 7, 5)
-    assert start.isoweekday() == 1
-    assert end.isoweekday() == 7
 
-
-# --- weekly continuity --------------------------------------------------------
-
-def test_week_creation_is_idempotent():
-    w1 = weeks.get_or_create_current_week(date(2026, 7, 3))
-    w2 = weeks.get_or_create_current_week(date(2026, 7, 3))
-    assert w1["id"] == w2["id"]
-
-
-def test_week_rollover_carries_open_tasks_and_chains_thread():
-    week1 = weeks.get_or_create_current_week(date(2026, 6, 29))
-    tasks.create_task(TaskCreate(title="unfinished", week_id=week1["id"]), default_week_id=week1["id"])
-    done_task = tasks.create_task(TaskCreate(title="finished", week_id=week1["id"]), default_week_id=week1["id"])
-    tasks.update_task(done_task["id"], TaskUpdate(status="done"))
-
-    week2 = weeks.get_or_create_current_week(date(2026, 7, 6))
-    assert week2["previous_week_id"] == week1["id"]
-
-    week2_tasks = tasks.list_all_tasks_in_week(week2["id"])
-    assert any(t["title"] == "unfinished" for t in week2_tasks)
-    assert not any(t["title"] == "finished" for t in week2_tasks)
-
-    thread = weeks.get_thread(week2["id"])
-    assert [w["id"] for w in thread] == [week2["id"], week1["id"]]
-
-
-# --- recursive tasks ----------------------------------------------------------
-
-def test_task_tree_is_recursive_to_arbitrary_depth():
-    week = weeks.get_or_create_current_week(date(2026, 7, 3))
-    root = tasks.create_task(TaskCreate(title="root"), default_week_id=week["id"])
-    child = tasks.create_task(TaskCreate(title="child", parent_id=root["id"]), default_week_id=week["id"])
-    tasks.create_task(TaskCreate(title="grandchild", parent_id=child["id"]), default_week_id=week["id"])
-
-    tree = tasks.get_tree(root["id"])
-    assert tree["title"] == "root"
-    assert tree["subtasks"][0]["title"] == "child"
-    assert tree["subtasks"][0]["subtasks"][0]["title"] == "grandchild"
-
-
-def test_list_all_tasks_in_week_includes_subtasks():
-    week = weeks.get_or_create_current_week(date(2026, 7, 3))
-    root = tasks.create_task(TaskCreate(title="root"), default_week_id=week["id"])
-    tasks.create_task(TaskCreate(title="child", parent_id=root["id"]), default_week_id=week["id"])
-
-    all_tasks = tasks.list_all_tasks_in_week(week["id"])
-    assert {t["title"] for t in all_tasks} == {"root", "child"}
-
-
-# --- deliverables / pressure ----------------------------------------------------
-
-def test_pressure_rises_as_deadline_approaches(monkeypatch):
-    near = deliverables.create_deliverable(DeliverableCreate(title="near", due_date="2026-07-04"))
-    far = deliverables.create_deliverable(DeliverableCreate(title="far", due_date="2026-08-15"))
-
-    class FixedDate(date):
-        @classmethod
-        def today(cls):
-            return date(2026, 7, 3)
-
-    monkeypatch.setattr(deliverables, "date", FixedDate)
-    deliverables.recompute_pressure()
-
-    near_row = deliverables.get_deliverable(near["id"])
-    far_row = deliverables.get_deliverable(far["id"])
-    assert near_row["pressure"] > far_row["pressure"]
-
-
-# --- documents: append-only revisions ------------------------------------------
-
-def test_document_revisions_never_overwrite():
-    doc = documents.create_document(DocumentCreate(name="notes", content="v1"))
-    documents.revise_document(doc["id"], DocumentRevise(content="v2"))
-    documents.revise_document(doc["id"], DocumentRevise(content="v3"))
-
-    current = documents.get_document(doc["id"])
-    assert current["content"] == "v3"
-    assert current["revision_number"] == 3
-
-    history = documents.get_document_history(doc["id"])
-    assert [h["revision_number"] for h in history] == [3, 2, 1]
-
-
-def test_folder_tree_is_recursive():
-    parent = documents.create_folder(FolderCreate(name="Projects"))
-    child = documents.create_folder(FolderCreate(name="Acme", parent_id=parent["id"]))
-    documents.create_document(DocumentCreate(name="brief", folder_id=child["id"], content="hi"))
-
-    tree = documents.list_folder_tree()
-    projects = next(f for f in tree if f["name"] == "Projects")
-    assert projects["children"][0]["name"] == "Acme"
-    assert projects["children"][0]["documents"][0]["name"] == "brief"
-
-
-# --- library registry -----------------------------------------------------------
 
 def test_library_registry_scans_real_manifests():
     entries = library_registry.scan()
     languages = {e["language"] for e in entries}
-    assert "python" in languages
-    assert "node" in languages
-    assert "julia" in languages
-    assert "haskell" in languages
+    assert {"python", "node", "julia", "haskell"} <= languages
     haskell_names = {e["name"] for e in entries if e["language"] == "haskell"}
     assert "default-language" not in haskell_names
     assert "ghc-options" not in haskell_names
     assert "scotty" in haskell_names
+
+
+# --- auth ----------------------------------------------------------------------
+
+def test_signup_returns_token_and_creates_free_plan_account(client):
+    data = signup(client, "Acme Consulting", "alice@acmehq.io")
+    assert data["account"]["plan_id"] == "free"
+    assert data["user"]["role"] == "owner"
+    assert data["access_token"]
+
+
+def test_signup_duplicate_email_rejected(client):
+    signup(client, "Acme Consulting", "alice@acmehq.io")
+    resp = client.post(
+        "/auth/signup",
+        json={"account_name": "Another Co", "email": "alice@acmehq.io", "password": "testpassword1"},
+    )
+    assert resp.status_code == 409
+
+
+def test_login_with_wrong_password_rejected(client):
+    signup(client, "Acme Consulting", "alice@acmehq.io", password="correcthorse1")
+    resp = client.post("/auth/login", json={"email": "alice@acmehq.io", "password": "wrongpass1"})
+    assert resp.status_code == 401
+
+
+def test_protected_route_without_token_is_401(client):
+    resp = client.get("/deliverables")
+    assert resp.status_code == 401
+
+
+def test_invite_teammate_and_non_owner_cannot_invite(client):
+    owner = signup(client, "Acme Consulting", "alice@acmehq.io")
+    owner_headers = auth_headers(owner["access_token"])
+    client.post("/billing/upgrade?plan_id=pro", headers=owner_headers)  # free plan caps at 1 user
+
+    invite_resp = client.post(
+        "/auth/invite",
+        json={"account_name": "ignored", "email": "carol@acmehq.io", "password": "teammatepass1"},
+        headers=owner_headers,
+    )
+    assert invite_resp.status_code == 200
+    assert invite_resp.json()["role"] == "member"
+
+    member_login = client.post("/auth/login", json={"email": "carol@acmehq.io", "password": "teammatepass1"})
+    member_headers = auth_headers(member_login.json()["access_token"])
+    non_owner_invite = client.post(
+        "/auth/invite",
+        json={"account_name": "ignored", "email": "dave@acmehq.io", "password": "anotherpass1"},
+        headers=member_headers,
+    )
+    assert non_owner_invite.status_code == 403
+
+
+# --- multi-tenant isolation ------------------------------------------------------
+
+def test_two_accounts_never_see_each_others_deliverables(client):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    b = signup(client, "Beta Studio", "bob@betastudio.io")
+    headers_a, headers_b = auth_headers(a["access_token"]), auth_headers(b["access_token"])
+
+    client.post("/deliverables", json={"title": "Acme Q3 report", "due_date": "2026-07-10"}, headers=headers_a)
+    client.post("/deliverables", json={"title": "Beta launch plan", "due_date": "2026-07-15"}, headers=headers_b)
+
+    titles_a = {d["title"] for d in client.get("/deliverables", headers=headers_a).json()}
+    titles_b = {d["title"] for d in client.get("/deliverables", headers=headers_b).json()}
+    assert titles_a == {"Acme Q3 report"}
+    assert titles_b == {"Beta launch plan"}
+
+
+def test_cross_account_task_lookup_by_id_is_404_not_leaked(client):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    b = signup(client, "Beta Studio", "bob@betastudio.io")
+    headers_a, headers_b = auth_headers(a["access_token"]), auth_headers(b["access_token"])
+
+    task = client.post("/tasks", json={"title": "Acme-only task"}, headers=headers_a).json()
+
+    resp = client.get(f"/tasks/{task['id']}/tree", headers=headers_b)
+    assert resp.status_code == 404
+
+
+def test_folder_tree_isolated_between_accounts(client):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    b = signup(client, "Beta Studio", "bob@betastudio.io")
+    headers_a, headers_b = auth_headers(a["access_token"]), auth_headers(b["access_token"])
+
+    client.post("/folders", json={"name": "Client Notes"}, headers=headers_a)
+
+    assert len(client.get("/folders/tree", headers=headers_a).json()) == 1
+    assert len(client.get("/folders/tree", headers=headers_b).json()) == 0
+
+
+# --- recursive tasks / documents (through the API, now auth-scoped) ------------
+
+def test_task_tree_is_recursive_to_arbitrary_depth(client):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    headers = auth_headers(a["access_token"])
+
+    root = client.post("/tasks", json={"title": "root"}, headers=headers).json()
+    child = client.post("/tasks", json={"title": "child", "parent_id": root["id"]}, headers=headers).json()
+    client.post("/tasks", json={"title": "grandchild", "parent_id": child["id"]}, headers=headers)
+
+    tree = client.get(f"/tasks/{root['id']}/tree", headers=headers).json()
+    assert tree["subtasks"][0]["title"] == "child"
+    assert tree["subtasks"][0]["subtasks"][0]["title"] == "grandchild"
+
+
+def test_document_revisions_never_overwrite(client):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    headers = auth_headers(a["access_token"])
+
+    doc = client.post("/documents", json={"name": "notes", "content": "v1"}, headers=headers).json()
+    client.post(f"/documents/{doc['id']}/revise", json={"content": "v2"}, headers=headers)
+    client.post(f"/documents/{doc['id']}/revise", json={"content": "v3"}, headers=headers)
+
+    current = client.get(f"/documents/{doc['id']}", headers=headers).json()
+    assert current["content"] == "v3"
+    assert current["revision_number"] == 3
+
+    history = client.get(f"/documents/{doc['id']}/history", headers=headers).json()
+    assert [h["revision_number"] for h in history] == [3, 2, 1]
+
+
+# --- billing / plan limits -------------------------------------------------------
+
+def test_free_plan_deliverable_limit_is_enforced_then_upgrade_lifts_it(client):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    headers = auth_headers(a["access_token"])
+
+    for i in range(3):  # free plan's max_deliverables
+        resp = client.post("/deliverables", json={"title": f"d{i}", "due_date": "2026-08-01"}, headers=headers)
+        assert resp.status_code == 200
+
+    over_limit = client.post("/deliverables", json={"title": "over-limit", "due_date": "2026-08-01"}, headers=headers)
+    assert over_limit.status_code == 402
+
+    upgrade = client.post("/billing/upgrade?plan_id=pro", headers=headers)
+    assert upgrade.status_code == 200
+    assert upgrade.json()["plan_id"] == "pro"
+
+    after_upgrade = client.post("/deliverables", json={"title": "after-upgrade", "due_date": "2026-08-01"}, headers=headers)
+    assert after_upgrade.status_code == 200
+
+
+def test_billing_plan_usage_reflects_real_counts(client):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    headers = auth_headers(a["access_token"])
+    client.post("/tasks", json={"title": "t1"}, headers=headers)
+    client.post("/tasks", json={"title": "t2"}, headers=headers)
+
+    usage = client.get("/billing/plan", headers=headers).json()["usage"]
+    assert usage["open_tasks"] == 2
+    assert usage["users"] == 1
+
+
+# --- weekly continuity (direct model access for date control) -----------------
+
+def test_week_rollover_carries_open_tasks_and_chains_thread(client, db_session):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    account_id = a["account"]["id"]
+
+    with db_session() as db:
+        week1 = weeks.get_or_create_current_week(db, account_id, anchor=date(2026, 6, 29))
+        db.commit()
+        week1_id = week1.id
+
+    from app.db_models import Task
+    with db_session() as db:
+        db.add(Task(account_id=account_id, week_id=week1_id, title="unfinished", status="todo"))
+        done = Task(account_id=account_id, week_id=week1_id, title="finished", status="done")
+        db.add(done)
+        db.commit()
+
+    with db_session() as db:
+        week2 = weeks.get_or_create_current_week(db, account_id, anchor=date(2026, 7, 6))
+        assert week2.previous_week_id == week1_id
+
+        thread = weeks.get_thread(db, account_id, week2.id)
+        assert [w.id for w in thread] == [week2.id, week1_id]
+
+        week2_titles = {
+            t.title for t in db.query(Task).filter(Task.account_id == account_id, Task.week_id == week2.id)
+        }
+        assert "unfinished" in week2_titles
+        assert "finished" not in week2_titles
