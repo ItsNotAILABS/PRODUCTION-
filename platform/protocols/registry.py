@@ -219,6 +219,93 @@ class ProtocolRegistry:
             )
         )
 
+        # Advanced Finance Protocols
+        self.register(
+            ProtocolSpec(
+                protocol_id='PROTO-FIN-003',
+                name='Trading Signals',
+                handler_module='protocols.trading_signals_protocol',
+                handler_fn='TradingSignalAnalyzer.analyze',
+                ring_affinity=['SovereignRing'],
+                memory_mb=512,
+                cpu_millicores=2000,
+                isolation=IsolationLevel.CONTAINER,
+                timeout_ms=5000,
+                metadata={'type': 'signal', 'analysis': ['mean_reversion', 'momentum', 'volatility', 'kuramoto']},
+            )
+        )
+
+        self.register(
+            ProtocolSpec(
+                protocol_id='PROTO-FIN-004',
+                name='Portfolio Optimization',
+                handler_module='protocols.portfolio_optimization_protocol',
+                handler_fn='PortfolioOptimizer.optimize',
+                ring_affinity=['SovereignRing'],
+                memory_mb=512,
+                cpu_millicores=2000,
+                isolation=IsolationLevel.CONTAINER,
+                timeout_ms=30000,
+                metadata={'type': 'optimization', 'methods': ['sharpe_ratio', 'phi_weighted_cov']},
+            )
+        )
+
+        # Advanced AI Protocols
+        self.register(
+            ProtocolSpec(
+                protocol_id='PROTO-AI-002',
+                name='Model Orchestration',
+                handler_module='protocols.model_orchestration_protocol',
+                handler_fn='ModelOrchestrator.scheduleTask',
+                ring_affinity=['CognitiveRing', 'NeuralRing'],
+                memory_mb=1024,
+                cpu_millicores=2000,
+                isolation=IsolationLevel.CONTAINER,
+                metadata={'type': 'orchestration', 'capabilities': ['routing', 'finetuning', 'evaluation']},
+            )
+        )
+
+        # Architecture Protocols
+        self.register(
+            ProtocolSpec(
+                protocol_id='PROTO-ARCH-001',
+                name='Architecture Discovery',
+                handler_module='protocols.architecture_discovery_protocol',
+                handler_fn='ArchitectureAnalyzer.analyzeStructure',
+                ring_affinity=['CognitiveRing', 'MemoryRing'],
+                memory_mb=256,
+                cpu_millicores=500,
+                metadata={'type': 'analysis', 'patterns': ['monolith', 'layered', 'microservices', 'event_driven']},
+            )
+        )
+
+        # Advanced Generation Protocols
+        self.register(
+            ProtocolSpec(
+                protocol_id='PROTO-GEN-003',
+                name='Site Analytics',
+                handler_module='protocols.site_analytics_protocol',
+                handler_fn='SiteAnalytics.computeMetrics',
+                ring_affinity=['InterfaceRing', 'AffectiveRing'],
+                memory_mb=512,
+                cpu_millicores=500,
+                metadata={'type': 'analytics', 'metrics': ['conversion', 'engagement', 'bounce', 'duration']},
+            )
+        )
+
+        self.register(
+            ProtocolSpec(
+                protocol_id='PROTO-GEN-004',
+                name='Content Generation',
+                handler_module='protocols.content_generation_protocol',
+                handler_fn='ContentGenerator.generateContent',
+                ring_affinity=['InterfaceRing', 'MemoryRing'],
+                memory_mb=256,
+                cpu_millicores=500,
+                metadata={'type': 'codegen', 'types': ['blog_post', 'landing_page', 'product_page', 'tutorial']},
+            )
+        )
+
     def register(self, spec: ProtocolSpec) -> None:
         """Register a protocol spec."""
         self.protocols[spec.protocol_id] = spec
