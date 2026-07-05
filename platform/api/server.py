@@ -125,6 +125,13 @@ class PlatformHandler(BaseHTTPRequestHandler):
         elif p == "/api/policy/audit":
             self._send(200, POLICY.audit_log())
 
+        elif p == "/api/protocols":
+            self._send(200, ENGINE.list_available_protocols())
+
+        elif len(parts) == 3 and parts[0] == "api" and parts[1] == "protocols":
+            status = ENGINE.get_protocol_status(parts[2])
+            self._send(200 if status else 404, status or {"error": "not_found"})
+
         else:
             self._send(404, {"error": "not_found"})
 
@@ -195,6 +202,18 @@ class PlatformHandler(BaseHTTPRequestHandler):
         elif p == "/api/fleet/tick":
             result = ENGINE.tick()
             self._send(200, result)
+
+        # POST /api/protocols/:id/deploy
+        elif len(parts) == 4 and parts[0] == "api" and parts[1] == "protocols" and parts[3] == "deploy":
+            protocol_id = parts[2]
+            cls = TargetClass(body.get("target_class", "sovereign"))
+            replicas = body.get("replicas", 1)
+            w = ENGINE.register_protocol(protocol_id, target_class=cls, replicas=replicas)
+            if w is None:
+                self._send(404, {"error": f"protocol_not_found: {protocol_id}"})
+            else:
+                tick = ENGINE.tick()
+                self._send(201, {"workload": w.to_dict(), "deploy_result": tick})
 
         else:
             self._send(404, {"error": "not_found"})

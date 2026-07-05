@@ -20,6 +20,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
 from platform.fleet import FleetManager, Target, TargetClass
+from platform.protocols import get_registry, ProtocolSpec
 
 PHI     = 1.618033988749895
 PHI_INV = 0.618033988749895
@@ -106,6 +107,53 @@ class OrchestrationEngine:
     def register_workload(self, workload: Workload) -> None:
         self._workloads[workload.workload_id] = workload
         self._pending.append(workload.workload_id)
+
+    def register_protocol(self, protocol_id: str, target_class: TargetClass = None, replicas: int = 1) -> Optional[Workload]:
+        """
+        Register an intelligence protocol core as a deployable workload.
+        Looks up the protocol in the registry and creates a Workload from it.
+
+        Args:
+            protocol_id: e.g. 'PROTO-FED-001'
+            target_class: which fleet class to deploy to (inferred from protocol ring if None)
+            replicas: number of replicas to deploy
+
+        Returns:
+            The created Workload, or None if protocol not found
+        """
+        registry = get_registry()
+        spec = registry.get(protocol_id)
+        if not spec:
+            return None
+
+        # Infer target class from ring affinity (simplified: use first ring's preference)
+        if target_class is None:
+            ring = spec.ring_affinity[0] if spec.ring_affinity else 'InterfaceRing'
+            target_class = TargetClass.EDGE if 'Edge' in ring else TargetClass.SOVEREIGN
+
+        workload = Workload(
+            workload_id=protocol_id,
+            name=spec.name,
+            kind=WorkloadKind.PROTOCOL,
+            image_ref=f"protocols/{spec.handler_module}@{protocol_id}",
+            target_class=target_class,
+            replicas=replicas,
+            env={
+                'PROTOCOL_ID': protocol_id,
+                'HANDLER_MODULE': spec.handler_module,
+                'HANDLER_FN': spec.handler_fn,
+                'HEARTBEAT_MS': str(HEARTBEAT_MS := 873),
+                'PHI': str(PHI),
+            },
+            labels={
+                'protocol': protocol_id,
+                'type': spec.metadata.get('type', 'unknown'),
+                'ring': ','.join(spec.ring_affinity),
+                'isolation': spec.isolation.name,
+            },
+        )
+        self.register_workload(workload)
+        return workload
 
     def get_workload(self, workload_id: str) -> Optional[Workload]:
         return self._workloads.get(workload_id)
@@ -197,6 +245,31 @@ class OrchestrationEngine:
         w.phi_score *= PHI_INV
         return True
 
+    # ── Protocol management ───────────────────────────────────────────────────
+
+    def list_available_protocols(self) -> List[Dict[str, Any]]:
+        """Return all protocols available in the registry."""
+        registry = get_registry()
+        return registry.list_all()
+
+    def get_protocol_status(self, protocol_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the status of a deployed protocol workload.
+        Returns the workload info if deployed, None otherwise.
+        """
+        workload = self.get_workload(protocol_id)
+        return workload.to_dict() if workload else None
+
+    def protocols_by_ring(self, ring: str) -> List[Dict[str, Any]]:
+        """List all protocols deployable on a given ring."""
+        registry = get_registry()
+        return registry.by_ring(ring)
+
+    def protocols_by_type(self, proto_type: str) -> List[Dict[str, Any]]:
+        """List all protocols by metadata type (mesh, codegen, etc.)."""
+        registry = get_registry()
+        return registry.by_type(proto_type)
+
     # ── Engine snapshot ───────────────────────────────────────────────────────
 
     def snapshot(self) -> dict:
@@ -205,4 +278,5 @@ class OrchestrationEngine:
             "fleet":         self._fleet.snapshot(),
             "workloads":     [w.to_dict() for w in self._workloads.values()],
             "pending_count": len(self._pending),
+            "protocol_registry": get_registry().snapshot(),
         }
