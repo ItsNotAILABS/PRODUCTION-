@@ -19,8 +19,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
-from platform.fleet import FleetManager, Target, TargetClass
-from platform.protocols import get_registry, ProtocolSpec
+from aether_platform.fleet import FleetManager, Target, TargetClass
+from aether_platform.protocols import get_registry, ProtocolSpec
 
 PHI     = 1.618033988749895
 PHI_INV = 0.618033988749895
@@ -250,7 +250,7 @@ class OrchestrationEngine:
     def list_available_protocols(self) -> List[Dict[str, Any]]:
         """Return all protocols available in the registry."""
         registry = get_registry()
-        return registry.list_all()
+        return [p.to_dict() for p in registry.list_all()]
 
     def get_protocol_status(self, protocol_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -263,12 +263,12 @@ class OrchestrationEngine:
     def protocols_by_ring(self, ring: str) -> List[Dict[str, Any]]:
         """List all protocols deployable on a given ring."""
         registry = get_registry()
-        return registry.by_ring(ring)
+        return [p.to_dict() for p in registry.by_ring(ring)]
 
     def protocols_by_type(self, proto_type: str) -> List[Dict[str, Any]]:
         """List all protocols by metadata type (mesh, codegen, etc.)."""
         registry = get_registry()
-        return registry.by_type(proto_type)
+        return [p.to_dict() for p in registry.by_type(proto_type)]
 
     # ── Engine snapshot ───────────────────────────────────────────────────────
 

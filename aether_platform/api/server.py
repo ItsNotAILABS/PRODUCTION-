@@ -22,12 +22,12 @@ import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 
-from platform.fleet import (
+from aether_platform.fleet import (
     FleetManager, make_cloudflare_target, make_icp_target,
     TargetClass,
 )
-from platform.orchestrator import OrchestrationEngine, Workload, WorkloadKind
-from platform.auth import PolicyEngine, Principal, Ring, Action
+from aether_platform.orchestrator import OrchestrationEngine, Workload, WorkloadKind
+from aether_platform.auth import PolicyEngine, Principal, Ring, Action
 
 PHI = 1.618033988749895
 
@@ -206,7 +206,11 @@ class PlatformHandler(BaseHTTPRequestHandler):
         # POST /api/protocols/:id/deploy
         elif len(parts) == 4 and parts[0] == "api" and parts[1] == "protocols" and parts[3] == "deploy":
             protocol_id = parts[2]
-            cls = TargetClass(body.get("target_class", "sovereign"))
+            try:
+                cls = TargetClass(body.get("target_class", "bare_metal"))
+            except ValueError:
+                self._send(400, {"error": f"unknown_target_class: {body.get('target_class')}"})
+                return
             replicas = body.get("replicas", 1)
             w = ENGINE.register_protocol(protocol_id, target_class=cls, replicas=replicas)
             if w is None:
