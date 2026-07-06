@@ -1,0 +1,17 @@
+{
+  "name": "weekly-command-center-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node envelope: unified API gateway + static web/local frontend for the Weekly Command Center.",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
