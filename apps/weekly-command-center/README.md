@@ -60,6 +60,13 @@ job N times), and locks CORS down to a configured origin instead of `*`. See
 **`DEPLOY.md`** for the exact steps (VPS+Caddy, or Fly.io/Render), and
 **`.env.example`** for every secret you need to set first.
 
+Prefer Cloudflare? **`CLOUDFLARE_DEPLOY.md`** deploys the same app as a single
+[Cloudflare Container](https://developers.cloudflare.com/containers/) (core-api
++ the Julia optimizer + the Haskell parser bundled into one image, since
+containers there can't reach each other by hostname the way Docker Compose
+services can) behind a Worker that also serves the frontend from Cloudflare's
+edge — see `cloudflare/`.
+
 ## What's real vs. stubbed
 
 - **Real**: signup/login (bcrypt + JWT), per-account data isolation enforced
@@ -104,8 +111,10 @@ taskrules-haskell/        Haskell/Scotty — task-language parser
 gateway-node/             Node/Express — API gateway + static web UI (login/signup included)
 docker-compose.yml        Dev full stack (SQLite), including the Julia/Haskell services
 docker-compose.prod.yml   Production stack (Postgres, gunicorn, core-worker, locked CORS)
+cloudflare/               Cloudflare Containers deployment (single image, Worker router)
 .env.example              Every secret docker-compose.prod.yml needs
 DEPLOY.md                 Step-by-step: VPS+Caddy, or Fly.io/Render
+CLOUDFLARE_DEPLOY.md      Step-by-step: Cloudflare Containers
 run_local.sh              Zero-Docker quickstart (Python + Node only)
 ```
 
