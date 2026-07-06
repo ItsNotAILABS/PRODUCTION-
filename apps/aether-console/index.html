@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aether Sovereign Console</title>
+<meta name="description" content="Sovereign multi-cloud control plane — fleet, workloads, protocols, and ring-based policy. The Aether alternative to Rancher.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-elevated: #1a1a24;
+    --border: rgba(255,255,255,0.07); --border-accent: rgba(100,140,200,0.3);
+    --primary: #4a90d9; --primary-light: #6ba8e8;
+    --accent-gold: #c9a227; --accent-emerald: #10b981;
+    --accent-purple: #8b5cf6; --accent-rose: #f43f5e; --accent-amber: #f0a840;
+    --text-primary: #f0f2f5; --text-secondary: #a0a8b8; --text-muted: #6b7280;
+    --font-serif: 'Playfair Display', Georgia, serif;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --phi: 1.618033988749895;
+    --sidebar-w: 240px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(74,144,217,0.10), transparent), var(--bg-dark);
+    color: var(--text-primary); line-height: 1.5; min-height: 100vh;
+  }
+  a { color: var(--primary-light); text-decoration: none; }
+
+  /* ── Shell ─────────────────────────────────────────── */
+  .shell { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: var(--sidebar-w); flex-shrink: 0; border-right: 1px solid var(--border);
+    background: rgba(18,18,26,0.6); padding: 1.5rem 1rem; position: sticky; top: 0; height: 100vh;
+  }
+  .brand { display: flex; align-items: baseline; gap: 0.5rem; padding: 0 0.5rem 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; }
+  .brand-mark { font-family: var(--font-serif); font-weight: 600; font-size: 1.1rem; }
+  .brand-sub { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); }
+  .nav-item {
+    display: flex; align-items: center; gap: 0.65rem; padding: 0.6rem 0.75rem; border-radius: 8px;
+    font-size: 0.88rem; color: var(--text-secondary); cursor: pointer; margin-bottom: 0.15rem; transition: all 0.15s;
+  }
+  .nav-item:hover { background: var(--bg-elevated); color: var(--text-primary); }
+  .nav-item.active { background: rgba(74,144,217,0.12); color: var(--primary-light); border: 1px solid var(--border-accent); }
+  .nav-icon { width: 18px; text-align: center; font-size: 0.95rem; }
+  .sidebar-footer { position: absolute; bottom: 1.5rem; left: 1rem; right: 1rem; font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); }
+  .pulse-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-emerald); display: inline-block; margin-right: 0.4rem; animation: pulse 1.746s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  .main { flex: 1; padding: 2rem 2.5rem; max-width: 1400px; }
+  .page { display: none; }
+  .page.active { display: block; animation: fadein 0.25s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .page-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
+  .page-title { font-family: var(--font-serif); font-size: 1.6rem; font-weight: 600; }
+  .page-sub { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.15rem; }
+
+  /* ── Cards & grid ──────────────────────────────────── */
+  .grid { display: grid; gap: 1rem; }
+  .grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.25rem; position: relative; overflow: hidden;
+  }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--primary), transparent); }
+  .stat-label { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-value { font-family: var(--font-serif); font-size: 2rem; font-weight: 600; margin-top: 0.35rem; }
+  .stat-value.gold { color: var(--accent-gold); }
+  .stat-value.emerald { color: var(--accent-emerald); }
+  .stat-value.rose { color: var(--accent-rose); }
+  .stat-hint { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; }
+
+  /* ── Tables ────────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { text-align: left; font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
+  td { padding: 0.65rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+  tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
+  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.7rem; font-family: var(--font-mono); }
+  .badge.healthy, .badge.succeeded, .badge.allowed-true { background: rgba(16,185,129,0.15); color: var(--accent-emerald); }
+  .badge.degraded, .badge.pending, .badge.provisioning { background: rgba(240,168,64,0.15); color: var(--accent-amber); }
+  .badge.failed, .badge.unreachable, .badge.allowed-false { background: rgba(244,63,94,0.15); color: var(--accent-rose); }
+  .badge.deploying, .badge.scheduling, .badge.validating { background: rgba(74,144,217,0.15); color: var(--primary-light); }
+
+  /* ── Forms ─────────────────────────────────────────── */
+  .form-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.75rem; align-items: center; }
+  input, select {
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-primary); padding: 0.5rem 0.7rem; font-size: 0.82rem; font-family: var(--font-sans);
+  }
+  input:focus, select:focus { outline: none; border-color: var(--border-accent); }
+  button {
+    background: var(--primary); color: white; border: none; border-radius: 6px;
+    padding: 0.55rem 1rem; font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: background 0.15s;
+  }
+  button:hover { background: var(--primary-light); }
+  button.secondary { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary); }
+  button.secondary:hover { color: var(--text-primary); border-color: var(--border-accent); }
+  button.danger { background: rgba(244,63,94,0.15); color: var(--accent-rose); }
+  button.small { padding: 0.3rem 0.65rem; font-size: 0.72rem; }
+  .section-title { font-size: 0.95rem; font-weight: 600; margin: 1.5rem 0 0.75rem; color: var(--text-primary); }
+  .section-title:first-child { margin-top: 0; }
+
+  /* ── Protocol grid ─────────────────────────────────── */
+  .proto-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+  .proto-id { font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent-gold); }
+  .proto-name { font-weight: 600; margin: 0.25rem 0 0.5rem; }
+  .proto-meta { font-size: 0.72rem; color: var(--text-muted); display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+  .proto-rings { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+  .ring-chip { font-family: var(--font-mono); font-size: 0.6rem; padding: 0.1rem 0.4rem; border-radius: 4px; background: rgba(139,92,246,0.15); color: var(--accent-purple); }
+
+  .empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: 0.85rem; }
+  .toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--bg-elevated); border: 1px solid var(--border-accent);
+    border-radius: 8px; padding: 0.75rem 1.1rem; font-size: 0.82rem; max-width: 360px; z-index: 100;
+    opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: none; }
+  .kv-banner {
+    background: rgba(240,168,64,0.08); border: 1px solid rgba(240,168,64,0.3); border-radius: 8px;
+    padding: 0.75rem 1rem; font-size: 0.8rem; color: var(--accent-amber); margin-bottom: 1.25rem; display: none;
+  }
+  .kv-banner.show { display: block; }
+  code { font-family: var(--font-mono); background: rgba(255,255,255,0.05); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.85em; }
+
+  @media (max-width: 860px) {
+    .shell { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: static; }
+    .main { padding: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">Aether</span>
+      <span class="brand-sub">SOVEREIGN CONSOLE</span>
+    </div>
+    <nav>
+      <div class="nav-item active" data-page="overview"><span class="nav-icon">◈</span> Overview</div>
+      <div class="nav-item" data-page="fleet"><span class="nav-icon">☁</span> Fleet</div>
+      <div class="nav-item" data-page="workloads"><span class="nav-icon">▣</span> Workloads</div>
+      <div class="nav-item" data-page="protocols"><span class="nav-icon">◉</span> Protocols</div>
+      <div class="nav-item" data-page="policy"><span class="nav-icon">◆</span> Policy</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div><span class="pulse-dot"></span>heartbeat 873ms</div>
+      <div style="margin-top:0.35rem;">φ = 1.618033988749895</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div id="kv-banner" class="kv-banner">
+      No <code>AETHER_KV</code> binding detected — state resets on every request.
+      Create a KV namespace and bind it as <code>AETHER_KV</code> in your Pages project settings to persist fleet/workload state.
+    </div>
+
+    <!-- OVERVIEW -->
+    <section class="page active" id="page-overview">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Overview</div>
+          <div class="page-sub">Sovereign multi-cloud control plane — the Aether alternative to Rancher Fleet.</div>
+        </div>
+        <button class="secondary" onclick="refreshAll()">↻ Refresh</button>
+      </div>
+      <div class="grid grid-4" id="overview-stats"></div>
+      <div class="section-title">Fleet Coherence</div>
+      <div class="card">
+        <canvas id="coherence-canvas" width="900" height="140" style="width:100%; height:140px; display:block;"></canvas>
+        <div class="stat-hint" id="coherence-hint">Kuramoto order parameter R across all registered targets. Deploys freeze below φ⁻¹ = 0.618.</div>
+      </div>
+    </section>
+
+    <!-- FLEET -->
+    <section class="page" id="page-fleet">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Fleet</div>
+          <div class="page-sub">Deployment targets — Cloudflare Workers, ICP canisters, Lambda, bare metal.</div>
+        </div>
+        <button onclick="tickFleet()">▶ Run Deploy Tick</button>
+      </div>
+
+      <div class="section-title">Register a Target</div>
+      <div class="card">
+        <div class="form-row">
+          <select id="reg-class">
+            <option value="cloudflare_worker">Cloudflare Worker</option>
+            <option value="icp_canister">ICP Canister</option>
+          </select>
+          <input id="reg-name" placeholder="Name" style="width:160px;">
+          <input id="reg-detail1" placeholder="Account ID">
+          <input id="reg-detail2" placeholder="Subdomain">
+          <button onclick="registerTarget()">+ Register</button>
+        </div>
+      </div>
+
+      <div class="section-title">Registered Targets</div>
+      <div class="card" style="padding:0;">
+        <table>
+          <thead><tr><th>Name</th><th>Class</th><th>Status</th><th>φ-Score</th><th>Latency</th><th>Deployed</th><th></th></tr></thead>
+          <tbody id="fleet-table"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- WORKLOADS -->
+    <section class="page" id="page-workloads">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Workloads</div>
+          <div class="page-sub">Agents, workers, canisters, protocols — deployable units on the fleet.</div>
+        </div>
+      </div>
+
+      <div class="section-title">Deploy a Workload</div>
+      <div class="card">
+        <div class="form-row">
+          <input id="wl-name" placeholder="Name" style="width:160px;">
+          <select id="wl-kind">
+            <option value="agent">Agent</option>
+            <option value="worker">Worker</option>
+            <option value="canister">Canister</option>
+            <option value="function">Function</option>
+            <option value="protocol">Protocol</option>
+            <option value="pipeline">Pipeline</option>
+          </select>
+          <select id="wl-class">
+            <option value="cloudflare_worker">Cloudflare Worker</option>
+            <option value="icp_canister">ICP Canister</option>
+            <option value="lambda_function">Lambda Function</option>
+            <option value="bare_metal">Bare Metal</option>
+          </select>
+          <input id="wl-image" placeholder="image_ref (e.g. workers/hermes@sha256:...)" style="width:260px;">
+          <input id="wl-replicas" type="number" min="1" value="1" style="width:70px;">
+          <button onclick="createWorkload()">▶ Deploy</button>
+        </div>
+      </div>
+
+      <div class="section-title">Active Workloads</div>
+      <div class="card" style="padding:0;">
+        <table>
+          <thead><tr><th>Name</th><th>Kind</th><th>Target Class</th><th>Phase</th><th>φ-Score</th><th>Deployed To</th><th></th></tr></thead>
+          <tbody id="workloads-table"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PROTOCOLS -->
+    <section class="page" id="page-protocols">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Protocols</div>
+          <div class="page-sub">The intelligence layer — 16 registered protocol cores, deployable as first-class workloads.</div>
+        </div>
+      </div>
+      <div class="grid grid-2" id="protocols-grid"></div>
+    </section>
+
+    <!-- POLICY -->
+    <section class="page" id="page-policy">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Policy</div>
+          <div class="page-sub">Ring-based RBAC — 11 sovereignty rings replace Kubernetes cluster roles.</div>
+        </div>
+      </div>
+
+      <div class="section-title">Principals</div>
+      <div class="card" style="padding:0; margin-bottom:1.5rem;">
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Ring</th><th>Scopes</th></tr></thead>
+          <tbody id="principals-table"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="section-title">Evaluate Access</div>
+      <div class="card">
+        <div class="form-row">
+          <input id="pol-principal" placeholder="principal_id" value="admin-001" style="width:140px;">
+          <select id="pol-action">
+            <option>READ</option><option>DEPLOY</option><option>ROLLBACK</option>
+            <option>DELETE</option><option>SCALE</option><option>VIEW_SECRETS</option>
+            <option>REGISTER</option><option>AUDIT</option>
+          </select>
+          <input id="pol-scope" placeholder="scope (optional)">
+          <button onclick="evaluatePolicy()">Evaluate</button>
+        </div>
+        <div id="policy-result" style="margin-top:0.5rem; font-family: var(--font-mono); font-size:0.8rem;"></div>
+      </div>
+
+      <div class="section-title">Audit Log</div>
+      <div class="card" style="padding:0;">
+        <table>
+          <thead><tr><th>Principal</th><th>Action</th><th>Scope</th><th>Decision</th><th>Reason</th></tr></thead>
+          <tbody id="audit-table"><tr><td colspan="5" class="empty">No audit entries yet.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PHI = 1.618033988749895, PHI_INV = 0.618033988749895;
+
+// ── Nav ─────────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('page-' + item.dataset.page).classList.add('active');
+  });
+});
+
+function toast(msg, ok = true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = ok ? 'var(--border-accent)' : 'rgba(244,63,94,0.5)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch('/api' + path, {
+    method: opts.method || 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  return res.json();
+}
+
+// ── Overview ─────────────────────────────────────────
+async function loadOverview() {
+  const health = await api('/health');
+  const fleet = await api('/fleet');
+  const workloads = await api('/workloads');
+
+  document.getElementById('kv-banner').classList.toggle('show', health.beat === 0 && fleet.total_targets === 0);
+
+  const succeeded = workloads.filter(w => w.phase === 'succeeded').length;
+  const el = document.getElementById('overview-stats');
+  el.innerHTML = `
+    <div class="card">
+      <div class="stat-label">Fleet Coherence</div>
+      <div class="stat-value ${fleet.is_coherent ? 'emerald' : 'rose'}">${(fleet.coherence * 100).toFixed(1)}%</div>
+      <div class="stat-hint">${fleet.is_coherent ? 'Coherent — deploys unblocked' : 'Below φ⁻¹ threshold — deploys frozen'}</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">Healthy Targets</div>
+      <div class="stat-value">${fleet.healthy_targets} / ${fleet.total_targets}</div>
+      <div class="stat-hint">Across Cloudflare, ICP, Lambda, bare metal</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">Workloads</div>
+      <div class="stat-value gold">${workloads.length}</div>
+      <div class="stat-hint">${succeeded} succeeded</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">Deploy Beat</div>
+      <div class="stat-value">${fleet.beat}</div>
+      <div class="stat-hint">Heartbeat cycle count</div>
+    </div>
+  `;
+}
+
+// ── Coherence canvas (Kuramoto mean-field, client-side) ──────────────
+const canvas = document.getElementById('coherence-canvas');
+const ctx = canvas.getContext('2d');
+let phases = Array.from({length: 48}, (_, i) => (i / 48) * 2 * Math.PI);
+let targetR = 0.9;
+
+function meanFieldStep(phases, R, psi, coupling, dt) {
+  return phases.map(theta => {
+    let next = theta + coupling * R * Math.sin(psi - theta) * dt;
+    next = next % (2 * Math.PI);
+    if (next < 0) next += 2 * Math.PI;
+    return next;
+  });
+}
+function orderParameter(phases) {
+  let sc = 0, ss = 0;
+  for (const t of phases) { sc += Math.cos(t); ss += Math.sin(t); }
+  const n = phases.length;
+  return { r: Math.hypot(sc/n, ss/n), psi: Math.atan2(ss/n, sc/n) };
+}
+
+function drawCoherence() {
+  const { r, psi } = orderParameter(phases);
+  phases = meanFieldStep(phases, targetR, psi, PHI_INV, 0.873);
+
+  const w = canvas.width, h = canvas.height, cy = h / 2, radius = h * 0.38;
+  ctx.clearRect(0, 0, w, h);
+
+  const barW = w / phases.length;
+  phases.forEach((theta, i) => {
+    const x = i * barW + barW / 2;
+    const y = cy + Math.sin(theta) * radius;
+    const hue = r >= PHI_INV ? 152 : 350;
+    ctx.fillStyle = `hsla(${hue}, 65%, 60%, 0.75)`;
+    ctx.beginPath();
+    ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
+
+  document.getElementById('coherence-hint').textContent =
+    `R = ${r.toFixed(4)} · ψ = ${psi.toFixed(3)} rad · ${r >= PHI_INV ? 'COHERENT' : 'SYNCHRONIZING'} — deploys ${r >= PHI_INV ? 'unblocked' : 'freeze below φ⁻¹ = 0.618'}`;
+
+  requestAnimationFrame(drawCoherence);
+}
+drawCoherence();
+
+// ── Fleet ─────────────────────────────────────────────
+function statusBadge(s) { return `<span class="badge ${s}">${s}</span>`; }
+
+async function loadFleet() {
+  const fleet = await api('/fleet');
+  const tbody = document.getElementById('fleet-table');
+  if (!fleet.targets.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No targets registered yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = fleet.targets.map(t => `
+    <tr>
+      <td>${t.name}</td>
+      <td><code>${t.class}</code></td>
+      <td>${statusBadge(t.status)}</td>
+      <td>${t.phi_score}</td>
+      <td>${t.heartbeat_latency_ms}ms</td>
+      <td>${t.deployed_count}</td>
+      <td><button class="small secondary" onclick="heartbeat('${t.target_id}')">♥ Ping</button></td>
+    </tr>
+  `).join('');
+}
+
+async function registerTarget() {
+  const cls = document.getElementById('reg-class').value;
+  const name = document.getElementById('reg-name').value || 'unnamed-target';
+  const d1 = document.getElementById('reg-detail1').value;
+  const d2 = document.getElementById('reg-detail2').value;
+  const body = cls === 'cloudflare_worker'
+    ? { class: cls, name, account_id: d1, subdomain: d2 }
+    : { class: cls, name, canister_id: d1, network: d2 || 'ic' };
+  const res = await api('/fleet/register', { method: 'POST', body });
+  toast(`Registered ${res.name || name}`);
+  loadFleet(); loadOverview();
+}
+
+async function heartbeat(id) {
+  await api(`/fleet/${id}/heartbeat`, { method: 'POST', body: { latency_ms: Math.round(5 + Math.random() * 30) } });
+  toast('Heartbeat recorded');
+  loadFleet(); loadOverview();
+}
+
+async function tickFleet() {
+  const res = await api('/fleet/tick', { method: 'POST' });
+  toast(res.status === 'coherence_gate_blocked' ? 'Coherence gate blocked deploy' : `Tick: ${res.deployed.length} deployed`, res.status !== 'coherence_gate_blocked');
+  loadFleet(); loadWorkloads(); loadOverview();
+}
+
+// ── Workloads ─────────────────────────────────────────
+async function loadWorkloads() {
+  const workloads = await api('/workloads');
+  const tbody = document.getElementById('workloads-table');
+  if (!workloads.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No workloads deployed yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = workloads.map(w => `
+    <tr>
+      <td>${w.name}</td>
+      <td><code>${w.kind}</code></td>
+      <td><code>${w.target_class}</code></td>
+      <td>${statusBadge(w.phase)}</td>
+      <td>${w.phi_score}</td>
+      <td>${w.deployed_to.join(', ') || '—'}</td>
+      <td><button class="small danger" onclick="rollback('${w.workload_id}')">Rollback</button></td>
+    </tr>
+  `).join('');
+}
+
+async function createWorkload() {
+  const body = {
+    name: document.getElementById('wl-name').value || 'unnamed-workload',
+    kind: document.getElementById('wl-kind').value,
+    target_class: document.getElementById('wl-class').value,
+    image_ref: document.getElementById('wl-image').value,
+    replicas: parseInt(document.getElementById('wl-replicas').value) || 1,
+  };
+  const res = await api('/workloads', { method: 'POST', body });
+  toast(`Deployed ${res.workload.name} → ${res.deploy_result.status}`);
+  loadWorkloads(); loadOverview();
+}
+
+async function rollback(id) {
+  await api(`/workloads/${id}/rollback`, { method: 'POST' });
+  toast(`Rolled back ${id}`);
+  loadWorkloads(); loadOverview();
+}
+
+// ── Protocols ─────────────────────────────────────────
+async function loadProtocols() {
+  const protocols = await api('/protocols');
+  const grid = document.getElementById('protocols-grid');
+  grid.innerHTML = protocols.map(p => `
+    <div class="proto-card">
+      <div class="proto-id">${p.protocol_id}</div>
+      <div class="proto-name">${p.name}</div>
+      <div class="proto-meta">
+        <span>${p.memory_mb}MB</span>
+        <span>${p.cpu_millicores}m CPU</span>
+        <span>${p.isolation}</span>
+        <span>${p.type}</span>
+      </div>
+      <div class="proto-rings">${p.ring_affinity.map(r => `<span class="ring-chip">${r}</span>`).join('')}</div>
+      <button class="small" onclick="deployProtocol('${p.protocol_id}')">▶ Deploy</button>
+    </div>
+  `).join('');
+}
+
+async function deployProtocol(id) {
+  const res = await api(`/protocols/${id}/deploy`, { method: 'POST', body: { target_class: 'cloudflare_worker', replicas: 1 } });
+  toast(`Deployed ${id} → ${res.deploy_result?.status || 'ok'}`);
+  loadWorkloads(); loadOverview();
+}
+
+// ── Policy ─────────────────────────────────────────────
+async function loadPolicy() {
+  const policy = await api('/policy');
+  const tbody = document.getElementById('principals-table');
+  tbody.innerHTML = policy.principals.map(p => `
+    <tr><td>${p.id}</td><td>${p.name}</td><td><code>${p.ring}</code></td><td>${p.scopes.length ? p.scopes.join(', ') : 'all'}</td></tr>
+  `).join('') || '<tr><td colspan="4" class="empty">No principals registered.</td></tr>';
+
+  const audit = await api('/policy/audit');
+  const atbody = document.getElementById('audit-table');
+  atbody.innerHTML = audit.slice().reverse().map(a => `
+    <tr>
+      <td>${a.principal_id}</td><td><code>${a.action}</code></td><td>${a.scope || '—'}</td>
+      <td><span class="badge allowed-${a.allowed}">${a.allowed ? 'ALLOWED' : 'DENIED'}</span></td>
+      <td style="font-size:0.72rem;">${a.reason}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" class="empty">No audit entries yet.</td></tr>';
+}
+
+async function evaluatePolicy() {
+  const body = {
+    principal_id: document.getElementById('pol-principal').value,
+    action: document.getElementById('pol-action').value,
+    scope: document.getElementById('pol-scope').value || null,
+  };
+  const res = await api('/policy/evaluate', { method: 'POST', body });
+  document.getElementById('policy-result').innerHTML =
+    `<span class="badge allowed-${res.allowed}">${res.allowed ? 'ALLOWED' : 'DENIED'}</span> — ${res.reason}`;
+  loadPolicy();
+}
+
+// ── Boot ────────────────────────────────────────────────
+function refreshAll() {
+  loadOverview(); loadFleet(); loadWorkloads(); loadProtocols(); loadPolicy();
+}
+refreshAll();
+setInterval(refreshAll, 15000);
+</script>
+</body>
+</html>

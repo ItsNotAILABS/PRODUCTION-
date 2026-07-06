@@ -1,0 +1,14 @@
+name = "aether-console"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "."
+
+# Create a KV namespace and bind it here (or via the Pages dashboard:
+# Settings → Functions → KV namespace bindings → variable name AETHER_KV)
+# to persist fleet/workload/policy state across requests.
+#
+#   wrangler kv namespace create AETHER_KV
+#
+# Then paste the returned id below.
+[[kv_namespaces]]
+binding = "AETHER_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
