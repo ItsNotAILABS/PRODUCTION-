@@ -6,8 +6,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-rm -rf public
 mkdir -p public
+find public -mindepth 1 ! -name .gitkeep -delete
 cp -r ../gateway-node/public/. public/
 
 echo "Synced ../gateway-node/public/ -> cloudflare/public/"
