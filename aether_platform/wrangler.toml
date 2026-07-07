@@ -1,0 +1,22 @@
+name = "aether-platform-py"
+main = "api/worker.py"
+compatibility_date = "2024-09-25"
+compatibility_flags = ["python_workers"]
+
+# Test locally first — Python Workers is a comparatively new Cloudflare
+# runtime and this hasn't been deploy-verified against a live account:
+#
+#   npx wrangler dev
+#
+# Deploy:
+#
+#   npx wrangler deploy
+#
+# State currently resets every cold start (see api/worker.py docstring).
+# To persist fleet/workload/policy state, add a KV binding here and wire
+# it into router.build_platform() / handle() the same way
+# apps/aether-console/functions/api/[[path]].js does for the JS console:
+#
+# [[kv_namespaces]]
+# binding = "AETHER_KV"
+# id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"

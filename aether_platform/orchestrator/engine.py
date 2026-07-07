@@ -129,7 +129,7 @@ class OrchestrationEngine:
         # Infer target class from ring affinity (simplified: use first ring's preference)
         if target_class is None:
             ring = spec.ring_affinity[0] if spec.ring_affinity else 'InterfaceRing'
-            target_class = TargetClass.EDGE if 'Edge' in ring else TargetClass.SOVEREIGN
+            target_class = TargetClass.EDGE_FUNCTION if 'Edge' in ring else TargetClass.BARE_METAL
 
         workload = Workload(
             workload_id=protocol_id,
