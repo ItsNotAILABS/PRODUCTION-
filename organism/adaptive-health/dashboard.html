@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Adaptive Health Tracker</title>
+<style>
+  .viz-root {
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;
+    --good:           #0ca30c;
+    --warning:        #fab219;
+    --serious:        #ec835a;
+    --critical:       #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    .viz-root {
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --good:           #0ca30c;
+      --warning:        #fab219;
+      --serious:        #ec835a;
+      --critical:       #d03b3b;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .viz-root { max-width: 980px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 1.1rem; margin: 0 0 4px; }
+  .subtitle { color: var(--text-secondary); font-size: 0.85rem; margin: 0 0 20px; }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .stat-tile .label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .stat-tile .value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+
+  .panel {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+  }
+
+  svg text { font-family: inherit; fill: var(--text-secondary); font-size: 11px; }
+  .grid-line { stroke: var(--gridline); stroke-width: 1; }
+  .baseline { stroke: var(--baseline); stroke-width: 1; }
+  .velocity-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linecap: round; }
+  .velocity-point { fill: var(--series-1); }
+  .tooltip {
+    position: absolute;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--gridline); font-variant-numeric: tabular-nums; }
+  th { color: var(--text-muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  td.signal-name { font-variant-numeric: normal; color: var(--text-primary); }
+  .empty-state { color: var(--text-muted); font-size: 0.85rem; padding: 20px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>Adaptive Health Tracker</h1>
+  <p class="subtitle">Real CI/quality outcome signals, folded through a Hebbian-style feedback loop. See <code>README.md</code> for what this actually is.</p>
+
+  <div class="stat-row" id="stat-row"></div>
+
+  <div class="panel">
+    <h2>Learning velocity over time</h2>
+    <div id="velocity-chart"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Per-signal state</h2>
+    <div id="signal-table"></div>
+  </div>
+</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+async function boot() {
+  let state;
+  try {
+    const res = await fetch("./state.json");
+    state = await res.json();
+  } catch (err) {
+    document.getElementById("stat-row").innerHTML =
+      '<div class="empty-state">Could not load state.json — serve this directory over HTTP (e.g. `npx serve .`), it will not load via file://.</div>';
+    return;
+  }
+  renderStats(state);
+  renderVelocityChart(state.velocityHistory || []);
+  renderSignalTable(state.signals || {});
+}
+
+function statusForVelocity(v) {
+  if (v < 0.1) return { color: "var(--good)", label: "stable" };
+  if (v < 0.3) return { color: "var(--warning)", label: "adjusting" };
+  if (v < 0.6) return { color: "var(--serious)", label: "volatile" };
+  return { color: "var(--critical)", label: "highly volatile" };
+}
+
+function renderStats(state) {
+  const history = state.velocityHistory || [];
+  const latest = history[history.length - 1];
+  const velocity = latest ? latest.velocity : 0;
+  const status = statusForVelocity(velocity);
+  const signalCount = Object.keys(state.signals || {}).length;
+
+  document.getElementById("stat-row").innerHTML = `
+    <div class="stat-tile">
+      <div class="label">Learning velocity</div>
+      <div class="value">${velocity.toFixed(3)}</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">System state</div>
+      <div class="value status-badge"><span class="status-dot" style="background:${status.color}"></span>${status.label}</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">Most novel signal</div>
+      <div class="value" style="font-size:1rem">${latest && latest.novelty ? escapeHtml(latest.novelty.signal) : "—"}</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">Signals tracked</div>
+      <div class="value">${signalCount}</div>
+    </div>
+  `;
+}
+
+function renderVelocityChart(history) {
+  const el = document.getElementById("velocity-chart");
+  if (history.length === 0) {
+    el.innerHTML = '<div class="empty-state">No history yet — the bot hasn\'t run.</div>';
+    return;
+  }
+
+  const width = 900, height = 200, padding = 30;
+  const values = history.map(h => h.velocity);
+  const maxV = Math.max(0.1, ...values);
+  const xStep = (width - padding * 2) / Math.max(1, history.length - 1);
+
+  const points = values.map((v, i) => {
+    const x = padding + i * xStep;
+    const y = height - padding - (v / maxV) * (height - padding * 2);
+    return { x, y, v, at: history[i].at };
+  });
+
+  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(frac => {
+    const y = height - padding - frac * (height - padding * 2);
+    return `<line class="grid-line" x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" />`;
+  }).join("");
+
+  el.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto;">
+      ${gridLines}
+      <line class="baseline" x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" />
+      <path class="velocity-line" d="${path}" />
+      ${points.map(p => `<circle class="velocity-point" cx="${p.x}" cy="${p.y}" r="3" data-v="${p.v}" data-at="${p.at}" />`).join("")}
+    </svg>
+  `;
+
+  const tooltip = document.getElementById("tooltip");
+  el.querySelectorAll(".velocity-point").forEach(point => {
+    point.style.cursor = "pointer";
+    point.addEventListener("mousemove", (e) => {
+      tooltip.style.display = "block";
+      tooltip.style.left = e.pageX + 12 + "px";
+      tooltip.style.top = e.pageY - 10 + "px";
+      tooltip.textContent = `${Number(point.dataset.v).toFixed(4)} at ${new Date(point.dataset.at).toLocaleString()}`;
+    });
+    point.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+  });
+}
+
+function renderSignalTable(signals) {
+  const el = document.getElementById("signal-table");
+  const keys = Object.keys(signals);
+  if (keys.length === 0) {
+    el.innerHTML = '<div class="empty-state">No signals recorded yet.</div>';
+    return;
+  }
+
+  const rows = keys.map(key => {
+    const s = signals[key];
+    const last = s.history[s.history.length - 1];
+    return `
+      <tr>
+        <td class="signal-name">${escapeHtml(key)}</td>
+        <td>${s.prediction.toFixed(3)}</td>
+        <td>${s.weight.toFixed(3)}</td>
+        <td>${s.learningRate.toFixed(3)}</td>
+        <td>${last ? last.outcome.toFixed(2) : "—"}</td>
+        <td>${s.history.length}</td>
+      </tr>
+    `;
+  }).join("");
+
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr><th>Signal</th><th>Prediction</th><th>Weight</th><th>Learning rate</th><th>Last outcome</th><th>Observations</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+boot();
+</script>
+</body>
+</html>

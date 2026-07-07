@@ -1,0 +1,14 @@
+{
+  "name": "adaptive-health-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real CI/quality outcome tracker with a Hebbian-style feedback loop, inspired by FreddyCreates/sovereign's ANIMUS design.",
+  "main": "update-state.js",
+  "scripts": {
+    "update": "node update-state.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
