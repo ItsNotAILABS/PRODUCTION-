@@ -107,7 +107,8 @@
        Cloudflare Workers, ICP canisters, Lambda, and bare metal — built to rival
        SUSE Rancher, without requiring a Kubernetes cluster underneath it.</p>
     <div class="hero-cta">
-      <a href="apps/aether-console/index.html" class="btn btn-primary">Launch the Console →</a>
+      <a href="apps/aether-cloud/index.html" class="btn btn-primary">Try Aether Cloud (managed) →</a>
+      <a href="apps/aether-console/index.html" class="btn btn-secondary">Self-Host the Console</a>
       <a href="apps/aether-desktop/README.md" class="btn btn-secondary">Get the Desktop App</a>
       <a href="docs/aether-sovereign-platform.md" class="btn btn-secondary">Read the Docs</a>
     </div>
@@ -121,13 +122,19 @@
 
 <section class="block">
   <div class="container">
-    <div class="section-title">One platform, four artifacts</div>
+    <div class="section-title">One platform, five artifacts</div>
     <div class="section-sub">Each independently deployable, all speaking the same API.</div>
     <div class="grid-3">
       <div class="card">
+        <span class="tag">apps/aether-cloud</span>
+        <h3>Aether Cloud (managed)</h3>
+        <p>The commercial edition — sign up, get an API key, we run it. Multi-tenant, Stripe-billed, plan limits enforced server-side. For people who want the console without running any infrastructure at all, including ours-on-their-behalf.</p>
+        <a href="apps/aether-cloud/index.html">Try Aether Cloud →</a>
+      </div>
+      <div class="card">
         <span class="tag">apps/aether-console</span>
-        <h3>The Console</h3>
-        <p>The dashboard you actually operate the fleet from — Overview, Fleet, Workloads, Protocols, Policy. Ships as a static site + Cloudflare Pages Functions, drag-and-drop deployable.</p>
+        <h3>The Console (self-hosted)</h3>
+        <p>The free dashboard you deploy to your own Cloudflare account — Overview, Fleet, Workloads, Protocols, Policy. Ships as a static site + Cloudflare Pages Functions, drag-and-drop deployable.</p>
         <a href="apps/aether-console/index.html">Open the console →</a>
       </div>
       <div class="card">
@@ -198,7 +205,7 @@ npm start</pre>
     <div class="stat-row">
       <div class="stat"><div class="stat-num">16</div><div class="stat-label">protocol cores</div></div>
       <div class="stat"><div class="stat-num">11</div><div class="stat-label">sovereignty rings</div></div>
-      <div class="stat"><div class="stat-num">4</div><div class="stat-label">deploy paths</div></div>
+      <div class="stat"><div class="stat-num">5</div><div class="stat-label">deploy paths</div></div>
       <div class="stat"><div class="stat-num">0.618</div><div class="stat-label">coherence gate (φ⁻¹)</div></div>
     </div>
   </div>
@@ -207,6 +214,7 @@ npm start</pre>
 <footer>
   <div class="container">
     <div class="footer-links">
+      <a href="apps/aether-cloud/index.html">Aether Cloud</a>
       <a href="apps/aether-console/index.html">Console</a>
       <a href="apps/aether-desktop/README.md">Desktop App</a>
       <a href="aether_platform/README.md">Backend</a>

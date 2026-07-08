@@ -93,7 +93,7 @@ function makeIcpTarget(name, canisterId, network = 'ic') {
   };
 }
 
-function freshState() {
+function freshState(seedDemo = true) {
   const state = {
     beat: 0,
     targets: {},
@@ -104,6 +104,8 @@ function freshState() {
     auditLog: [],
     deployHistory: [],
   };
+
+  if (!seedDemo) return state;
 
   const t1 = makeCloudflareTarget('Aether-Edge-1', 'demo-account', 'aether-edge-1');
   const t2 = makeCloudflareTarget('Aether-Edge-2', 'demo-account', 'aether-edge-2');

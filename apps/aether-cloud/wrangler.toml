@@ -1,0 +1,21 @@
+name = "aether-cloud"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "."
+
+# Tenant registry + per-tenant fleet/workload state. Separate namespace
+# from the free console's AETHER_KV — this one holds paying customers.
+#
+#   npx wrangler kv namespace create AETHER_CLOUD_KV
+#
+[[kv_namespaces]]
+binding = "AETHER_CLOUD_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# Stripe secrets — set these via `wrangler pages secret put <NAME>` or the
+# Cloudflare dashboard (Pages project → Settings → Environment variables).
+# Do NOT commit real values here.
+#
+#   wrangler pages secret put STRIPE_SECRET_KEY
+#   wrangler pages secret put STRIPE_WEBHOOK_SECRET
+#   wrangler pages secret put STRIPE_PRICE_ID_STARTER
+#   wrangler pages secret put STRIPE_PRICE_ID_PRO
