@@ -2,7 +2,7 @@
 
 The multi-substrate deployment orchestrator built to rival SUSE Rancher:
 fleet management, workload orchestration, ring-based zero-trust RBAC, and
-16 deployable intelligence protocols, delivered across three concrete
+16 deployable intelligence protocols, delivered across four concrete
 artifacts in this repo.
 
 See also: [`research/aether-sovereign-paper.html`](../research/aether-sovereign-paper.html)
@@ -10,13 +10,20 @@ for the formal mathematical treatment (Kuramoto coherence gating, the
 sovereignty ring hierarchy), and [`PROTOCOLS_MANIFEST.md`](../PROTOCOLS_MANIFEST.md)
 for the full protocol catalog.
 
-## The three artifacts
+## The four artifacts
 
 | Artifact | What it is | Where |
 |---|---|---|
 | Python reference backend | Fleet/orchestrator/policy/protocol logic, stdlib-only | `aether_platform/` |
 | Cloudflare console | The user-facing dashboard (Fleet, Workloads, Protocols, Policy) | `apps/aether-console/` |
+| Desktop app (Electron) | Same console UI, runs locally — no cloud account needed | `apps/aether-desktop/` |
 | Protocol cores | 16 deployable intelligence units (finance, AI, infra, content, federation) | `protocols/` |
+
+The console and the desktop app share one route implementation
+(`apps/aether-console/functions/api/core.js`) — the desktop app's local
+Node server and the Cloudflare Pages Function both `require`/`import` it
+directly rather than duplicating the ~15 routes, so behavior can't drift
+between "the web version" and "the app version."
 
 ## Core concepts
 
@@ -93,6 +100,21 @@ npx wrangler deploy
 
 Full detail, including the honest caveat on Python Workers deploy
 verification status, is in `aether_platform/README.md`.
+
+### The desktop app (Electron — no cloud account needed)
+
+```bash
+cd apps/aether-desktop
+npm install
+npm start
+```
+
+Runs the identical console UI and API locally; state persists to a JSON
+file in the OS user-data directory instead of Cloudflare KV. Build an
+installer with `npm run dist` (NSIS/portable on Windows, dmg on macOS,
+AppImage on Linux). See `apps/aether-desktop/README.md` for verification
+status — the local server was run and curl-tested directly; the Electron
+GUI window itself needs verifying on a machine with a display.
 
 ## API surface (identical across all transports)
 

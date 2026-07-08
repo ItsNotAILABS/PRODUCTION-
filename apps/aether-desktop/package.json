@@ -1,0 +1,56 @@
+{
+  "name": "aether-sovereign-desktop",
+  "version": "1.0.0",
+  "description": "Aether Sovereign Console — desktop app. No Cloudflare account, no VPS, no deployment step.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --mac --linux",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "electron": "41.3.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.itsnotailabs.aether.desktop",
+    "productName": "Aether Sovereign Console",
+    "copyright": "Copyright © 2026 ItsNotAILABS",
+    "directories": {
+      "output": "../../dist/desktop-aether"
+    },
+    "files": [
+      "main.js",
+      "package.json",
+      "../aether-console/index.html",
+      "../aether-console/functions/api/core.js"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Development"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Aether Sovereign Console"
+    }
+  }
+}
