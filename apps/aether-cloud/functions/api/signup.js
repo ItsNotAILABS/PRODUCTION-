@@ -39,7 +39,7 @@ export async function onRequestPost({ request, env }) {
     tenant_id: tenant.tenantId,
     plan: tenant.plan,
     status: tenant.status,
-    trial_ends_at: tenant.trialEndsAt,
+    credits: tenant.credits,
     message: 'Save this API key now — it will not be shown again.',
   }, 201);
 }

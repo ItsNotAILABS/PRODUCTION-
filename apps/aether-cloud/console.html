@@ -151,7 +151,8 @@
     <div class="sidebar-footer">
       <div><span class="pulse-dot"></span>heartbeat 873ms</div>
       <div style="margin-top:0.35rem;">φ = 1.618033988749895</div>
-      <div style="margin-top:0.6rem;"><a href="index.html#pricing" style="color:var(--primary-light);">Upgrade plan</a> · <a href="#" onclick="localStorage.removeItem('aether_api_key'); location.reload(); return false;" style="color:var(--text-muted);">Sign out</a></div>
+      <div style="margin-top:0.6rem; font-size:0.72rem; color:var(--accent-gold);" id="credit-balance">— credits</div>
+      <div style="margin-top:0.4rem;"><a href="#" onclick="redeemCodePrompt(); return false;" style="color:var(--primary-light);">Redeem code</a> · <a href="#" onclick="localStorage.removeItem('aether_api_key'); location.reload(); return false;" style="color:var(--text-muted);">Sign out</a></div>
     </div>
   </aside>
 
@@ -598,9 +599,35 @@ async function evaluatePolicy() {
   loadPolicy();
 }
 
+// ── Credits ───────────────────────────────────────────
+async function loadCreditBalance() {
+  const apiKey = localStorage.getItem('aether_api_key');
+  if (!apiKey) return;
+  try {
+    const res = await fetch('/api/account', { headers: { 'X-Aether-Api-Key': apiKey } });
+    if (!res.ok) return;
+    const acct = await res.json();
+    document.getElementById('credit-balance').textContent = `${acct.credits} credits`;
+  } catch {}
+}
+
+async function redeemCodePrompt() {
+  const code = prompt('Enter your redemption code (AETH-XXXX-XXXX-XXXX-XXXX):');
+  if (!code) return;
+  const apiKey = localStorage.getItem('aether_api_key');
+  const res = await api('/credits/redeem', { method: 'POST', body: { code: code.trim() } }).catch(() => null);
+  if (!res) return;
+  if (res.error) {
+    toast(`Redeem failed: ${res.error}`, false);
+    return;
+  }
+  toast(`+${res.credited} credits — new balance: ${res.balance}`);
+  loadCreditBalance();
+}
+
 // ── Boot ────────────────────────────────────────────────
 function refreshAll() {
-  loadOverview(); loadFleet(); loadWorkloads(); loadProtocols(); loadPolicy();
+  loadOverview(); loadFleet(); loadWorkloads(); loadProtocols(); loadPolicy(); loadCreditBalance();
 }
 if (!localStorage.getItem('aether_api_key')) {
   showApiKeyGate();

@@ -99,6 +99,7 @@
         <div>Your API key (also saved to this browser):</div>
         <div class="key" id="signup-key"></div>
         <div class="signup-warn">This is shown once. Copy it now.</div>
+        <div style="margin-top:0.5rem; color:var(--text-secondary); font-size:0.85rem;">500 free credits included.</div>
         <button class="btn btn-secondary" style="margin-top:0.75rem;" onclick="location.href='console.html'">Open Console →</button>
       </div>
     </div>
@@ -107,45 +108,33 @@
 
 <section class="block" id="pricing">
   <div class="container">
-    <div class="section-title">Pricing</div>
-    <div class="section-sub">Upgrade any time — trial data carries over.</div>
+    <div class="section-title">How billing works</div>
+    <div class="section-sub">Runs on credits, not a subscription — you only pay for what you deploy.</div>
     <div class="pricing-grid">
-      <div class="plan-card">
-        <div class="plan-name">Trial</div>
-        <div class="plan-price">$0</div>
-        <ul class="plan-feats">
-          <li>1 target</li>
-          <li>3 protocol deploys</li>
-          <li>7 days</li>
-        </ul>
-        <button class="btn btn-secondary" onclick="document.getElementById('signup-email').focus()">Start free</button>
-      </div>
       <div class="plan-card featured">
-        <div class="featured-badge">POPULAR</div>
-        <div class="plan-name">Starter</div>
-        <div class="plan-price">$49<span>/mo</span></div>
+        <div class="featured-badge">FREE ON SIGNUP</div>
+        <div class="plan-name">500 Credits</div>
         <ul class="plan-feats">
-          <li>5 targets</li>
-          <li>Unlimited protocol deploys</li>
-          <li>Email support</li>
+          <li>Register a target — 50 credits</li>
+          <li>Deploy a protocol — 100 credits</li>
+          <li>Deploy a workload — 75 credits</li>
+          <li>Reads (fleet/status/policy) — free</li>
         </ul>
-        <button class="btn btn-primary" onclick="upgrade('starter')">Upgrade to Starter</button>
+        <button class="btn btn-primary" onclick="document.getElementById('signup-email').focus()">Sign up free</button>
       </div>
       <div class="plan-card">
-        <div class="plan-name">Pro</div>
-        <div class="plan-price">$199<span>/mo</span></div>
-        <ul class="plan-feats">
-          <li>25 targets</li>
-          <li>Unlimited protocol deploys</li>
-          <li>Priority support + audit export</li>
-        </ul>
-        <button class="btn btn-secondary" onclick="upgrade('pro')">Upgrade to Pro</button>
+        <div class="plan-name">Need more credits?</div>
+        <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:1rem;">
+          Contact us for a top-up code — we'll generate one and email it to
+          you. Redeem it from the console once you're signed in.
+        </p>
+        <a href="mailto:sales@itsnotailabs.com" class="btn btn-secondary" style="display:block; text-align:center;">Request more credits</a>
       </div>
       <div class="plan-card">
         <div class="plan-name">Enterprise</div>
         <div class="plan-price">Custom</div>
         <ul class="plan-feats">
-          <li>Unlimited targets</li>
+          <li>Unlimited credits</li>
           <li>Dedicated / self-hosted option</li>
           <li>Support contract</li>
         </ul>
@@ -188,26 +177,6 @@ async function signup() {
   localStorage.setItem('aether_api_key', data.api_key);
   document.getElementById('signup-key').textContent = data.api_key;
   document.getElementById('signup-result').classList.add('show');
-}
-
-async function upgrade(plan) {
-  const apiKey = localStorage.getItem('aether_api_key');
-  if (!apiKey) {
-    alert('Sign up for a trial first — enter your email above.');
-    document.getElementById('signup-email').focus();
-    return;
-  }
-  const res = await fetch('/api/billing/checkout', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Aether-Api-Key': apiKey },
-    body: JSON.stringify({ plan }),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    alert(data.detail || data.error || 'Could not start checkout');
-    return;
-  }
-  location.href = data.checkout_url;
 }
 </script>
 
