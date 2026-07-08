@@ -35,10 +35,14 @@ class Base(DeclarativeBase):
 def init_db() -> None:
     from . import db_models  # noqa: F401  (register models on Base.metadata)
 
-    # Run Alembic migrations to bring the database schema up to date.
+    # Run Alembic migrations using the configured engine (which may be
+    # monkeypatched in tests). Pass the engine directly to avoid creating
+    # a fresh connection that would miss test fixtures.
     alembic_cfg = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
     alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
-    upgrade(alembic_cfg, "head")
+    with engine.begin() as connection:
+        alembic_cfg.attributes["connection"] = connection
+        upgrade(alembic_cfg, "head")
 
     from .billing import ensure_default_plans
     with SessionLocal() as session:
