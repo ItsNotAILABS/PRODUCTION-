@@ -12,6 +12,7 @@ from . import (
     billing,
     deliverables as deliverables_mod,
     documents as documents_mod,
+    health,
     library_registry,
     tasks as tasks_mod,
     weeks as weeks_mod,
@@ -72,8 +73,21 @@ app.include_router(billing.router)
 
 
 @app.get("/health")
-def health():
+def liveness():
+    """Liveness probe — is the app running?"""
     return {"status": "ok"}
+
+
+@app.get("/health/ready")
+def readiness():
+    """Readiness probe — is the app ready to serve requests?"""
+    return {"status": "ready"}
+
+
+@app.get("/health/system")
+def system_health():
+    """System health — status of all computation engines and services."""
+    return health.get_health()
 
 
 # --- Weeks / continuity -----------------------------------------------------
