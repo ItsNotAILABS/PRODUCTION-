@@ -105,14 +105,36 @@ POST /api/signup             — create a tenant, 500 free credits, returns an A
 GET  /api/account            — current tenant's email/plan/credit balance
 POST /api/credits/redeem     — redeem a code for credits
 POST /api/credits/generate   — operator-only (X-Admin-Secret), mint a code
+GET  /api/admin/stats        — operator-only, tenant count + credit liability
 POST /api/billing/checkout   — dormant, needs Stripe configured
 POST /api/billing/webhook    — dormant, needs Stripe configured
 ```
 
-## Known scale limit
+## Concurrency model (how it scales to many tenants)
 
-The tenant registry and the redemption-code registry are each a single
-KV blob, read-modify-written on every signup/spend/redemption. Fine for
-dozens-to-low-hundreds of tenants. Past that, concurrent writes will
-start clobbering each other — migrate to D1 or a Durable Object per
-tenant before it matters, not after.
+Storage is **one KV key per tenant** (`tenant:<apiKey>`) and **one per
+code** (`code:<code>`), not a shared registry blob. This is the multi-
+user scaling property: two different tenants performing actions at the
+same moment never touch the same KV key, so their writes can't clobber
+each other. Cross-tenant contention is gone entirely — the system scales
+to as many tenants as the KV namespace holds. Verified with a
+`Promise.all` concurrent-spend test (two tenants debiting simultaneously,
+both balances land correct).
+
+Remaining honest caveat, precisely scoped: a **single** tenant firing
+concurrent billable requests still read-modify-writes its own one key,
+and KV has no compare-and-swap, so a tenant can still race *with itself*
+— e.g. two simultaneous deploys might both read the same starting
+balance. The blast radius is now one tenant's own credit balance, not the
+whole registry. Same for the redeem-code `used` flag (a code could in
+principle be redeemed twice under a deliberate simultaneous double-submit).
+For true per-tenant write serialization, put each tenant behind a Durable
+Object (they serialize writes per object) — that's the documented upgrade
+path when a single tenant's concurrency becomes a real problem, which for
+a deploy-console workload (human-paced clicks, not a firehose) is well
+past launch.
+
+The operator stats endpoint (`/api/admin/stats`) lists tenant keys to
+aggregate counts and outstanding credit liability — O(tenant count), fine
+for an operator overview at launch scale; swap for a running counter key
+if tenant count reaches the thousands.
