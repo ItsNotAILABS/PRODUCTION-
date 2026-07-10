@@ -43,6 +43,7 @@ class DeployPhase(Enum):
     VERIFYING  = "verifying"
     SUCCEEDED  = "succeeded"
     FAILED     = "failed"
+    STAGED     = "staged"       # prepared but not pushed (tool/credential missing)
     ROLLED_BACK = "rolled_back"
 
 
@@ -62,6 +63,7 @@ class Workload:
     deploy_phase: DeployPhase = DeployPhase.PENDING
     deployed_to: List[str] = field(default_factory=list)   # target_ids
     created_at: float = field(default_factory=time.time)
+    last_deploy_report: dict = field(default_factory=dict)  # set by DeployAgent
 
     @property
     def sha(self) -> str:
@@ -78,6 +80,7 @@ class Workload:
             "phase":        self.deploy_phase.value,
             "phi_score":    round(self.phi_score, 4),
             "deployed_to":  self.deployed_to,
+            "last_deploy_report": self.last_deploy_report,
         }
 
 
@@ -98,9 +101,16 @@ class OrchestrationEngine:
         self._workloads: Dict[str, Workload] = {}
         self._pending: List[str] = []
         self._beat: int = 0
+        self._deploy_agent = None   # optional DeployAgent for real deploys
         self._hooks: Dict[str, List[Callable]] = {
             "pre_deploy": [], "post_deploy": [], "on_fail": [],
         }
+
+    def attach_deploy_agent(self, agent) -> None:
+        """Attach a DeployAgent (aether_platform.deployer) so tick() performs
+        REAL deploys (validate → deploy → verify → rollback) instead of the
+        simulated _do_deploy stub. Without one, behavior is unchanged."""
+        self._deploy_agent = agent
 
     # ── Workload registration ─────────────────────────────────────────────────
 
@@ -182,6 +192,7 @@ class OrchestrationEngine:
             "beat":       self._beat,
             "coherence":  self._fleet.coherence(),
             "deployed":   [],
+            "staged":     [],
             "skipped":    [],
             "failed":     [],
         }
@@ -208,9 +219,15 @@ class OrchestrationEngine:
             w.deploy_phase = DeployPhase.DEPLOYING
             self._emit("pre_deploy", workload=w, target=target)
 
-            success = self._do_deploy(w, target)
+            # Real deploy path when an agent is attached; simulated stub otherwise.
+            if self._deploy_agent is not None:
+                report = self._deploy_agent.execute(w, target)
+                w.last_deploy_report = report.to_dict()
+                outcome = report.outcome
+            else:
+                outcome = "deployed" if self._do_deploy(w, target) else "failed"
 
-            if success:
+            if outcome == "deployed":
                 w.deploy_phase = DeployPhase.SUCCEEDED
                 w.phi_score = min(PHI, w.phi_score * PHI)
                 if target.target_id not in w.deployed_to:
@@ -218,6 +235,12 @@ class OrchestrationEngine:
                 self._fleet.record_deploy(target.target_id, wid, True)
                 self._emit("post_deploy", workload=w, target=target)
                 result["deployed"].append(wid)
+            elif outcome == "staged":
+                # Prepared but not pushed (missing tool/credential). Not a
+                # failure — requeue so a later tick retries once infra is present.
+                w.deploy_phase = DeployPhase.STAGED
+                self._pending.append(wid)
+                result["staged"].append(wid)
             else:
                 w.deploy_phase = DeployPhase.FAILED
                 w.phi_score = max(0.01, w.phi_score * PHI_INV)

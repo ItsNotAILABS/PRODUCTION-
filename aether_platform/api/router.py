@@ -29,6 +29,7 @@ Routes:
 """
 from __future__ import annotations
 
+import os
 import time
 from typing import Any, Dict, Tuple
 
@@ -37,6 +38,7 @@ from aether_platform.fleet import (
 )
 from aether_platform.orchestrator import OrchestrationEngine, Workload, WorkloadKind
 from aether_platform.auth import PolicyEngine, Principal, Ring, Action
+from aether_platform.deployer import DeployAgent, DeployExecutor
 
 
 def build_platform() -> Tuple[FleetManager, OrchestrationEngine, PolicyEngine]:
@@ -57,6 +59,17 @@ def build_platform() -> Tuple[FleetManager, OrchestrationEngine, PolicyEngine]:
         ring=Ring.SOVEREIGN,
         scopes=frozenset(),
     ))
+
+    # Real deployment is opt-in: set AETHER_REAL_DEPLOY=1 to have tick()
+    # actually run wrangler/dfx/aws (validate → deploy → verify → rollback)
+    # via the DeployAgent. Left off by default so the seeded demo fleet
+    # keeps its simulated-success behavior; flipping the flag makes deploys
+    # real (and honestly "staged" where a CLI/credential is absent).
+    if os.environ.get("AETHER_REAL_DEPLOY") == "1":
+        engine.attach_deploy_agent(DeployAgent(
+            executor=DeployExecutor(),
+            rollback_fn=engine.rollback,
+        ))
 
     return fleet, engine, policy
 
