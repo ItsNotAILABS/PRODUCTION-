@@ -18,9 +18,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .auth import get_current_account
+from .auth import get_current_account, get_current_user
 from .database import get_db
 from .db_models import Account, Deliverable, Plan, Task, User
+from .emails import send_payment_failed_email, send_upgrade_confirmation_email
 from . import stripe_client
 
 logger = logging.getLogger("billing")
@@ -150,6 +151,10 @@ async def _handle_checkout_completed(session_data: dict) -> dict:
             result.get("subscription_id"),
         )
 
+        customer_email = result.get("customer_email")
+        if customer_email:
+            send_upgrade_confirmation_email(customer_email, plan.name, plan.price_cents)
+
     return {"received": True, "account_id": account_id, "plan_id": plan_id}
 
 
@@ -173,7 +178,15 @@ async def _handle_charge_failed(charge_data: dict) -> dict:
         charge_data.get("amount"),
         charge_data.get("failure_message"),
     )
-    # TODO: notify customer, log for support
+
+    customer_email = (charge_data.get("billing_details") or {}).get("email")
+    if customer_email:
+        send_payment_failed_email(
+            customer_email,
+            charge_data.get("amount", 0),
+            charge_data.get("failure_message"),
+        )
+
     return {"received": True}
 
 
@@ -208,6 +221,7 @@ def current_plan(account: Account = Depends(get_current_account), db: Session = 
 def upgrade_account(
     plan_id: str,
     account: Account = Depends(get_current_account),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Initiate plan upgrade via Stripe Checkout Session.
@@ -255,6 +269,7 @@ def upgrade_account(
         # In test mode, directly upgrade (no payment processing)
         account.plan_id = plan.id
         db.commit()
+        send_upgrade_confirmation_email(user.email, plan.name, plan.price_cents)
         return {
             "account_id": account.id,
             "plan_id": account.plan_id,
@@ -271,7 +286,7 @@ def upgrade_account(
             account_id=account.id,
             plan_id=plan.id,
             stripe_price_id=plan.stripe_price_id,
-            user_email=account.plan_id,  # TODO: get from user, not plan
+            user_email=user.email,
             success_url="https://app.weeklycommandcenter.com/checkout/success?session_id={CHECKOUT_SESSION_ID}",
             cancel_url="https://app.weeklycommandcenter.com/billing?cancelled=true",
         )

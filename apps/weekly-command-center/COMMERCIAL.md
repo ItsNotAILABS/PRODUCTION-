@@ -187,7 +187,20 @@ This means:
 
 ## Email Templates
 
-Create these in your email service provider (SendGrid / AWS SES):
+These are implemented in `core-api/app/emails.py` and sent automatically —
+no external template setup required. The provider is auto-selected from
+environment variables (SendGrid → SES → SMTP → console-log fallback), so the
+app works in every environment without an email provider configured (emails
+are just logged instead of sent).
+
+Wired-up triggers:
+- **Welcome**: sent from `POST /auth/signup`
+- **Invite**: sent from `POST /auth/invite`
+- **Upgrade confirmation**: sent from `POST /billing/upgrade` (test mode) and
+  the `checkout.session.completed` Stripe webhook (real payment)
+- **Payment failed**: sent from the `charge.failed` Stripe webhook
+
+The templates below describe the content for reference / customization:
 
 ### Welcome Email
 ```
