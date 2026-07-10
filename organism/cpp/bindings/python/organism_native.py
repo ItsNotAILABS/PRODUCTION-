@@ -112,6 +112,14 @@ class NativeEngine:
         lib.organism_phi_decay.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double]
         lib.organism_phi_decay.restype = ctypes.c_double
 
+        lib.organism_batch_simulate.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.c_double, ctypes.c_double, ctypes.c_uint64, ctypes.c_int,
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.organism_batch_simulate.restype = ctypes.c_size_t
+        lib.organism_hardware_threads.restype = ctypes.c_int
+
         lib.organism_register_state_default.restype = RegisterState
         lib.organism_register_phi_score.argtypes = [ctypes.POINTER(RegisterState)]
         lib.organism_register_phi_score.restype = ctypes.c_double
@@ -175,6 +183,37 @@ class NativeEngine:
 
     def phi_decay(self, initial: float, age_s: float, half_life_s: float = -1.0) -> float:
         return self._lib.organism_phi_decay(initial, age_s, half_life_s)
+
+    @property
+    def hardware_threads(self) -> int:
+        return self._lib.organism_hardware_threads()
+
+    def batch_simulate(
+        self,
+        population_count: int,
+        nodes_per_population: int,
+        steps: int,
+        coupling: float,
+        dt: float,
+        seed: int = 0,
+        threads: int = -1,
+    ) -> list[float]:
+        """
+        Run `population_count` independent Kuramoto connectomes in parallel
+        across the compiled C++ thread pool, returning each population's
+        final coherence R. `threads <= 0` uses all hardware threads.
+
+        Results are deterministic in `seed` and independent of `threads` —
+        the native engine seeds each population by index, so parallelism
+        only changes speed, never the answer.
+        """
+        out = (ctypes.c_double * population_count)()
+        n = self._lib.organism_batch_simulate(
+            population_count, nodes_per_population, steps, coupling, dt, seed, threads, out,
+        )
+        if n != population_count:
+            raise RuntimeError(f"batch_simulate returned {n}, expected {population_count}")
+        return list(out)
 
     def default_register(self) -> RegisterState:
         return self._lib.organism_register_state_default()

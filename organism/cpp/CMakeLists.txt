@@ -4,6 +4,13 @@ project(organism_runtime LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Default to an optimized build — the parallel batch engine is a compute
+# kernel; -O2 is what makes its benchmark numbers meaningful. Override with
+# -DCMAKE_BUILD_TYPE=Debug for debugging.
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
 find_package(Threads REQUIRED)
 
 add_executable(organism
@@ -22,6 +29,7 @@ target_link_libraries(organism PRIVATE Threads::Threads)
 add_library(organism_native SHARED
     src/organism.cpp
     src/organism_c_api.cpp
+    src/organism_parallel.cpp
 )
 
 target_include_directories(organism_native PRIVATE include)
@@ -42,3 +50,13 @@ target_compile_options(test_c_api PRIVATE -Wall -Wextra -Werror)
 
 add_test(NAME c_api_test COMMAND test_c_api)
 set_tests_properties(c_api_test PROPERTIES TIMEOUT 15)
+
+add_executable(bench_parallel tests/bench_parallel.c)
+target_include_directories(bench_parallel PRIVATE include)
+target_link_libraries(bench_parallel PRIVATE organism_native)
+target_compile_options(bench_parallel PRIVATE -Wall -Wextra -Werror)
+
+# Registered as a test too: it fails (non-zero exit) if parallel results
+# ever diverge from the single-thread baseline.
+add_test(NAME parallel_correctness COMMAND bench_parallel)
+set_tests_properties(parallel_correctness PROPERTIES TIMEOUT 60)

@@ -83,6 +83,33 @@ void organism_mean_field_step(const double* phases, const double* activities,
  */
 double organism_phi_decay(double initial, double age_s, double half_life_s);
 
+/* ── Parallel batch compute (the multi-core "supercomputer" core) ──────── */
+
+/**
+ * Run `population_count` INDEPENDENT Kuramoto connectomes in parallel
+ * across a thread pool. Each population has `nodes_per_population`
+ * oscillators, is deterministically seeded from (seed + its index), and
+ * is advanced `steps` mean-field steps at the given coupling and dt. The
+ * final order parameter R of each population is written to
+ * out_coherence[population_count] (must be caller-allocated with that
+ * length). Returns population_count on success, 0 on bad arguments.
+ *
+ * `thread_count <= 0` means "use all hardware threads"
+ * (organism_hardware_threads()). Because populations are independent and
+ * seeded by index, out_coherence is IDENTICAL regardless of thread_count
+ * — parallelism changes the speed, never the answer.
+ *
+ * This is the embarrassingly-parallel workload the physics is built for:
+ * parameter sweeps, Monte Carlo ensembles, batch scoring of many systems.
+ */
+size_t organism_batch_simulate(
+    size_t population_count, size_t nodes_per_population, size_t steps,
+    double coupling, double dt, uint64_t seed, int thread_count,
+    double* out_coherence);
+
+/** Number of hardware threads available (>= 1). */
+int organism_hardware_threads(void);
+
 /* ── Register state (four-register phi-weighted architecture) ─────────── */
 
 typedef enum {
