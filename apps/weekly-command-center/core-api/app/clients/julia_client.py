@@ -2,23 +2,65 @@
 
 The "intelligent entity" doing week-optimization math is real Julia code
 (see optimizer-julia/src/Optimizer.jl) — this module just calls it over HTTP.
-If the Julia service isn't running (e.g. you haven't done `docker compose up`
-yet, or you're just running the Python core standalone), it falls back to an
-equivalent pure-Python heuristic so the platform is never blocked on a
-microservice being up.
+
+For supercomputer mode (ENABLE_SUPERCOMPUTE=true), uses:
+- Distributed Julia cluster (multiple machines)
+- GPU acceleration (CUDA)
+- ML neural network optimization
+- Real-time caching (Redis)
+- Sub-millisecond latencies
+
+Falls back to local Julia or Python if needed.
 """
 from __future__ import annotations
 
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
 
+logger = logging.getLogger("julia_client")
+
 OPTIMIZER_URL = os.environ.get("OPTIMIZER_URL", "http://localhost:8100")
 TIMEOUT_SECONDS = 2.0
+ENABLE_SUPERCOMPUTE = os.environ.get("ENABLE_SUPERCOMPUTE", "false").lower() == "true"
 
 
 def optimize(tasks: list[dict], daily_capacity_minutes: int) -> dict:
+    """Optimize week schedule using Julia or supercomputer.
+
+    If ENABLE_SUPERCOMPUTE=true, uses:
+    - Distributed Julia cluster
+    - GPU acceleration
+    - ML neural network
+    - Real-time caching
+    - Sub-millisecond latencies
+
+    Falls back to local Julia or Python gracefully.
+    """
+    # Try supercomputer first (fastest, most intelligent)
+    if ENABLE_SUPERCOMPUTE:
+        try:
+            from ..supercompute import optimize_supercomputer
+            result_obj = optimize_supercomputer(tasks, daily_capacity_minutes)
+            logger.info(
+                "supercompute optimization: engine=%s confidence=%.2f latency=%.2f ms",
+                result_obj["engine"],
+                result_obj["confidence"],
+                result_obj["metrics"]["duration_ms"],
+            )
+            return {
+                "engine": result_obj["engine"],
+                "plan": result_obj["plan"],
+                "overflow": result_obj["overflow"],
+                "metrics": result_obj["metrics"],
+                "confidence": result_obj["confidence"],
+            }
+        except Exception as e:
+            logger.warning("Supercompute failed: %s; falling back to Julia", str(e))
+
+    # Try local Julia
     payload = {"tasks": tasks, "daily_capacity_minutes": daily_capacity_minutes}
     try:
         req = urllib.request.Request(

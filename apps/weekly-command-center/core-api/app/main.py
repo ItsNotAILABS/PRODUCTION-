@@ -90,6 +90,13 @@ def system_health():
     return health.get_health()
 
 
+@app.get("/metrics/performance")
+def performance_metrics():
+    """Real-time performance metrics (supercomputer mode)."""
+    from . import performance
+    return performance.get_monitor().get_stats()
+
+
 # --- Weeks / continuity -----------------------------------------------------
 
 @app.get("/weeks/current")
