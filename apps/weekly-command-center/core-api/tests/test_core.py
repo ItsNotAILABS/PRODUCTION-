@@ -6,6 +6,10 @@ from app.calendars import julian_day_number, mayan_long_count, today_in_all_cale
 from .conftest import auth_headers, signup
 
 
+def admin_headers(key: str) -> dict:
+    return {"Authorization": f"Bearer {key}"}
+
+
 # --- calendars (pure functions, no DB needed) --------------------------------
 
 def test_julian_day_number_known_epoch():
@@ -221,3 +225,63 @@ def test_week_rollover_carries_open_tasks_and_chains_thread(client, db_session):
         }
         assert "unfinished" in week2_titles
         assert "finished" not in week2_titles
+
+
+# --- admin analytics (aggregated across accounts, separately authed) ----------
+
+def test_admin_analytics_disabled_without_admin_api_key(client):
+    resp = client.get("/admin/analytics/overview")
+    assert resp.status_code == 503
+
+
+def test_admin_analytics_rejects_tenant_token_and_wrong_key(client, monkeypatch):
+    from app import admin_auth
+    monkeypatch.setattr(admin_auth, "ADMIN_API_KEY", "correct-admin-key")
+
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    tenant_headers = auth_headers(a["access_token"])
+
+    assert client.get("/admin/analytics/overview", headers=tenant_headers).status_code == 401
+    assert client.get("/admin/analytics/overview", headers=admin_headers("wrong-key")).status_code == 401
+    assert client.get("/admin/analytics/overview").status_code == 401
+
+
+def test_admin_analytics_overview_reflects_real_mrr(client, monkeypatch):
+    from app import admin_auth
+    monkeypatch.setattr(admin_auth, "ADMIN_API_KEY", "correct-admin-key")
+    headers = admin_headers("correct-admin-key")
+
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    b = signup(client, "Beta Studio", "bob@betastudio.io")
+    client.post("/billing/upgrade?plan_id=pro", headers=auth_headers(a["access_token"]))
+
+    overview = client.get("/admin/analytics/overview", headers=headers).json()
+    assert overview["total_accounts"] == 2
+    assert overview["paying_accounts"] == 1
+    assert overview["free_accounts"] == 1
+    assert overview["mrr_cents"] == 1900  # Pro plan price
+
+    plans = client.get("/admin/analytics/plans", headers=headers).json()
+    plan_counts = {p["plan_id"]: p["account_count"] for p in plans}
+    assert plan_counts["pro"] == 1
+    assert plan_counts["free"] == 1
+
+    usage = client.get("/admin/analytics/usage", headers=headers).json()
+    assert usage["total_accounts"] == 2
+
+
+def test_admin_retention_counts_active_accounts_per_week(client, monkeypatch):
+    from app import admin_auth
+    monkeypatch.setattr(admin_auth, "ADMIN_API_KEY", "correct-admin-key")
+    headers = admin_headers("correct-admin-key")
+
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    b = signup(client, "Beta Studio", "bob@betastudio.io")
+    # A Week row (the retention signal) is only created once an account
+    # actually opens its current week — signup alone doesn't create one.
+    client.get("/weeks/current", headers=auth_headers(a["access_token"]))
+    client.get("/weeks/current", headers=auth_headers(b["access_token"]))
+
+    retention = client.get("/admin/analytics/retention", headers=headers).json()
+    assert retention["weeks"]
+    assert retention["weeks"][-1]["active_accounts"] == 2

@@ -251,7 +251,16 @@ Contact support: support@weeklycommandcenter.com
 
 ## Analytics & Dashboards
 
-Key metrics to track:
+**Built-in admin dashboard**: `/admin.html` (served by gateway-node) reads
+live MRR/ARR, plan distribution, usage totals, signup cohorts, and a
+retention proxy from `GET /admin/analytics/*` — see `core-api/app/analytics.py`.
+It's gated by `ADMIN_API_KEY` (set the env var, then enter the same key on
+the page); the endpoints return 503 if that var is unset, so there's no
+insecure default. This is real, queried-on-demand data, not a mockup —
+useful from day one before you've set up an external BI tool.
+
+For deeper analysis (cohort curves over months, funnel drop-off, marketing
+attribution), export to a proper BI tool. Key metrics to track there:
 
 ### Financial
 - **MRR** (Monthly Recurring Revenue): Sum of all active subscriptions

@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from . import (
+    analytics,
     auth,
     billing,
     deliverables as deliverables_mod,
@@ -70,6 +71,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(billing.router)
+app.include_router(analytics.router)
 
 
 @app.get("/health")
