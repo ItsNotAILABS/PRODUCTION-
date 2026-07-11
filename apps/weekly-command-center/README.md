@@ -7,9 +7,12 @@ is self-contained; it does not depend on anything else in this repository.
 Every customer gets an isolated account (real signup/login, JWT auth, hard
 row-level tenant isolation in every query — see `core-api/app/auth.py`) and a
 subscription plan with enforced usage limits (`core-api/app/billing.py`).
-Billing itself is a stub — no live payment processor is wired in yet, see
-"What's stubbed" below — but the account/auth/plan-limit machinery around it
-is real.
+Billing is wired to real Stripe Checkout Sessions and webhooks
+(`core-api/app/stripe_client.py`), transactional email goes out on signup/
+invite/billing events (`core-api/app/emails.py`), schema changes are
+versioned with Alembic instead of `create_all()`, and an admin dashboard at
+`/admin.html` shows live MRR/plan-distribution/retention — see "What's real"
+below for exactly what needs your own accounts/keys to activate.
 
 ## Run it right now (no Docker required)
 
@@ -67,19 +70,28 @@ containers there can't reach each other by hostname the way Docker Compose
 services can) behind a Worker that also serves the frontend from Cloudflare's
 edge — see `cloudflare/`.
 
-## What's real vs. stubbed
+Running a Kubernetes cluster instead? **`k8s/`** has the full manifest set
+(Postgres StatefulSet, autoscaling core-api/gateway-node, a migration
+initContainer, TLS ingress) — see `k8s/README.md`.
 
-- **Real**: signup/login (bcrypt + JWT), per-account data isolation enforced
-  in every query, team invites, plan usage limits that actually 402 a
-  request once a free-plan account hits its cap, and the Postgres-ready
-  production stack described above.
-- **Stubbed**: `POST /billing/upgrade` flips an account's `plan_id` directly
-  with no payment collected — there's no Stripe account wired in. `billing.py`
-  documents exactly where a real Checkout Session integration would replace
-  that call. No transactional email (signup confirmation, password reset)
-  and no DB migrations (schema is created via `create_all`, fine for this
-  initial deploy but not for changing schema after real customer data
-  exists) — both called out explicitly in `DEPLOY.md`.
+## What's real vs. what needs your own keys
+
+- **Real, no setup needed**: signup/login (bcrypt + JWT), per-account data
+  isolation enforced in every query, team invites, plan usage limits that
+  actually 402 a request once a free-plan account hits its cap, task
+  comments with @mentions and a live per-account activity feed
+  (`core-api/app/collaboration.py`), Alembic-migrated schema, and the
+  Postgres-ready production stack described above.
+- **Real, needs your own account/keys to activate**: `POST /billing/upgrade`
+  creates a real Stripe Checkout Session and the `checkout.session.completed`
+  webhook flips the plan (`core-api/app/stripe_client.py`) — needs
+  `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET`, else it falls back to a test-mode
+  direct flip with no payment collected. Welcome/invite/billing emails send
+  through SendGrid/SES/SMTP (`core-api/app/emails.py`) — needs one provider's
+  keys, else they're logged instead of sent. The admin analytics dashboard
+  (`/admin.html`, `core-api/app/analytics.py`) needs `ADMIN_API_KEY` set,
+  else it returns 503 rather than defaulting open. All of this is spelled
+  out with exact env vars in `DEPLOY.md` and `.env.example`.
 
 ## How the requirements map to what's actually implemented
 
@@ -96,19 +108,28 @@ edge — see `cloudflare/`.
 | Inner agents (system) vs outer agent (you) | `core-api/app/agents/inner_agent.py` runs unattended housekeeping (deadline-pressure recompute, week rollover, library rescans) on a schedule. `core-api/app/agents/outer_agent.py` builds the digest that's actually shown to you. |
 | Native documents/files/folders/notes | `core-api/app/documents.py` + the Documents panel in the UI: recursive folders, notes with full version history. |
 | Inner AI stays on top of the week, knows deliverable dates, pressured by them, aware of email as context (not tasks) | `deliverables.py` computes a non-linear `pressure` score from each due date; `outer_agent.build_digest()` surfaces the highest-pressure item and carried-over count. `integrations/email_context.py` scans `.eml` files dropped into `core-api/data/inbox/` for mentioned dates/subjects and links them to deliverables **as read-only context** — it never auto-creates a task from an email. |
+| Team collaboration | `core-api/app/collaboration.py` — comments on tasks with `@email` mentions resolved only within the same account, plus an append-only per-account activity feed (`GET /activity`) fed by task/deliverable/comment/invite events. |
+| Business visibility for the operator | `core-api/app/analytics.py` + `/admin.html` — real MRR/ARR, plan distribution, usage totals, signup cohorts, and a retention proxy, gated by `ADMIN_API_KEY` (separate auth path from tenant JWTs, see `admin_auth.py`). |
 
 ## Directory layout
 
 ```
 core-api/                 Python/FastAPI — auth, billing, tenancy, agents, calendars, registry
   app/auth.py              signup/login/invite, JWT, get_current_account dependency
-  app/billing.py           plan catalog, usage metering, upgrade stub
-  app/db_models.py         SQLAlchemy schema (every tenant table carries account_id)
-  app/database.py          engine/session, DATABASE_URL-driven (SQLite dev / Postgres prod)
-  worker.py                standalone inner-agent process for production (see above)
+  app/billing.py           plan catalog, usage metering, real Stripe Checkout + webhooks
+  app/stripe_client.py      Stripe API wrapper (checkout sessions, webhook verification)
+  app/emails.py             transactional email, provider auto-selected from env vars
+  app/collaboration.py      task comments/@mentions, per-account activity feed
+  app/analytics.py          admin-only MRR/usage/retention aggregation
+  app/admin_auth.py         separate bearer-token auth for analytics (never a tenant JWT)
+  app/db_models.py          SQLAlchemy schema (every tenant table carries account_id)
+  app/database.py           engine/session, DATABASE_URL-driven (SQLite dev / Postgres prod)
+  alembic/                  versioned schema migrations (init_db() runs `upgrade head`)
+  worker.py                 standalone inner-agent process for production (see above)
 optimizer-julia/          Julia/HTTP.jl — week-scheduling optimizer
 taskrules-haskell/        Haskell/Scotty — task-language parser
-gateway-node/             Node/Express — API gateway + static web UI (login/signup included)
+gateway-node/             Node/Express — API gateway + static web UI (login/signup, admin.html)
+k8s/                      Kubernetes manifests (alternative to docker-compose.prod.yml)
 docker-compose.yml        Dev full stack (SQLite), including the Julia/Haskell services
 docker-compose.prod.yml   Production stack (Postgres, gunicorn, core-worker, locked CORS)
 cloudflare/               Cloudflare Containers deployment (single image, Worker router)
