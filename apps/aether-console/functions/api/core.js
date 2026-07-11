@@ -179,9 +179,16 @@ function workloadToDict(w) {
   };
 }
 
-function doDeployTick(state) {
+function doDeployTick(state, force = false) {
   const result = { beat: state.beat, coherence: fleetCoherence(state), deployed: [], skipped: [], failed: [] };
-  if (fleetCoherence(state) < PHI_INV) {
+  // The coherence gate protects a POPULATED fleet from partial rollout onto
+  // unhealthy targets. It's vacuous on an empty fleet (a real, freshly-empty
+  // system must not read as "frozen"), and `force` / AETHER_UNGATED overrides
+  // it outright.
+  const hasTargets = Object.keys(state.targets).length > 0;
+  const ungated = force || state.ungated === true;
+  result.ungated = ungated;
+  if (hasTargets && !ungated && fleetCoherence(state) < PHI_INV) {
     result.status = 'coherence_gate_blocked';
     return result;
   }
@@ -307,7 +314,7 @@ function route(method, path, body, state) {
       return { status: 201, data: targetToDict(t), dirty };
     }
     if (parts.length === 2 && parts[0] === 'fleet' && parts[1] === 'tick') {
-      const result = doDeployTick(state);
+      const result = doDeployTick(state, body.force === true);
       return { status: 200, data: result, dirty: true };
     }
     if (parts.length === 3 && parts[0] === 'fleet' && parts[2] === 'heartbeat') {
@@ -331,7 +338,7 @@ function route(method, path, body, state) {
         phi_score: 1.0, deploy_phase: DEPLOY_PHASE.PENDING, deployed_to: [], created_at: Date.now(),
       };
       state.workloads[w.workload_id] = w;
-      const tick = doDeployTick(state);
+      const tick = doDeployTick(state, body.force === true);
       return { status: 201, data: { workload: workloadToDict(w), deploy_result: tick }, dirty: true };
     }
     if (parts.length === 3 && parts[0] === 'workloads' && parts[2] === 'rollback') {
@@ -349,7 +356,7 @@ function route(method, path, body, state) {
     if (parts.length === 3 && parts[0] === 'protocols' && parts[2] === 'deploy') {
       const w = registerProtocolWorkload(state, parts[1], body.target_class, body.replicas);
       if (!w) return ok(404, { error: `protocol_not_found: ${parts[1]}` });
-      const tick = doDeployTick(state);
+      const tick = doDeployTick(state, body.force === true);
       return { status: 201, data: { workload: workloadToDict(w), deploy_result: tick }, dirty: true };
     }
     return ok(404, { error: 'not_found' });

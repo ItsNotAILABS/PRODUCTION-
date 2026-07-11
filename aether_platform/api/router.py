@@ -156,7 +156,7 @@ def handle(
             return (200 if ok else 404), {"ok": ok}
 
         if p == "/api/fleet/tick":
-            return 200, engine.tick()
+            return 200, engine.tick(force=bool(body.get("force", False)))
 
         if p == "/api/workloads":
             try:
@@ -175,7 +175,7 @@ def handle(
                 labels=body.get("labels", {}),
             )
             engine.register_workload(w)
-            tick = engine.tick()
+            tick = engine.tick(force=bool(body.get("force", False)))
             return 201, {"workload": w.to_dict(), "deploy_result": tick}
 
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "workloads" and parts[3] == "rollback":
@@ -199,7 +199,7 @@ def handle(
             w = engine.register_protocol(protocol_id, target_class=cls, replicas=body.get("replicas", 1))
             if w is None:
                 return 404, {"error": f"protocol_not_found: {protocol_id}"}
-            tick = engine.tick()
+            tick = engine.tick(force=bool(body.get("force", False)))
             return 201, {"workload": w.to_dict(), "deploy_result": tick}
 
         return 404, {"error": "not_found"}

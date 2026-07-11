@@ -13,6 +13,7 @@ Key differentiators over SUSE Rancher Fleet:
 """
 from __future__ import annotations
 
+import os
 import time
 import hashlib
 from dataclasses import dataclass, field
@@ -96,12 +97,21 @@ class OrchestrationEngine:
     5. Records outcomes and updates phi-scores
     """
 
-    def __init__(self, fleet: FleetManager) -> None:
+    def __init__(self, fleet: FleetManager, ungated: bool = None) -> None:
         self._fleet = fleet
         self._workloads: Dict[str, Workload] = {}
         self._pending: List[str] = []
         self._beat: int = 0
         self._deploy_agent = None   # optional DeployAgent for real deploys
+        # Coherence gating. The gate protects a POPULATED fleet from a partial
+        # rollout onto unhealthy targets — it is not meant to make a real,
+        # freshly-empty system look frozen. So it is VACUOUS on an empty fleet
+        # (nothing can be incoherent) and can be turned off entirely by the
+        # operator via AETHER_UNGATED=1 or a per-tick force. Default: gate on
+        # for a fleet that actually has targets.
+        if ungated is None:
+            ungated = os.environ.get("AETHER_UNGATED") == "1"
+        self._ungated = ungated
         self._hooks: Dict[str, List[Callable]] = {
             "pre_deploy": [], "post_deploy": [], "on_fail": [],
         }
@@ -183,9 +193,15 @@ class OrchestrationEngine:
 
     # ── Deploy cycle (called every heartbeat) ─────────────────────────────────
 
-    def tick(self) -> dict:
+    def tick(self, force: bool = False) -> dict:
         """
         Process one heartbeat cycle. Returns a status summary.
+
+        The coherence gate blocks deploys only when the fleet actually has
+        targets AND they're incoherent AND the operator hasn't ungated. An
+        empty fleet passes vacuously (there's nothing unhealthy to protect),
+        so a real, freshly-registered system is never frozen just for being
+        new. `force=True` (or AETHER_UNGATED=1) overrides the gate outright.
         """
         self._beat += 1
         result = {
@@ -197,7 +213,10 @@ class OrchestrationEngine:
             "failed":     [],
         }
 
-        if not self._fleet.is_coherent():
+        has_targets = len(self._fleet.targets) > 0
+        gate_active = has_targets and not (self._ungated or force)
+        result["ungated"] = self._ungated or force
+        if gate_active and not self._fleet.is_coherent():
             result["status"] = "coherence_gate_blocked"
             return result
 
