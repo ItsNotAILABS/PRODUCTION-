@@ -1,0 +1,114 @@
+# FastAPI web service. Uses an initContainer to run `alembic upgrade head`
+# once before any replica starts serving traffic — avoids every gunicorn
+# worker (and every replica, on rolling deploys) racing to migrate at once.
+# Liveness/readiness wired to the real endpoints added in app/main.py.
+apiVersion: v1
+kind: Service
+metadata:
+  name: core-api
+  namespace: weekly-command-center
+spec:
+  selector:
+    app: core-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-api
+  namespace: weekly-command-center
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: core-api
+  template:
+    metadata:
+      labels:
+        app: core-api
+    spec:
+      initContainers:
+        - name: migrate
+          image: REGISTRY_PLACEHOLDER/wcc-core-api:latest
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef: { name: wcc-config }
+          env:
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: POSTGRES_PASSWORD } }
+            - name: POSTGRES_DB
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: POSTGRES_DB } }
+            - name: DATABASE_URL
+              value: "postgresql+psycopg2://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
+      containers:
+        - name: core-api
+          image: REGISTRY_PLACEHOLDER/wcc-core-api:latest
+          command:
+            - gunicorn
+            - app.main:app
+            - --worker-class=uvicorn.workers.UvicornWorker
+            - --workers=2
+            - --bind=0.0.0.0:8000
+            - --access-logfile=-
+            - --error-logfile=-
+            - --timeout=30
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef: { name: wcc-config }
+          env:
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: POSTGRES_PASSWORD } }
+            - name: POSTGRES_DB
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: POSTGRES_DB } }
+            - name: DATABASE_URL
+              value: "postgresql+psycopg2://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: JWT_SECRET } }
+            - name: STRIPE_API_KEY
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: STRIPE_API_KEY, optional: true } }
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: STRIPE_WEBHOOK_SECRET, optional: true } }
+            - name: SENDGRID_API_KEY
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: SENDGRID_API_KEY, optional: true } }
+            - name: SENDGRID_FROM_EMAIL
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: SENDGRID_FROM_EMAIL, optional: true } }
+          readinessProbe:
+            httpGet: { path: /health/ready, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits: { cpu: "1", memory: "512Mi" }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: core-api
+  namespace: weekly-command-center
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: core-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+    - type: Resource
+      resource:
+        name: memory
+        target: { type: Utilization, averageUtilization: 80 }

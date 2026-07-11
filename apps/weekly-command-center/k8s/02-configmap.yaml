@@ -1,0 +1,12 @@
+# Non-secret configuration, shared across core-api and core-worker.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wcc-config
+  namespace: weekly-command-center
+data:
+  JWT_EXPIRY_HOURS: "24"
+  CORS_ORIGINS: "https://app.yourdomain.com"
+  OPTIMIZER_URL: "http://optimizer-julia:8100"
+  TASKRULES_URL: "http://taskrules-haskell:8200"
+  ENABLE_INNER_AGENT: "false"

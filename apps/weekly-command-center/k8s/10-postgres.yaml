@@ -1,0 +1,75 @@
+# Postgres as a StatefulSet (stable network identity + a PVC per replica),
+# matching docker-compose.prod.yml's postgres service. Single replica —
+# for HA, point DATABASE_URL at a managed Postgres (RDS, Cloud SQL, etc.)
+# instead and delete this file; nothing else in these manifests assumes
+# in-cluster Postgres.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: weekly-command-center
+spec:
+  clusterIP: None  # headless — StatefulSet needs stable DNS per pod
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: weekly-command-center
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef: { name: wcc-secrets, key: POSTGRES_USER }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: wcc-secrets, key: POSTGRES_PASSWORD }
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef: { name: wcc-secrets, key: POSTGRES_DB }
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "250m", memory: "512Mi" }
+            limits: { cpu: "1", memory: "1Gi" }
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

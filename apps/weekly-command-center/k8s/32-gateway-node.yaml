@@ -1,0 +1,66 @@
+# Static frontend + API proxy. Publicly exposed via the Ingress
+# (see 40-ingress.yaml); core-api itself is not exposed outside the cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-node
+  namespace: weekly-command-center
+spec:
+  selector:
+    app: gateway-node
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-node
+  namespace: weekly-command-center
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gateway-node
+  template:
+    metadata:
+      labels:
+        app: gateway-node
+    spec:
+      containers:
+        - name: gateway-node
+          image: REGISTRY_PLACEHOLDER/wcc-gateway-node:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: CORE_API_URL
+              value: "http://core-api:8000"
+          readinessProbe:
+            httpGet: { path: /, port: 3000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: 3000 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gateway-node
+  namespace: weekly-command-center
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: gateway-node
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
