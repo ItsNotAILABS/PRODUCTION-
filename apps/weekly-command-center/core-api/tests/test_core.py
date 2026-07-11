@@ -285,3 +285,107 @@ def test_admin_retention_counts_active_accounts_per_week(client, monkeypatch):
     retention = client.get("/admin/analytics/retention", headers=headers).json()
     assert retention["weeks"]
     assert retention["weeks"][-1]["active_accounts"] == 2
+
+
+# --- team collaboration: comments, @mentions, activity feed --------------------
+
+def test_comment_with_mention_resolves_teammate_in_same_account(client):
+    owner = signup(client, "Acme Consulting", "alice@acmehq.io")
+    owner_headers = auth_headers(owner["access_token"])
+    client.post("/billing/upgrade?plan_id=pro", headers=owner_headers)  # free plan caps at 1 user
+    client.post(
+        "/auth/invite",
+        json={"account_name": "ignored", "email": "carol@acmehq.io", "password": "teammatepass1"},
+        headers=owner_headers,
+    )
+
+    task = client.post("/tasks", json={"title": "Draft the report"}, headers=owner_headers).json()
+
+    resp = client.post(
+        f"/tasks/{task['id']}/comments",
+        json={"body": "Hey @carol@acmehq.io can you take a look?"},
+        headers=owner_headers,
+    )
+    assert resp.status_code == 200
+    comment = resp.json()
+    assert comment["author_email"] == "alice@acmehq.io"
+    assert len(comment["mentioned_user_ids"]) == 1
+
+    comments = client.get(f"/tasks/{task['id']}/comments", headers=owner_headers).json()
+    assert len(comments) == 1
+    assert comments[0]["body"] == "Hey @carol@acmehq.io can you take a look?"
+
+
+def test_comment_mention_does_not_resolve_across_accounts(client):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    signup(client, "Beta Studio", "bob@betastudio.io")  # different account entirely
+    headers_a = auth_headers(a["access_token"])
+
+    task = client.post("/tasks", json={"title": "Acme-only task"}, headers=headers_a).json()
+    resp = client.post(
+        f"/tasks/{task['id']}/comments",
+        json={"body": "cc @bob@betastudio.io"},
+        headers=headers_a,
+    )
+    assert resp.status_code == 200
+    # bob is a real user, but not in Acme's account — must not resolve
+    assert resp.json()["mentioned_user_ids"] == []
+
+
+def test_comment_on_nonexistent_task_is_404(client):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    resp = client.post(
+        "/tasks/999999/comments", json={"body": "hi"}, headers=auth_headers(a["access_token"])
+    )
+    assert resp.status_code == 404
+
+
+def test_comment_on_task_from_another_account_is_404(client):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    b = signup(client, "Beta Studio", "bob@betastudio.io")
+    headers_a, headers_b = auth_headers(a["access_token"]), auth_headers(b["access_token"])
+
+    task = client.post("/tasks", json={"title": "Acme-only task"}, headers=headers_a).json()
+    resp = client.post(f"/tasks/{task['id']}/comments", json={"body": "hi"}, headers=headers_b)
+    assert resp.status_code == 404
+
+
+def test_activity_feed_records_task_deliverable_and_teammate_events(client):
+    owner = signup(client, "Acme Consulting", "alice@acmehq.io")
+    owner_headers = auth_headers(owner["access_token"])
+    client.post("/billing/upgrade?plan_id=pro", headers=owner_headers)
+
+    task = client.post("/tasks", json={"title": "Ship the feature"}, headers=owner_headers).json()
+    client.patch(f"/tasks/{task['id']}", json={"status": "done"}, headers=owner_headers)
+    client.post("/deliverables", json={"title": "Q3 report", "due_date": "2026-08-01"}, headers=owner_headers)
+    client.post(
+        "/auth/invite",
+        json={"account_name": "ignored", "email": "carol@acmehq.io", "password": "teammatepass1"},
+        headers=owner_headers,
+    )
+    client.post(f"/tasks/{task['id']}/comments", json={"body": "nice work"}, headers=owner_headers)
+
+    feed = client.get("/activity", headers=owner_headers).json()
+    verbs = [e["verb"] for e in feed]
+    # newest first
+    assert verbs[0] == "comment_added"
+    assert "task_created" in verbs
+    assert "task_completed" in verbs
+    assert "deliverable_created" in verbs
+    assert "teammate_joined" in verbs
+    assert all(e["actor_email"] in (None, "alice@acmehq.io") for e in feed)
+
+
+def test_activity_feed_isolated_between_accounts(client):
+    a = signup(client, "Acme Consulting", "alice@acmehq.io")
+    b = signup(client, "Beta Studio", "bob@betastudio.io")
+    headers_a, headers_b = auth_headers(a["access_token"]), auth_headers(b["access_token"])
+
+    client.post("/tasks", json={"title": "Acme task"}, headers=headers_a)
+    client.post("/tasks", json={"title": "Beta task"}, headers=headers_b)
+
+    feed_a = client.get("/activity", headers=headers_a).json()
+    feed_b = client.get("/activity", headers=headers_b).json()
+    assert all("Acme" not in e["summary"] or "task" in e["summary"] for e in feed_a)
+    assert len(feed_a) == 1 and feed_a[0]["summary"] == 'created "Acme task"'
+    assert len(feed_b) == 1 and feed_b[0]["summary"] == 'created "Beta task"'

@@ -8,12 +8,14 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import billing
+from . import billing, collaboration
 from .db_models import Account, Task
 from .schemas import TaskCreate, TaskUpdate
 
 
-def create_task(db: Session, account: Account, payload: TaskCreate, default_week_id: int) -> Task:
+def create_task(
+    db: Session, account: Account, payload: TaskCreate, default_week_id: int, actor_id: int | None = None
+) -> Task:
     billing.enforce_limit(db, account, "open_tasks")
     task = Task(
         account_id=account.id,
@@ -28,6 +30,13 @@ def create_task(db: Session, account: Account, payload: TaskCreate, default_week
         tags=payload.tags,
     )
     db.add(task)
+    db.flush()
+
+    collaboration.log_activity(
+        db, account.id, actor_id=actor_id, verb="task_created",
+        target_type="task", target_id=task.id, summary=f'created "{task.title}"',
+    )
+
     db.commit()
     db.refresh(task)
     return task
@@ -39,12 +48,22 @@ def get_task(db: Session, account_id: int, task_id: int) -> Task | None:
     ).scalar_one_or_none()
 
 
-def update_task(db: Session, account_id: int, task_id: int, payload: TaskUpdate) -> Task | None:
+def update_task(
+    db: Session, account_id: int, task_id: int, payload: TaskUpdate, actor_id: int | None = None
+) -> Task | None:
     task = get_task(db, account_id, task_id)
     if task is None:
         return None
+    was_done = task.status == "done"
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(task, field, value)
+
+    if task.status == "done" and not was_done:
+        collaboration.log_activity(
+            db, account_id, actor_id=actor_id, verb="task_completed",
+            target_type="task", target_id=task.id, summary=f'completed "{task.title}"',
+        )
+
     db.commit()
     db.refresh(task)
     return task

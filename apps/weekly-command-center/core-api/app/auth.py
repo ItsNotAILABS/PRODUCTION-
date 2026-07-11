@@ -139,6 +139,14 @@ def invite_teammate(
 
     user = User(account_id=account.id, email=payload.email, hashed_password=hash_password(payload.password), role="member")
     db.add(user)
+    db.flush()
+
+    from . import collaboration
+    collaboration.log_activity(
+        db, account.id, actor_id=current_user.id, verb="teammate_joined",
+        target_type="user", target_id=user.id, summary=f"{user.email} joined the team",
+    )
+
     db.commit()
     db.refresh(user)
 

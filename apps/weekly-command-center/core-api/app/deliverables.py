@@ -10,15 +10,24 @@ from datetime import date, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import billing
+from . import billing, collaboration
 from .db_models import Account, Deliverable
 from .schemas import DeliverableCreate
 
 
-def create_deliverable(db: Session, account: Account, payload: DeliverableCreate) -> Deliverable:
+def create_deliverable(
+    db: Session, account: Account, payload: DeliverableCreate, actor_id: int | None = None
+) -> Deliverable:
     billing.enforce_limit(db, account, "deliverables")
     deliverable = Deliverable(account_id=account.id, title=payload.title, project=payload.project, due_date=payload.due_date)
     db.add(deliverable)
+    db.flush()
+
+    collaboration.log_activity(
+        db, account.id, actor_id=actor_id, verb="deliverable_created",
+        target_type="deliverable", target_id=deliverable.id, summary=f'created deliverable "{deliverable.title}"',
+    )
+
     db.commit()
     db.refresh(deliverable)
     return deliverable

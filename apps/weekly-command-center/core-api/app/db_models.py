@@ -166,3 +166,35 @@ class LibraryCacheEntry(Base):
     version: Mapped[str] = mapped_column(String(64), default="")
     source_file: Mapped[str] = mapped_column(String(300))
     scanned_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=_now)
+
+
+class Comment(Base):
+    """A comment on a task, scoped per account like everything else. Body is
+    scanned for @email mentions at write time (see collaboration.py) so a
+    mention notification never depends on re-parsing on every read."""
+    __tablename__ = "comments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), index=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    body: Mapped[str] = mapped_column(Text)
+    mentioned_user_ids: Mapped[str] = mapped_column(String(500), default="")  # CSV of user IDs
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=_now)
+
+
+class ActivityEvent(Base):
+    """Append-only per-account activity feed: task/comment/deliverable
+    changes, teammate joins. Distinct from InboxEvent (which is inbound
+    email context, not platform activity) and from organism/adaptive-health's
+    CI signals (a separate, unrelated system)."""
+    __tablename__ = "activity_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), index=True)
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    verb: Mapped[str] = mapped_column(String(32))  # 'task_created' | 'task_completed' | 'comment_added' | 'teammate_joined' | ...
+    target_type: Mapped[str] = mapped_column(String(32))  # 'task' | 'deliverable' | 'comment' | 'user'
+    target_id: Mapped[int] = mapped_column(Integer)
+    summary: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=_now)

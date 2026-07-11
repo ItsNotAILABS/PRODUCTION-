@@ -103,7 +103,7 @@ function renderTaskNode(task) {
     <div class="task-node">
       <div class="task-row ${doneClass}">
         <input type="checkbox" data-task-id="${task.id}" ${task.status === "done" ? "checked" : ""} />
-        <span class="task-title">${escapeHtml(task.title)}</span>
+        <span class="task-title" data-comment-task-id="${task.id}" title="View comments">${escapeHtml(task.title)}</span>
         <span class="priority-chip priority-${task.priority}">P${task.priority}</span>
         ${task.deadline ? `<span class="priority-chip">due ${task.deadline}</span>` : ""}
         ${task.carried_over_from ? `<span class="priority-chip">carried</span>` : ""}
@@ -124,8 +124,46 @@ function attachTaskHandlers() {
       });
       loadTaskTree();
       loadDigest();
+      loadActivity();
     });
   });
+  document.querySelectorAll(".task-title[data-comment-task-id]").forEach(el => {
+    el.addEventListener("click", () => openCommentModal(el.getAttribute("data-comment-task-id")));
+  });
+}
+
+let openCommentTaskId = null;
+
+async function openCommentModal(taskId) {
+  openCommentTaskId = taskId;
+  document.getElementById("comment-modal").classList.remove("hidden");
+  await renderComments();
+}
+
+async function renderComments() {
+  const comments = await authJson(`${API}/tasks/${openCommentTaskId}/comments`);
+  document.getElementById("comment-list").innerHTML = comments.map(c => `
+    <li><strong>${escapeHtml(c.author_email)}</strong>: ${escapeHtml(c.body)}
+      <div class="doc-link" style="cursor:default">${new Date(c.created_at).toLocaleString()}</div>
+    </li>
+  `).join("") || "<li>No comments yet.</li>";
+}
+
+async function loadActivity() {
+  const events = await authJson(`${API}/activity`);
+  const verbLabel = {
+    task_created: "created task",
+    task_completed: "completed task",
+    comment_added: "commented",
+    deliverable_created: "created deliverable",
+    teammate_joined: "joined the team",
+  };
+  document.getElementById("activity-list").innerHTML = events.map(e => `
+    <li><strong>${escapeHtml(e.actor_email || "system")}</strong> ${verbLabel[e.verb] || e.verb} —
+      ${escapeHtml(e.summary)}
+      <div class="doc-link" style="cursor:default">${new Date(e.created_at).toLocaleString()}</div>
+    </li>
+  `).join("") || "<li>No activity yet.</li>";
 }
 
 async function loadFolderTree() {
@@ -309,6 +347,7 @@ function wireForms() {
     loadTaskTree();
     loadDigest();
     loadBilling();
+    loadActivity();
   });
 
   document.getElementById("deliverable-form").addEventListener("submit", async (e) => {
@@ -326,6 +365,7 @@ function wireForms() {
     e.target.reset();
     loadDigest();
     loadBilling();
+    loadActivity();
   });
 
   document.getElementById("folder-form").addEventListener("submit", async (e) => {
@@ -377,12 +417,31 @@ function wireForms() {
     document.getElementById("doc-modal").classList.add("hidden");
     openDocId = null;
   });
+
+  document.getElementById("comment-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = e.target.body.value.trim();
+    if (!body || !openCommentTaskId) return;
+    await authFetch(`${API}/tasks/${openCommentTaskId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    });
+    e.target.reset();
+    await renderComments();
+    loadActivity();
+  });
+
+  document.getElementById("comment-modal-close").addEventListener("click", () => {
+    document.getElementById("comment-modal").classList.add("hidden");
+    openCommentTaskId = null;
+  });
 }
 
 async function boot() {
   await loadCalendarStrip();
   await loadMe();
-  await Promise.all([loadDigest(), loadTaskTree(), loadFolderTree(), loadLibraries(), loadBilling()]);
+  await Promise.all([loadDigest(), loadTaskTree(), loadFolderTree(), loadLibraries(), loadBilling(), loadActivity()]);
 }
 
 wireAuthForms();

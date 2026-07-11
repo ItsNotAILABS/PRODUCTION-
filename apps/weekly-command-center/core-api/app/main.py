@@ -11,6 +11,7 @@ from . import (
     analytics,
     auth,
     billing,
+    collaboration,
     deliverables as deliverables_mod,
     documents as documents_mod,
     health,
@@ -19,13 +20,14 @@ from . import (
     weeks as weeks_mod,
 )
 from .agents import inner_agent, outer_agent
-from .auth import get_current_account
+from .auth import get_current_account, get_current_user
 from .calendars import today_in_all_calendars
 from .clients import haskell_client, julia_client
 from .database import get_db, init_db
-from .db_models import Account
+from .db_models import Account, User
 from .integrations import email_context
 from .schemas import (
+    CommentCreate,
     DeliverableCreate,
     DocumentCreate,
     DocumentRevise,
@@ -120,9 +122,14 @@ def week_tasks(week_id: int, account: Account = Depends(get_current_account), db
 # --- Tasks (recursive) -------------------------------------------------------
 
 @app.post("/tasks")
-def create_task(payload: TaskCreate, account: Account = Depends(get_current_account), db: Session = Depends(get_db)):
+def create_task(
+    payload: TaskCreate,
+    account: Account = Depends(get_current_account),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     week = weeks_mod.get_or_create_current_week(db, account.id)
-    task = tasks_mod.create_task(db, account, payload, default_week_id=week.id)
+    task = tasks_mod.create_task(db, account, payload, default_week_id=week.id, actor_id=user.id)
     return tasks_mod.task_to_dict(task)
 
 
@@ -135,11 +142,36 @@ def task_tree(task_id: int, account: Account = Depends(get_current_account), db:
 
 
 @app.patch("/tasks/{task_id}")
-def patch_task(task_id: int, payload: TaskUpdate, account: Account = Depends(get_current_account), db: Session = Depends(get_db)):
-    task = tasks_mod.update_task(db, account.id, task_id, payload)
+def patch_task(
+    task_id: int,
+    payload: TaskUpdate,
+    account: Account = Depends(get_current_account),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    task = tasks_mod.update_task(db, account.id, task_id, payload, actor_id=user.id)
     if task is None:
         raise HTTPException(404, "task not found")
     return tasks_mod.task_to_dict(task)
+
+
+@app.post("/tasks/{task_id}/comments")
+def add_comment(
+    task_id: int,
+    payload: CommentCreate,
+    account: Account = Depends(get_current_account),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    comment = collaboration.add_comment(db, account.id, task_id, author_id=user.id, body=payload.body)
+    if comment is None:
+        raise HTTPException(404, "task not found")
+    return collaboration.list_comments(db, account.id, task_id)[-1]
+
+
+@app.get("/tasks/{task_id}/comments")
+def list_comments(task_id: int, account: Account = Depends(get_current_account), db: Session = Depends(get_db)):
+    return collaboration.list_comments(db, account.id, task_id)
 
 
 @app.post("/tasks/parse")
@@ -156,8 +188,13 @@ def optimize_week(week_id: int, payload: OptimizeRequest, account: Account = Dep
 # --- Deliverables -------------------------------------------------------------
 
 @app.post("/deliverables")
-def create_deliverable(payload: DeliverableCreate, account: Account = Depends(get_current_account), db: Session = Depends(get_db)):
-    d = deliverables_mod.create_deliverable(db, account, payload)
+def create_deliverable(
+    payload: DeliverableCreate,
+    account: Account = Depends(get_current_account),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    d = deliverables_mod.create_deliverable(db, account, payload, actor_id=user.id)
     return outer_agent.deliverable_to_dict(d)
 
 
@@ -222,6 +259,13 @@ def digest(week_id: int | None = None, account: Account = Depends(get_current_ac
 @app.post("/inbox/scan")
 def scan_inbox(account: Account = Depends(get_current_account), db: Session = Depends(get_db)):
     return email_context.scan_inbox(db, account.id)
+
+
+# --- Team activity feed -------------------------------------------------------
+
+@app.get("/activity")
+def activity_feed(limit: int = 50, account: Account = Depends(get_current_account), db: Session = Depends(get_db)):
+    return collaboration.list_activity(db, account.id, limit=limit)
 
 
 # --- Library registry (platform-wide, not tenant data) ------------------------
