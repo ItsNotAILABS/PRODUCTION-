@@ -10,18 +10,57 @@ This is the step from "all cores on one box" to "many boxes" — the fleet
 the Aether platform already models (Cloudflare Workers, ICP canisters,
 bare-metal nodes) becomes the compute substrate.
 
+## Two ways to attach a node: PUSH and PULL
+
+The mesh supports both directions, because different machines can join in
+different ways:
+
+- **PUSH** (`worker.py` + `coordinator.py`) — the coordinator knows a set
+  of worker URLs and *posts* ranges to them. Best for a fleet of machines
+  you control with reachable addresses.
+- **PULL** (`browser/mesh_server.py` + a pulling node) — the coordinator
+  is a work *queue*; nodes *dial out*, claim a chunk, compute it, and
+  submit the result. Best for machines with no inbound address — laptops,
+  home servers behind NAT, phones. Two pulling nodes exist:
+  - `browser/node.html` — any device that opens a page; computes in
+    **WebAssembly**, one Web Worker per core. No toolchain needed.
+  - `pull_worker.py` — a headless, persistent node that computes with the
+    **native C++ engine** (fastest). The 24/7 desktop/server equivalent of
+    a browser tab; dials out, so it works from behind NAT.
+
 ## Pieces
 
-- **`worker.py`** — one compute node. A stdlib HTTP server that computes
-  an assigned global population range using the native C++ engine and
-  returns the coherences. Run one per machine (or several per machine on
-  different ports). Zero dependencies beyond the built native library.
+- **`worker.py`** — one PUSH compute node. A stdlib HTTP server that
+  computes an assigned global population range using the native C++ engine
+  and returns the coherences. Zero dependencies beyond the native library.
 - **`coordinator.py`** — partitions a `BatchJob` across a set of worker
   URLs, dispatches the ranges concurrently, reassembles the ordered
-  result, and falls back to local compute for any range whose worker
-  fails.
-- **`test_mesh.py`** — spins up real worker processes and proves the
+  result, and falls back to local compute for any range whose worker fails.
+- **`pull_worker.py`** — a headless native PULL node. Point it at a
+  `mesh_server.py` coordinator (`--server URL`) and it claims → computes →
+  submits until stopped. Runs concurrent claim loops (`--loops`) to overlap
+  network I/O; splits cores across them. `test_pull_worker.py` proves it
+  end-to-end (bit-identical drain + lease-reclaim on node death).
+- **`browser/mesh_server.py`** — the PULL work queue, with **quorum result
+  integrity** for open/public meshes (see below). Serves the browser node
+  bundle too.
+- **`test_mesh.py`** — spins up real PUSH worker processes and proves the
   whole thing (see "Verified" below).
+
+## Result integrity on a public mesh
+
+Once anyone can join and submit results, a single malicious node can
+poison a job. The pull coordinator defends against this with **quorum
+verification**: a job may set `quorum >= 2`, and a chunk is only trusted
+once that many *independent* nodes return results that **agree within a
+tolerance** (~1e-9 — honest nodes agree to machine epsilon within a kernel
+and ~1e-9 across native/WASM/JS; a poisoner's values are nowhere close).
+Every disagreeing submission pulls in one more replica; a chunk that can't
+reach agreement is marked `contested` and **fails loudly** rather than
+returning corrupt data — losing nodes are flagged for reputation. Default
+`quorum` is 1 (trusting) for a closed mesh of workers you control.
+`browser/test_quorum_integrity.py` proves a lone poisoner corrupts a
+quorum-1 job but is outvoted and flagged under quorum-3.
 
 ## The correctness key
 
@@ -87,12 +126,14 @@ number of machines, not just the cores in one. The correctness and
 resilience guarantees above are what make that safe to do.
 
 - **Proven**: correct range-partitioning, real HTTP distribution across
-  separate processes, dead-worker fallback, bit-identical results — all
-  on localhost worker processes.
+  separate processes (both PUSH and PULL), dead-worker/vanished-node
+  reclaim, bit-identical results, and **poison resistance via quorum** —
+  all on localhost worker processes.
 - **Not yet done**: automatic worker discovery from the Aether platform's
-  fleet registry (right now you pass worker URLs explicitly), a
-  coordinator HTTP endpoint so the console can submit mesh jobs, and a
-  real multi-machine benchmark (needs more than one host — can't be run
-  from this single-box environment). The localhost test proves the
-  transport and math; multi-machine throughput scaling is the same code
-  with different URLs.
+  fleet registry (right now you pass worker URLs, or point pull nodes at a
+  coordinator), a console button to submit mesh jobs, queue persistence
+  across a coordinator restart (state is in-memory today), and a real
+  multi-machine benchmark (needs more than one host — can't be run from
+  this single-box environment). The localhost tests prove the transport,
+  the math, and the integrity model; multi-machine throughput scaling is
+  the same code with different URLs.

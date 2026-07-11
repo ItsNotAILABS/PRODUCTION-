@@ -30,7 +30,9 @@ function loadState(statePath) {
   try {
     return JSON.parse(fs.readFileSync(statePath, 'utf8'));
   } catch {
-    return freshState();
+    // Empty by default — the operator's own instance, not a demo. Set
+    // AETHER_SEED_DEMO=1 to pre-populate a sample fleet for a first look.
+    return freshState(process.env.AETHER_SEED_DEMO === '1');
   }
 }
 

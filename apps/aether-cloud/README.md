@@ -58,9 +58,11 @@ Every claim below was tested against the real code, not assumed:
   `freshState()` used to unconditionally seed 3 demo targets, which
   meant a fresh tenant (register limit was 1, in the old plan-based
   design) started already over their own limit. Fixed with an opt-in
-  `seedDemo` parameter — the free console and desktop app are unaffected
-  (still seed 3 demo targets, re-verified), Aether Cloud tenants now
-  start genuinely empty.
+  `seedDemo` parameter. That default has since flipped everywhere:
+  `freshState()` now starts **empty** for the console and desktop app
+  too (these are run by their operator against real fleets — a seeded
+  fake fleet is noise, not a demo). Pass `seedDemo=true`, or set
+  `AETHER_SEED_DEMO=1` in the transport, only for a first-look tour.
 - Stripe webhook signature verification (dormant but tested anyway, since
   it's cheap to keep correct): real HMAC-SHA256 via Web Crypto — valid
   signatures accepted, wrong secret/tampered payload/missing header all

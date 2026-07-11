@@ -344,7 +344,10 @@ async function loadOverview() {
   const fleet = await api('/fleet');
   const workloads = await api('/workloads');
 
-  document.getElementById('kv-banner').classList.toggle('show', health.beat === 0 && fleet.total_targets === 0);
+  // Show the "state won't persist" banner only when the backend explicitly
+  // reports no persistence (Cloudflare with no KV binding). The desktop/local
+  // server persists to a file and omits the field, so the banner stays hidden.
+  document.getElementById('kv-banner').classList.toggle('show', health.persistent === false);
 
   const succeeded = workloads.filter(w => w.phase === 'succeeded').length;
   const el = document.getElementById('overview-stats');

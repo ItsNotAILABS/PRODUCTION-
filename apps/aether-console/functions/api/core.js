@@ -93,7 +93,11 @@ function makeIcpTarget(name, canisterId, network = 'ic') {
   };
 }
 
-function freshState(seedDemo = true) {
+// Starts EMPTY by default. These consoles are run by their operator against
+// real fleets, so seeded fake targets aren't a helpful demo — they're noise
+// that has to be deleted before the tool is usable. Pass seedDemo=true (or set
+// AETHER_SEED_DEMO=1 in the transport) only for tours/tests.
+function freshState(seedDemo = false) {
   const state = {
     beat: 0,
     targets: {},

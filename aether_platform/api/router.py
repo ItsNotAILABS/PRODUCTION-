@@ -42,17 +42,28 @@ from aether_platform.deployer import DeployAgent, DeployExecutor
 
 
 def build_platform() -> Tuple[FleetManager, OrchestrationEngine, PolicyEngine]:
-    """Construct a fresh platform instance, seeded with a demo fleet."""
+    """
+    Construct a fresh platform instance.
+
+    Starts EMPTY by default — no fake targets — because this is a real
+    system its operator uses directly; seeded demo fleets are worthless
+    (worse: misleading) to someone running actual workloads. The three
+    sample Cloudflare/ICP targets are opt-in via AETHER_SEED_DEMO=1, kept
+    only so tests and first-look tours can populate a fleet on demand.
+    """
     fleet  = FleetManager()
     engine = OrchestrationEngine(fleet)
     policy = PolicyEngine()
 
-    fleet.register(make_cloudflare_target("Aether-Edge-1", "demo-account", "aether-edge-1"))
-    fleet.register(make_cloudflare_target("Aether-Edge-2", "demo-account", "aether-edge-2"))
-    fleet.register(make_icp_target("Aether-ICP-1", "rrkah-fqaaa-aaaaa-aaaaq-cai"))
-    for t in fleet.targets:
-        fleet.heartbeat(t.target_id, 12.0)
+    if os.environ.get("AETHER_SEED_DEMO") == "1":
+        fleet.register(make_cloudflare_target("Aether-Edge-1", "demo-account", "aether-edge-1"))
+        fleet.register(make_cloudflare_target("Aether-Edge-2", "demo-account", "aether-edge-2"))
+        fleet.register(make_icp_target("Aether-ICP-1", "rrkah-fqaaa-aaaaa-aaaaq-cai"))
+        for t in fleet.targets:
+            fleet.heartbeat(t.target_id, 12.0)
 
+    # The operator principal is NOT demo data — without a sovereign
+    # principal no one can authorize a deploy, so it's always present.
     policy.register_principal(Principal(
         principal_id="admin-001",
         name="Platform Admin",
@@ -62,9 +73,9 @@ def build_platform() -> Tuple[FleetManager, OrchestrationEngine, PolicyEngine]:
 
     # Real deployment is opt-in: set AETHER_REAL_DEPLOY=1 to have tick()
     # actually run wrangler/dfx/aws (validate → deploy → verify → rollback)
-    # via the DeployAgent. Left off by default so the seeded demo fleet
-    # keeps its simulated-success behavior; flipping the flag makes deploys
-    # real (and honestly "staged" where a CLI/credential is absent).
+    # via the DeployAgent. Left off by default so a tick is a safe no-op
+    # dry run; flipping the flag makes deploys real (and honestly "staged"
+    # where a CLI/credential is absent).
     if os.environ.get("AETHER_REAL_DEPLOY") == "1":
         engine.attach_deploy_agent(DeployAgent(
             executor=DeployExecutor(),

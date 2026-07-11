@@ -23,14 +23,39 @@ order parameter R across all registered targets). If R falls below
 φ⁻¹ ≈ 0.618, the deploy queue freezes automatically — no partial rollout
 onto an unhealthy fleet.
 
+## Demo-free by design
+
+This console starts **empty** — no fake targets. It's meant to be run by
+its operator against a real fleet, so a seeded demo would just be noise you
+have to delete before the tool is usable. You register your own targets and
+they're the only thing you see.
+
+If you specifically want a populated fleet for a first-look tour or a
+screenshot, set `AETHER_SEED_DEMO=1` (or call `freshState(true)`): that
+adds the three sample targets. It is off by default everywhere.
+
 ## Deploy
 
-### Option A — drag and drop (fastest)
+### Option 0 — run it for real, right now, no cloud account
+
+The desktop server (`apps/aether-desktop/server.js`) is a real, usable,
+zero-credential deployment — plain Node, local JSON persistence, the same
+route core as the edge version:
+
+```bash
+cd apps/aether-desktop && node -e "require('./server.js').createServer('./aether-state.json', 7873)"
+# open http://127.0.0.1:7873 — starts empty, register your real targets
+```
+
+State persists to `aether-state.json`, so your fleet survives restarts.
+This is the recommended way to start using it today.
+
+### Option A — Cloudflare Pages, drag and drop
 
 1. Go to the Cloudflare dashboard → **Workers & Pages** → **Create application** → **Pages** → **Upload assets**.
 2. Upload this entire folder (or the zip you were given) as-is.
 3. Cloudflare auto-detects `functions/api/[[path]].js` and wires it up — no build step needed.
-4. Open the assigned `*.pages.dev` URL. The console boots with a seeded demo fleet (2 Cloudflare targets + 1 ICP canister).
+4. Open the assigned `*.pages.dev` URL. The console boots **empty** (no demo fleet); add a KV binding below so your registered targets persist across requests.
 
 ### Option B — wrangler CLI
 
@@ -38,6 +63,10 @@ onto an unhealthy fleet.
 cd apps/aether-console
 npx wrangler pages deploy .
 ```
+
+Both cloud options need your own Cloudflare account (the `wrangler` login /
+API token is yours — none is bundled here). Until a KV namespace is bound,
+edge state resets per request; bind one (below) for real use.
 
 ### Persisting state (recommended)
 

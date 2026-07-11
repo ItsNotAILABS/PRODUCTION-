@@ -13,10 +13,10 @@
 
 import { freshState, route } from './core.js';
 
-async function loadState(kv) {
-  if (!kv) return freshState();
+async function loadState(kv, seedDemo = false) {
+  if (!kv) return freshState(seedDemo);
   const raw = await kv.get('state', 'json');
-  return raw || freshState();
+  return raw || freshState(seedDemo);
 }
 
 async function saveState(kv, state) {
@@ -54,9 +54,16 @@ export async function onRequest(context) {
 
   const url = new URL(request.url);
   const body = request.method === 'POST' ? await readBody(request) : {};
-  const state = await loadState(kv);
+  const state = await loadState(kv, env.AETHER_SEED_DEMO === '1');
 
   const { status, data, dirty } = route(request.method, url.pathname, body, state);
+
+  // Surface whether state actually persists (KV bound), so the UI can warn
+  // honestly instead of guessing from an empty fleet — which used to be a
+  // proxy back when a fresh console always seeded demo targets.
+  if (url.pathname.replace(/\/$/, '').endsWith('/health') && data && typeof data === 'object') {
+    data.persistent = !!kv;
+  }
 
   if (dirty) await saveState(kv, state);
   return json(data, status);
