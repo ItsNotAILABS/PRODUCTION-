@@ -38,9 +38,21 @@ adds the three sample targets. It is off by default everywhere.
 
 ### Option 0 — run it for real, right now, no cloud account
 
-The desktop server (`apps/aether-desktop/server.js`) is a real, usable,
-zero-credential deployment — plain Node, local JSON persistence, the same
-route core as the edge version:
+**Fullest single command** — the Python backend serves this console *and* the
+Worker Foundry + Studio in one process:
+
+```bash
+python3 -m aether_platform.api.server
+# open http://localhost:7700 — dashboard, Fleet, and the "Worker Foundry" tab
+```
+
+Starts empty (register your real targets), deploys aren't gated on an empty
+fleet, and the Foundry tab lets you download any of 20 real headless workers or
+have Claude build a custom one (Studio needs ANTHROPIC_API_KEY; the 20 ready
+types don't).
+
+**Or the desktop server** (`apps/aether-desktop/server.js`) — plain Node, local
+JSON persistence, same route core, but without the Foundry/Studio endpoints:
 
 ```bash
 cd apps/aether-desktop && node -e "require('./server.js').createServer('./aether-state.json', 7873)"
@@ -48,7 +60,6 @@ cd apps/aether-desktop && node -e "require('./server.js').createServer('./aether
 ```
 
 State persists to `aether-state.json`, so your fleet survives restarts.
-This is the recommended way to start using it today.
 
 ### Option A — Cloudflare Pages, drag and drop
 

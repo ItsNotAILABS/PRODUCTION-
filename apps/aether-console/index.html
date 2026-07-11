@@ -57,6 +57,17 @@
   .page-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
   .page-title { font-family: var(--font-serif); font-size: 1.6rem; font-weight: 600; }
   .page-sub { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.15rem; }
+  .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.75rem; margin-top: 0.5rem; }
+  .wcard { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; display: flex; flex-direction: column; }
+  .wcard h4 { font-size: 0.92rem; margin-bottom: 0.2rem; }
+  .wcard .cat { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .wcard p { font-size: 0.76rem; color: var(--text-muted); margin: 0.4rem 0 0.6rem; flex: 1; }
+  .wcard .params { display: none; margin-bottom: 0.5rem; }
+  .wcard.open .params { display: block; }
+  .wcard .params label { display: block; font-size: 0.68rem; color: var(--text-muted); margin: 0.35rem 0 0.1rem; }
+  .wcard .params input { width: 100%; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.4rem; font-family: var(--font-mono); font-size: 0.74rem; }
+  .wcard .row { display: flex; gap: 0.4rem; }
+  .wcard button { font-size: 0.78rem; padding: 0.4rem 0.7rem; }
 
   /* ── Cards & grid ──────────────────────────────────── */
   .grid { display: grid; gap: 1rem; }
@@ -146,6 +157,7 @@
       <div class="nav-item" data-page="fleet"><span class="nav-icon">☁</span> Fleet</div>
       <div class="nav-item" data-page="workloads"><span class="nav-icon">▣</span> Workloads</div>
       <div class="nav-item" data-page="protocols"><span class="nav-icon">◉</span> Protocols</div>
+      <div class="nav-item" data-page="foundry"><span class="nav-icon">⚒</span> Worker Foundry</div>
       <div class="nav-item" data-page="policy"><span class="nav-icon">◆</span> Policy</div>
     </nav>
     <div class="sidebar-footer">
@@ -303,6 +315,35 @@
         </table>
       </div>
     </section>
+
+    <!-- WORKER FOUNDRY -->
+    <section id="page-foundry" class="page">
+      <h1 class="page-title">Worker Foundry</h1>
+      <p class="page-sub">Spin up a headless worker in one pick and one download — real, runnable programs, not stubs. Or describe one and let Claude build it.</p>
+
+      <div id="foundry-unavailable" class="kv-banner" style="display:none;">
+        The Foundry backend isn't attached to this deployment. Run the platform with
+        <code>python3 -m aether_platform.api.server</code> (serves this console + the Foundry + Studio),
+        then reload.
+      </div>
+
+      <div class="section-title">Describe a worker — Claude builds it</div>
+      <div class="card">
+        <textarea id="studio-prompt" rows="3" placeholder="e.g. A headless node that logs into our dashboard, exports the CSV, and uploads it to our endpoint every hour"
+          style="width:100%; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:8px; padding:0.6rem; font-family:var(--font-mono); font-size:0.82rem;"></textarea>
+        <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+          <button onclick="studioGenerate()">⚒ Generate with Claude</button>
+          <span class="stat-hint" id="studio-status"></span>
+        </div>
+        <pre id="studio-output" style="display:none; margin-top:0.75rem; max-height:340px; overflow:auto; background:var(--bg-elevated); border:1px solid var(--border); border-radius:8px; padding:0.75rem; font-family:var(--font-mono); font-size:0.76rem; white-space:pre-wrap;"></pre>
+        <div id="studio-actions" style="display:none; margin-top:0.5rem;">
+          <button onclick="downloadStudio()">↓ Download</button>
+        </div>
+      </div>
+
+      <div class="section-title">Or pick a ready-made type <span id="foundry-count" class="badge"></span></div>
+      <div id="foundry-grid" class="grid-cards"><div class="empty">Loading templates…</div></div>
+    </section>
   </main>
 </div>
 
@@ -318,6 +359,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     item.classList.add('active');
     document.getElementById('page-' + item.dataset.page).classList.add('active');
+    if (item.dataset.page === 'foundry') loadFoundry();
   });
 });
 
@@ -336,6 +378,99 @@ async function api(path, opts = {}) {
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   return res.json();
+}
+
+// ── Worker Foundry + Studio ──────────────────────────
+let _foundryLoaded = false;
+let _studioSpec = null;
+
+function b64ToBlob(b64, type) {
+  const bin = atob(b64); const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: type || 'application/octet-stream' });
+}
+function download(blob, name) {
+  const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click();
+  a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function loadFoundry() {
+  if (_foundryLoaded) return;
+  const grid = document.getElementById('foundry-grid');
+  let data;
+  try { data = await api('/foundry/templates'); } catch { data = null; }
+  if (!data || data.error || !data.templates) {
+    document.getElementById('foundry-unavailable').style.display = 'block';
+    grid.innerHTML = '';
+    return;
+  }
+  _foundryLoaded = true;
+  document.getElementById('foundry-unavailable').style.display = 'none';
+  document.getElementById('foundry-count').textContent = data.templates.length + ' types';
+  grid.innerHTML = data.templates.map((t, i) => `
+    <div class="wcard" id="wcard-${i}">
+      <div class="cat">${t.category} · ${t.runtime}</div>
+      <h4>${t.name}</h4>
+      <p>${t.summary}</p>
+      <div class="params">
+        ${(t.params || []).map(pm => `
+          <label>${pm.label || pm.name}</label>
+          <input data-name="${pm.name}" value="${(pm.default ?? '').toString().replace(/"/g, '&quot;')}" placeholder="${(pm.help || '').replace(/"/g, '&quot;')}">
+        `).join('')}
+        ${(t.needs && t.needs.length) ? `<div class="stat-hint" style="margin-top:0.4rem;">Needs: ${t.needs.join('; ')}</div>` : ''}
+      </div>
+      <div class="row">
+        <button onclick="document.getElementById('wcard-${i}').classList.toggle('open')">Configure</button>
+        <button onclick="downloadWorker('${t.id}', ${i})">↓ Download</button>
+      </div>
+    </div>`).join('');
+}
+
+function collectParams(cardIdx) {
+  const params = {};
+  document.querySelectorAll(`#wcard-${cardIdx} .params input`).forEach(inp => {
+    params[inp.dataset.name] = inp.value;
+  });
+  return params;
+}
+
+async function downloadWorker(templateId, cardIdx) {
+  try {
+    const res = await api('/foundry/download', { method: 'POST', body: { template_id: templateId, params: collectParams(cardIdx) } });
+    if (res.error) { toast(res.error, false); return; }
+    download(b64ToBlob(res.zip_base64, 'application/zip'), res.filename);
+    toast('Downloaded ' + res.filename);
+  } catch (e) { toast('Download failed', false); }
+}
+
+async function studioGenerate() {
+  const prompt = document.getElementById('studio-prompt').value.trim();
+  if (!prompt) { toast('Describe the worker first', false); return; }
+  const status = document.getElementById('studio-status');
+  const out = document.getElementById('studio-output');
+  const actions = document.getElementById('studio-actions');
+  status.textContent = 'Claude is building your worker…'; out.style.display = 'none'; actions.style.display = 'none';
+  let res;
+  try { res = await api('/studio/generate', { method: 'POST', body: { prompt } }); }
+  catch { status.textContent = 'Studio backend not reachable.'; return; }
+  if (res.error) {
+    status.textContent = res.error.startsWith('no_api_key')
+      ? 'Studio needs an Anthropic API key. Set ANTHROPIC_API_KEY on the backend, then retry. (The 20 ready-made types download without a key.)'
+      : res.error;
+    return;
+  }
+  _studioSpec = res;
+  status.textContent = `${res.filename} · ${res.runtime}` + (res.needs && res.needs.length ? ` · needs: ${res.needs.join(', ')}` : '');
+  out.textContent = (res.notes ? '// ' + res.notes + '\n// run: ' + res.run + '\n\n' : '') + res.code;
+  out.style.display = 'block'; actions.style.display = 'block';
+}
+
+function downloadStudio() {
+  if (!_studioSpec) return;
+  const type = _studioSpec.runtime === 'node' ? 'text/javascript' : 'text/x-python';
+  download(new Blob([_studioSpec.code], { type }), _studioSpec.filename);
+  toast('Downloaded ' + _studioSpec.filename);
 }
 
 // ── Overview ─────────────────────────────────────────

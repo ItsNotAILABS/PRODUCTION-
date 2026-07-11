@@ -29,6 +29,7 @@ Routes:
 """
 from __future__ import annotations
 
+import base64
 import os
 import time
 from typing import Any, Dict, Tuple
@@ -39,6 +40,32 @@ from aether_platform.fleet import (
 from aether_platform.orchestrator import OrchestrationEngine, Workload, WorkloadKind
 from aether_platform.auth import PolicyEngine, Principal, Ring, Action
 from aether_platform.deployer import DeployAgent, DeployExecutor
+
+# Worker Foundry + Studio are lazy singletons — the Foundry reads its manifest
+# once, the Studio holds no key. Import-guarded so the core API still boots even
+# if these optional subsystems are absent.
+try:
+    from aether_platform.foundry import Foundry, FoundryError
+    from aether_platform.studio import WorkerStudio, StudioError
+    _FOUNDRY: "Foundry | None" = None
+    _STUDIO: "WorkerStudio | None" = None
+    _FOUNDRY_OK = True
+except Exception:  # noqa: BLE001
+    _FOUNDRY_OK = False
+
+
+def _foundry() -> "Foundry":
+    global _FOUNDRY
+    if _FOUNDRY is None:
+        _FOUNDRY = Foundry()
+    return _FOUNDRY
+
+
+def _studio() -> "WorkerStudio":
+    global _STUDIO
+    if _STUDIO is None:
+        _STUDIO = WorkerStudio(foundry=_foundry())
+    return _STUDIO
 
 
 def build_platform() -> Tuple[FleetManager, OrchestrationEngine, PolicyEngine]:
@@ -132,6 +159,13 @@ def handle(
             status = engine.get_protocol_status(parts[2])
             return (200, status) if status else (404, {"error": "not_found"})
 
+        # ── Worker Foundry (catalog) ─────────────────────────────────────
+        if p == "/api/foundry/templates":
+            if not _FOUNDRY_OK:
+                return 503, {"error": "foundry_unavailable"}
+            return 200, {"templates": _foundry().list_templates(),
+                         "categories": _foundry().categories()}
+
         return 404, {"error": "not_found"}
 
     # ── POST routes ──────────────────────────────────────────────────────
@@ -201,6 +235,45 @@ def handle(
                 return 404, {"error": f"protocol_not_found: {protocol_id}"}
             tick = engine.tick(force=bool(body.get("force", False)))
             return 201, {"workload": w.to_dict(), "deploy_result": tick}
+
+        # ── Worker Foundry (generate + download) ─────────────────────────
+        if p == "/api/foundry/generate":
+            if not _FOUNDRY_OK:
+                return 503, {"error": "foundry_unavailable"}
+            try:
+                rendered = _foundry().render(body.get("template_id", ""), body.get("params") or {})
+                return 200, rendered
+            except FoundryError as e:
+                return 400, {"error": str(e)}
+
+        if p == "/api/foundry/download":
+            if not _FOUNDRY_OK:
+                return 503, {"error": "foundry_unavailable"}
+            try:
+                blob = _foundry().bundle_zip(body.get("template_id", ""), body.get("params") or {})
+                return 200, {"template_id": body.get("template_id", ""),
+                             "filename": f"{body.get('template_id', 'worker')}.zip",
+                             "zip_base64": base64.b64encode(blob).decode()}
+            except FoundryError as e:
+                return 400, {"error": str(e)}
+
+        # ── Worker Studio (Claude builds a custom worker) ────────────────
+        if p == "/api/studio/generate":
+            if not _FOUNDRY_OK:
+                return 503, {"error": "studio_unavailable"}
+            try:
+                spec = _studio().generate(
+                    body.get("prompt", ""),
+                    api_key=body.get("api_key"),
+                    model=body.get("model"),
+                )
+                return 200, spec
+            except StudioError as e:
+                # 400 for a bad request (empty prompt); 402 when the operator
+                # simply hasn't configured a key — the honest, actionable case.
+                msg = str(e)
+                code = 402 if msg.startswith("no_api_key") else 400
+                return code, {"error": msg}
 
         return 404, {"error": "not_found"}
 
