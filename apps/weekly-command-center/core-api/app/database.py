@@ -3,6 +3,9 @@ zero-config default, good for `run_local.sh`) or Postgres (production —
 `postgresql+psycopg2://user:pass@host/db`). Every model and query in this app
 goes through SQLAlchemy's Core/ORM so the same code runs unmodified on
 either engine; nothing here hand-writes dialect-specific SQL.
+
+Migrations are managed by Alembic (alembic/) — `alembic upgrade head` evolves
+the schema, and init_db() calls it on startup.
 """
 from __future__ import annotations
 
@@ -11,6 +14,8 @@ from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from alembic.config import Config
+from alembic.command import upgrade
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -29,7 +34,16 @@ class Base(DeclarativeBase):
 
 def init_db() -> None:
     from . import db_models  # noqa: F401  (register models on Base.metadata)
-    Base.metadata.create_all(bind=engine)
+
+    # Run Alembic migrations using the configured engine (which may be
+    # monkeypatched in tests). Pass the engine directly to avoid creating
+    # a fresh connection that would miss test fixtures.
+    alembic_cfg = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+    with engine.begin() as connection:
+        alembic_cfg.attributes["connection"] = connection
+        upgrade(alembic_cfg, "head")
+
     from .billing import ensure_default_plans
     with SessionLocal() as session:
         ensure_default_plans(session)

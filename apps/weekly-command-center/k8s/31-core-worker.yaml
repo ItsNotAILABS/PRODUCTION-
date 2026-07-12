@@ -1,0 +1,39 @@
+# Inner agent scheduler (worker.py). Deliberately fixed at 1 replica — see
+# worker.py's docstring: running the scheduler twice would fire every
+# housekeeping job (pressure recompute, week continuity, library scan) N
+# times. Do not attach an HPA to this Deployment.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-worker
+  namespace: weekly-command-center
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # never run two replicas simultaneously during a rollout
+  selector:
+    matchLabels:
+      app: core-worker
+  template:
+    metadata:
+      labels:
+        app: core-worker
+    spec:
+      containers:
+        - name: core-worker
+          image: REGISTRY_PLACEHOLDER/wcc-core-api:latest
+          command: ["python3", "worker.py"]
+          envFrom:
+            - configMapRef: { name: wcc-config }
+          env:
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: POSTGRES_PASSWORD } }
+            - name: POSTGRES_DB
+              valueFrom: { secretKeyRef: { name: wcc-secrets, key: POSTGRES_DB } }
+            - name: DATABASE_URL
+              value: "postgresql+psycopg2://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }

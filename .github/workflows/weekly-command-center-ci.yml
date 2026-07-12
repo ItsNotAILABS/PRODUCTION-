@@ -1,0 +1,97 @@
+# Real CI for apps/weekly-command-center/: runs the actual pytest suite,
+# type-checks the Cloudflare Worker against the real @cloudflare/* packages,
+# and validates both docker-compose files. No themed status messages here —
+# every job either genuinely passes or genuinely fails.
+
+name: Weekly Command Center CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/weekly-command-center/**"
+  push:
+    branches: [main]
+    paths:
+      - "apps/weekly-command-center/**"
+
+concurrency:
+  group: weekly-command-center-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-api-tests:
+    name: core-api pytest suite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/weekly-command-center/core-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt pytest httpx
+
+      - run: python3 -m pytest tests/ -v
+
+  cloudflare-typecheck:
+    name: Cloudflare Worker typecheck + dry-run
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/weekly-command-center/cloudflare
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: bash scripts/sync-assets.sh
+      - run: npx wrangler deploy --dry-run --containers-rollout=none
+
+  gateway-node-smoke:
+    name: gateway-node smoke test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/weekly-command-center/gateway-node
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: npm ci
+
+      - name: Start gateway and check /healthz
+        run: |
+          node server.js &
+          for i in $(seq 1 10); do
+            if curl -sf http://127.0.0.1:3000/healthz; then exit 0; fi
+            sleep 1
+          done
+          echo "gateway-node never became healthy" >&2
+          exit 1
+
+  compose-config-validate:
+    name: docker-compose config validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/weekly-command-center
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: docker compose -f docker-compose.yml config
+
+      - run: |
+          POSTGRES_PASSWORD=validate-only \
+          JWT_SECRET=validate-only \
+          CORS_ORIGINS=https://example.com \
+          docker compose -f docker-compose.prod.yml config

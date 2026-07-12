@@ -1,0 +1,43 @@
+# Optional — only needed if ENABLE_REALTIME / ENABLE_SUPERCOMPUTE features
+# that use Redis (caching, pub/sub) are turned on. Safe to leave deployed
+# even if unused; app/health.py and app/realtime.py degrade gracefully
+# when Redis is unreachable.
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: weekly-command-center
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: weekly-command-center
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+          readinessProbe:
+            exec: { command: ["redis-cli", "ping"] }
+            initialDelaySeconds: 5
+            periodSeconds: 10

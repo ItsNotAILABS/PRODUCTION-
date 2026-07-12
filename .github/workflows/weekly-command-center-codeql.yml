@@ -1,0 +1,52 @@
+# Real static analysis (GitHub's CodeQL engine) for apps/weekly-command-center/.
+# Deliberately does not run on a schedule or repo-wide — scoped to this app's
+# own paths so it doesn't attempt to analyze the rest of the repository,
+# which this workflow doesn't own or maintain.
+
+name: "Weekly Command Center CodeQL"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/weekly-command-center/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/weekly-command-center/**"
+
+concurrency:
+  group: weekly-command-center-codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          - language: python
+            build-mode: none
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          paths:
+            - apps/weekly-command-center
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

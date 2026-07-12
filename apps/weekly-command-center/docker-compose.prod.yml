@@ -38,6 +38,11 @@ services:
       OPTIMIZER_URL: http://optimizer-julia:8100
       TASKRULES_URL: http://taskrules-haskell:8200
       ENABLE_INNER_AGENT: "false"
+      ADMIN_API_KEY: "${ADMIN_API_KEY:-}"
+      STRIPE_API_KEY: "${STRIPE_API_KEY:-}"
+      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
+      SENDGRID_API_KEY: "${SENDGRID_API_KEY:-}"
+      SENDGRID_FROM_EMAIL: "${SENDGRID_FROM_EMAIL:-}"
     expose:
       - "8000"
 

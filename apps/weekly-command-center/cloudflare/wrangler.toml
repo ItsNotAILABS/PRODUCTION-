@@ -1,0 +1,45 @@
+# Cloudflare Containers deployment. Not deployed in this session (no
+# Cloudflare account/CLI access in the sandbox this was authored in) — but
+# every field below was checked against the actual `wrangler` (4.107.0) and
+# `@cloudflare/containers` (0.3.7) package type definitions pulled from npm,
+# not guessed. Still, run `wrangler dev` and confirm against current docs
+# before `wrangler deploy` — this product surface moves fast.
+name = "weekly-command-center"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The one container image bundling core-api + core-worker + optimizer-julia +
+# taskrules-haskell (see ../cloudflare/Dockerfile and
+# supervisord/supervisord.conf for why they're one image, not four).
+[[containers]]
+class_name = "WccAppContainer"
+image = "./Dockerfile"
+# The Dockerfile COPYs core-api/, optimizer-julia/, taskrules-haskell/, which
+# live one level up from this file — the build context must be the app root,
+# not this cloudflare/ directory (which is the default).
+image_build_context = ".."
+max_instances = 1
+# "standard" is the deprecated alias for "standard-1" (1 vCPU / 4GB RAM / 8GB
+# disk) — bump to standard-2/3 if the Julia+Haskell+Python sidecars need more.
+instance_type = "standard-1"
+
+[[durable_objects.bindings]]
+name = "WCC_CONTAINER"
+class_name = "WccAppContainer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["WccAppContainer"]
+
+# Static frontend (synced from ../gateway-node/public via scripts/sync-assets.sh)
+[assets]
+directory = "./public"
+binding = "ASSETS"
+# Our own fetch handler in src/index.ts always decides routing (including
+# falling through to ASSETS.fetch for the frontend) rather than relying on
+# Cloudflare's default asset-first routing.
+run_worker_first = true
+
+# Secrets (JWT_SECRET, DATABASE_URL, CORS_ORIGINS) are NOT set here — use
+# `wrangler secret put <NAME>` for each. See ../CLOUDFLARE_DEPLOY.md.

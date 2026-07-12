@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .db_models import Account, Plan, User
+from .emails import send_invite_email, send_welcome_email
 from .schemas import LoginRequest, SignupRequest, TokenResponse
 from .security import TokenError, create_access_token, decode_access_token, hash_password, verify_password
 
@@ -64,6 +65,9 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     db.refresh(account)
+
+    plan = db.get(Plan, account.plan_id)
+    send_welcome_email(user.email, account.name, plan.name if plan else account.plan_id)
 
     token = create_access_token(user.id, account.id)
     user_json, account_json = _user_and_account_json(user, account)
@@ -135,6 +139,17 @@ def invite_teammate(
 
     user = User(account_id=account.id, email=payload.email, hashed_password=hash_password(payload.password), role="member")
     db.add(user)
+    db.flush()
+
+    from . import collaboration
+    collaboration.log_activity(
+        db, account.id, actor_id=current_user.id, verb="teammate_joined",
+        target_type="user", target_id=user.id, summary=f"{user.email} joined the team",
+    )
+
     db.commit()
     db.refresh(user)
+
+    send_invite_email(user.email, account.name, current_user.email)
+
     return {"id": user.id, "email": user.email, "role": user.role}

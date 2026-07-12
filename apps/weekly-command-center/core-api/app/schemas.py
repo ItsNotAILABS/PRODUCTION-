@@ -75,3 +75,7 @@ class ParseRequest(BaseModel):
 class OptimizeRequest(BaseModel):
     week_id: Optional[int] = None
     daily_capacity_minutes: int = 360
+
+
+class CommentCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=4000)

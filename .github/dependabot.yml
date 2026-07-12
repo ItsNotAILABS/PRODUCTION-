@@ -1,0 +1,70 @@
+version: 2
+updates:
+  # Weekly Command Center — scoped intentionally to apps/weekly-command-center/.
+  # Not enabled repo-wide: the rest of this repository has its own (very
+  # large) set of package manifests this automation doesn't own or maintain.
+
+  - package-ecosystem: "npm"
+    directory: "/apps/weekly-command-center/gateway-node"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps(gateway-node)"
+
+  - package-ecosystem: "npm"
+    directory: "/apps/weekly-command-center/cloudflare"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps(cloudflare)"
+
+  - package-ecosystem: "pip"
+    directory: "/apps/weekly-command-center/core-api"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps(core-api)"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/weekly-command-center/core-api"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps(core-api/docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/weekly-command-center/gateway-node"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps(gateway-node/docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/weekly-command-center/cloudflare"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps(cloudflare/docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/weekly-command-center/optimizer-julia"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps(optimizer-julia/docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/weekly-command-center/taskrules-haskell"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps(taskrules-haskell/docker)"
+
+  # GitHub Actions themselves — safe and valuable repo-wide regardless of
+  # which part of the repo a workflow belongs to.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps(actions)"

@@ -1,0 +1,49 @@
+# Native Julia optimization engine. If this deployment is down or scaled to
+# zero, core-api's OPTIMIZER_URL calls fail closed and julia_client.py falls
+# back to its Python heuristic automatically — this service is an
+# accelerant, not a dependency.
+apiVersion: v1
+kind: Service
+metadata:
+  name: optimizer-julia
+  namespace: weekly-command-center
+spec:
+  selector:
+    app: optimizer-julia
+  ports:
+    - port: 8100
+      targetPort: 8100
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: optimizer-julia
+  namespace: weekly-command-center
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: optimizer-julia
+  template:
+    metadata:
+      labels:
+        app: optimizer-julia
+    spec:
+      containers:
+        - name: optimizer-julia
+          image: REGISTRY_PLACEHOLDER/wcc-optimizer-julia:latest
+          ports:
+            - containerPort: 8100
+          startupProbe:
+            httpGet: { path: /, port: 8100 }
+            failureThreshold: 30  # Julia JIT-compiles on first request; allow up to 5 min
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /, port: 8100 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: 8100 }
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "250m", memory: "512Mi" }
+            limits: { cpu: "1", memory: "1Gi" }

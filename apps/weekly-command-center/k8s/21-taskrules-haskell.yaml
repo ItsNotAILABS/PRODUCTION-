@@ -1,0 +1,46 @@
+# Native Haskell task-DSL parser. Same accelerant relationship as
+# optimizer-julia: if unreachable, haskell_client.py falls back to an
+# equivalent Python regex parser automatically.
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskrules-haskell
+  namespace: weekly-command-center
+spec:
+  selector:
+    app: taskrules-haskell
+  ports:
+    - port: 8200
+      targetPort: 8200
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskrules-haskell
+  namespace: weekly-command-center
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: taskrules-haskell
+  template:
+    metadata:
+      labels:
+        app: taskrules-haskell
+    spec:
+      containers:
+        - name: taskrules-haskell
+          image: REGISTRY_PLACEHOLDER/wcc-taskrules-haskell:latest
+          ports:
+            - containerPort: 8200
+          readinessProbe:
+            httpGet: { path: /, port: 8200 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: 8200 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }

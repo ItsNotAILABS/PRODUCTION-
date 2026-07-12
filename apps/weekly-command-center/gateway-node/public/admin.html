@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Weekly Command Center — Admin Analytics</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-tile { background: var(--panel-bg, #fff); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .stat-tile .value { font-size: 1.6rem; font-weight: 700; }
+  .stat-tile .label { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 0.85rem; }
+  .bar-row .bar-label { width: 90px; }
+  .bar-row .bar-track { flex: 1; background: var(--border); border-radius: 4px; height: 10px; overflow: hidden; }
+  .bar-row .bar-fill { height: 100%; background: var(--accent); }
+  .bar-row .bar-count { width: 40px; text-align: right; }
+</style>
+</head>
+<body>
+
+<div id="key-screen" class="auth-screen">
+  <div class="auth-card">
+    <div class="brand">Admin Analytics</div>
+    <form id="key-form" class="auth-form">
+      <input name="admin_key" type="password" placeholder="Admin API key" required />
+      <button type="submit">View analytics</button>
+      <p class="auth-error" id="key-error"></p>
+    </form>
+  </div>
+</div>
+
+<div id="admin-shell" class="hidden">
+<header class="topbar">
+  <div class="brand">Weekly Command Center — Admin Analytics</div>
+  <button id="refresh-btn" class="secondary">Refresh</button>
+</header>
+
+<main class="grid">
+  <section class="panel panel-wide" id="overview-panel">
+    <h2>Overview</h2>
+    <div class="stat-row" id="overview-stats"></div>
+  </section>
+
+  <section class="panel" id="plans-panel">
+    <h2>Plan distribution</h2>
+    <div id="plans-bars"></div>
+  </section>
+
+  <section class="panel" id="usage-panel">
+    <h2>Platform usage</h2>
+    <div class="stat-row" id="usage-stats"></div>
+  </section>
+
+  <section class="panel panel-wide" id="signups-panel">
+    <h2>Signups per week</h2>
+    <ul id="signups-list" class="clean-list"></ul>
+  </section>
+
+  <section class="panel panel-wide" id="retention-panel">
+    <h2>Active accounts per week (retention proxy)</h2>
+    <ul id="retention-list" class="clean-list"></ul>
+  </section>
+</main>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
