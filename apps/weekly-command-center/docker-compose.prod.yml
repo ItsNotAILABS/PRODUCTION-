@@ -1,0 +1,81 @@
+# Production stack: Postgres instead of SQLite, gunicorn+uvicorn workers for
+# core-api, a dedicated core-worker process for the inner agent (see
+# core-api/worker.py for why that's split out), and locked-down CORS.
+#
+# This is deploy-ready, not deployed — see DEPLOY.md for the steps to take
+# this to a real host. Every secret below is read from a local `.env` file
+# (copy `.env.example` to `.env` and fill it in); nothing is hardcoded.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wcc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-weekly_command_center}
+    volumes:
+      - wcc-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wcc}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  core-api:
+    build:
+      context: ./core-api
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql+psycopg2://${POSTGRES_USER:-wcc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-weekly_command_center}"
+      JWT_SECRET: "${JWT_SECRET:?set JWT_SECRET in .env, e.g. via openssl rand -hex 32}"
+      JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-24}
+      CORS_ORIGINS: "${CORS_ORIGINS:?set CORS_ORIGINS to your real frontend origin, e.g. https://app.yourdomain.com}"
+      OPTIMIZER_URL: http://optimizer-julia:8100
+      TASKRULES_URL: http://taskrules-haskell:8200
+      ENABLE_INNER_AGENT: "false"
+    expose:
+      - "8000"
+
+  core-worker:
+    build:
+      context: ./core-api
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql+psycopg2://${POSTGRES_USER:-wcc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-weekly_command_center}"
+    command: ["python3", "worker.py"]
+
+  optimizer-julia:
+    build: ./optimizer-julia
+    restart: unless-stopped
+    expose:
+      - "8100"
+
+  taskrules-haskell:
+    build: ./taskrules-haskell
+    restart: unless-stopped
+    expose:
+      - "8200"
+
+  gateway-node:
+    build:
+      context: ./gateway-node
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    depends_on:
+      - core-api
+    environment:
+      CORE_API_URL: http://core-api:8000
+    ports:
+      - "3000:3000"
+
+volumes:
+  wcc-postgres-data:
