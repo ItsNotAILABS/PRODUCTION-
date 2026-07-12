@@ -1,0 +1,16 @@
+{
+  "name": "@x-ecosystem/x-mcp-servers",
+  "version": "1.0.0",
+  "description": "X Ecosystem MCP Servers — expose all protocols as Model Context Protocol tools",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./business": "./src/business-ops-mcp-server.js",
+    "./operations": "./src/operations-mcp-server.js",
+    "./platform": "./src/platform-mcp-server.js",
+    "./gateway": "./src/x-mcp-gateway.js"
+  },
+  "keywords": ["x-ecosystem", "mcp", "model-context-protocol", "ai", "tools"],
+  "license": "MIT"
+}

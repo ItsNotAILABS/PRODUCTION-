@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="la">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coherentia Classis — De Parametro Ordinis Kuramoto in Administratione Classis Distributae et de Hierarchia Anulorum Sovereignitatis</title>
+<meta name="description" content="A formal treatment of phi-weighted fleet coherence gating and ring-based sovereignty RBAC in the Aether Sovereign Platform.">
+<style>
+  :root { --bg:#0a0a1a; --card:#12122a; --border:#2a2a4a; --accent:#6c63ff; --accent2:#00d4aa; --text:#e0e0e0; --dim:#888; --paper:#f8f6f0; --ink:#1a1a2e; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"Palatino Linotype","Book Antiqua",Palatino,"Times New Roman",serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  .paper { max-width:900px; margin:2rem auto; background:var(--paper); color:var(--ink); padding:3rem 3.5rem; border-radius:4px; box-shadow:0 8px 32px rgba(0,0,0,0.6); line-height:1.8; }
+  .paper h1 { font-size:1.6rem; text-align:center; margin-bottom:0.3rem; color:#2a1a5e; font-style:italic; }
+  .paper .subtitle { text-align:center; font-size:1.05rem; color:#555; margin-bottom:0.5rem; }
+  .paper .authors { text-align:center; font-size:0.95rem; color:#666; margin-bottom:0.3rem; }
+  .paper .affiliation { text-align:center; font-size:0.85rem; color:#888; margin-bottom:1.5rem; font-style:italic; }
+  .paper .latin-epigraph { text-align:center; font-size:0.9rem; color:#7a6aa0; margin:1rem 0 2rem; font-style:italic; border-top:1px solid #ddd; border-bottom:1px solid #ddd; padding:0.8rem 0; }
+
+  .paper h2 { font-size:1.2rem; color:#2a1a5e; margin:2rem 0 0.5rem; border-bottom:1px solid #ccc; padding-bottom:0.3rem; }
+  .paper h3 { font-size:1.05rem; color:#3a2a7e; margin:1.5rem 0 0.4rem; }
+  .paper p { margin-bottom:0.8rem; text-align:justify; font-size:0.95rem; }
+  .paper ol, .paper ul { margin:0.5rem 0 1rem 2rem; font-size:0.95rem; }
+  .paper li { margin-bottom:0.3rem; }
+  .paper .eq { text-align:center; margin:1rem 0; font-family:"Courier New",monospace; font-size:0.95rem; color:#2a1a5e; background:#f0eef5; padding:0.6rem; border-radius:3px; }
+  .paper .fig { text-align:center; margin:1.5rem 0; padding:1rem; background:#f5f3ff; border:1px solid #e0daf0; border-radius:4px; }
+  .paper .fig pre { font-family:"Courier New",monospace; font-size:0.75rem; line-height:1.5; color:#333; text-align:left; overflow-x:auto; }
+  .paper .fig-caption { font-size:0.82rem; color:#666; margin-top:0.5rem; font-style:italic; }
+  .paper .ref { font-size:0.85rem; color:#555; margin-bottom:0.3rem; }
+  .paper code { font-family:"Courier New",monospace; background:#f0eef5; padding:0.1rem 0.3rem; border-radius:2px; font-size:0.88rem; }
+  .paper table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:0.88rem; }
+  .paper th { background:#2a1a5e; color:#fff; padding:0.5rem; text-align:left; }
+  .paper td { padding:0.4rem 0.5rem; border-bottom:1px solid #ddd; }
+  .paper tr:nth-child(even) { background:#f5f3ff; }
+
+  .back-link { display:block; text-align:center; padding:1.5rem; }
+  .back-link a { color:var(--accent2); font-size:1rem; }
+</style>
+</head>
+<body>
+
+<div class="paper">
+
+<h1>Coherentia Classis:<br>De Parametro Ordinis Kuramoto in Administratione Classis Distributae et de Hierarchia Anulorum Sovereignitatis</h1>
+
+<div class="subtitle">Fleet Coherence: On the Kuramoto Order Parameter in Distributed Fleet Management and the Sovereignty Ring Hierarchy</div>
+
+<div class="authors">Organism AI Research Division</div>
+<div class="affiliation">Laboratorium Intelligentiae Autonomae · itsnotAilabs.com · Anno MMXXVI</div>
+
+<div class="latin-epigraph">
+  "Classis non regitur numero nodorum, sed eorum concordia.<br>
+  Ubi concordia deficit, silentium imperat."<br>
+  <em>— A fleet is governed not by the count of its nodes, but by their agreement.<br>
+  Where agreement fails, silence commands.</em>
+</div>
+
+<h2>I. Abstractum (Abstract)</h2>
+
+<p>We present the <strong>Aether Sovereign Platform</strong>, a multi-substrate deployment
+orchestrator that replaces two of Kubernetes-style infrastructure's foundational
+assumptions — percentage-based rolling deploys and namespace/cluster RBAC — with
+a single mathematically unified model borrowed from coupled-oscillator theory.
+Fleet health is measured as a Kuramoto order parameter <em>R</em> over the phase
+state of all registered deployment targets (Cloudflare Workers, Internet
+Computer canisters, Lambda functions, bare metal); deploys are gated on
+<em>R ≥ φ⁻¹</em>, the golden-ratio reciprocal, rather than an arbitrary
+percentage threshold. Access control is reorganized as an eleven-level
+<em>Anulus Sovereignitatis</em> (Sovereignty Ring) hierarchy, in which
+privilege is a strict total order rather than a namespace-scoped role
+matrix. We further introduce the <em>protocol-as-workload</em> pattern, in
+which units of deployable intelligence — federation meshes, task
+orchestrators, finance-signal processors — are registered in a typed
+protocol registry and deployed through the identical pipeline as any other
+workload. We describe the reference implementation (Python, stdlib-only)
+and its edge counterpart (JavaScript on Cloudflare Pages Functions), and
+report verification results from running both against a live request
+cycle.</p>
+
+<h2>II. Introductio (Introduction)</h2>
+
+<p>Container-orchestration RBAC and deploy scheduling evolved around two
+implicit assumptions: that permission scopes should nest inside cluster
+and namespace boundaries, and that a rolling deploy's safety can be
+approximated by the fraction of replicas that have reported healthy. Both
+assumptions are pragmatic, but neither is derived from an underlying
+model of the system's actual coordination state — they are heuristics
+layered on top of a scheduler that has no notion of whether the fleet, as
+a whole, is <em>synchronized</em>.</p>
+
+<p>Coupled-oscillator theory offers a different starting point. In the
+Kuramoto model, a population of oscillators with individual phases
+<em>θᵢ</em> couples through a mean-field term; the population's
+synchrony is captured in a single scalar, the order parameter <em>R</em>,
+which ranges from 0 (fully incoherent) to 1 (fully synchronized). We
+treat each deployment target's health signal as a phase in this sense,
+and treat the fleet's aggregate coherence — not its raw healthy-node
+count — as the quantity that gates deploy actions.</p>
+
+<h2>III. Parametrum Ordinis Adhibitum (The Order Parameter, Applied)</h2>
+
+<p>For a fleet of <em>n</em> targets, each carrying a phase <em>θᵢ</em>
+derived from heartbeat recency and latency, we compute:</p>
+
+<div class="eq">
+  R·e<sup>iψ</sup> = (1/n) Σᵢ e<sup>iθᵢ</sup>
+</div>
+
+<p>where <em>R</em> is the coherence magnitude and <em>ψ</em> the mean
+phase. In the platform's simplified operational form (Section III.A),
+<em>R</em> reduces to the ratio of targets reporting a heartbeat within
+the liveness window to total registered targets — a degenerate but
+computationally trivial case of the general order parameter, chosen for
+the stdlib-only reference implementation. The full phase-coupled form is
+retained in the client-side visualization (a 48–96 node golden-angle
+oscillator field, driven by the same mean-field step function used
+throughout the organism's other subsystems) so that operators can observe
+the fleet's synchrony directly rather than infer it from a single number.</p>
+
+<h3>III.A — Porta Coherentiae (The Coherence Gate)</h3>
+
+<p>The deploy loop checks <em>R</em> once per heartbeat cycle (873ms,
+the organism's canonical beat interval) and refuses to advance the
+pending-workload queue while:</p>
+
+<div class="eq">
+  R &lt; φ⁻¹  ≈  0.618033988749895
+</div>
+
+<p>The choice of φ⁻¹ over an arbitrary round threshold (0.5, 0.75) is
+deliberate: it is the fixed point of <em>x² = 1 − x</em>, the unique
+ratio at which "just over half synchronized" and "just under fully
+synchronized" are related by the same proportion that relates the whole
+to its larger part. Practically, it sets a stricter bar than a bare
+majority — roughly 62% of the fleet must be alive and healthy before any
+rollout proceeds — without requiring the unrealistic 100% threshold that
+would make the gate impossible to satisfy during routine node churn.</p>
+
+<h3>III.B — Phi-Weighted Scheduling</h3>
+
+<p>Once the gate is open, target selection for a given workload is not
+round-robin but phi-weighted: each successful deploy multiplies a
+target's priority score by φ; each failure multiplies it by φ⁻¹. Label
+affinity (workload labels matching target labels) compounds this by an
+additional factor of φ per match:</p>
+
+<div class="eq">
+  score(t) = φ_t · φ<sup>matches(labels_w, labels_t)</sup>
+</div>
+
+<p>This produces a self-reinforcing preference for targets with a track
+record of successful deploys, decaying gracefully rather than
+categorically excluding a target after a single failure — a softer
+analogue of circuit-breaker patterns, tuned by the same constant that
+governs the coherence gate.</p>
+
+<h2>IV. Anulus Sovereignitatis (The Sovereignty Ring Hierarchy)</h2>
+
+<p>Where cluster-orchestration RBAC typically composes role bindings
+across cluster and namespace scopes — a two-dimensional permission
+space — the Aether model uses a single total order of eleven rings,
+numbered 0 (highest privilege) through 10 (lowest, read-only observer):</p>
+
+<div class="fig">
+<pre>
+0  SOVEREIGN         full authority — delete, audit, all actions
+1  SOVEREIGN_EDGE    rollback, view-secrets
+2  COGNITIVE         deploy
+3  NEURAL            scale
+4  MEMORY            audit (read historical state)
+5  ROUTE             register (new targets/principals)
+6  AFFECTIVE
+7  SOMATIC
+8  QUANTUM
+9  TEMPORAL
+10 INTERFACE         read — the observer floor
+</pre>
+<div class="fig-caption">Fig. 1 — The eleven-ring hierarchy. A principal at ring <em>k</em> may perform any action whose required ring is ≥ <em>k</em>; lower ordinal is higher privilege.</div>
+</div>
+
+<p>An action's required ring is fixed at the action's definition, not at
+bind time:</p>
+
+<div class="eq">
+  allowed(p, a) ⟺ ring(p) ≤ required(a) ∧ (scopes(p) = ∅ ∨ scope(a) ∈ scopes(p))
+</div>
+
+<p>This collapses the two-axis (cluster × namespace × verb) permission
+matrix into a one-dimensional comparison plus an optional scope-set
+membership check, at the cost of expressiveness that most Rancher/K8s
+RBAC deployments do not use in practice — cross-cutting concerns
+(who may deploy vs. who may view secrets vs. who may audit) become
+comparisons against fixed constants rather than per-resource role
+bindings that must be independently maintained and audited for drift.</p>
+
+<h2>V. Protocolla ut Onera Laboris (Protocols as Workloads)</h2>
+
+<p>The platform's third structural departure is treating discrete units
+of intelligence — a federation-mesh router, a task-orchestration DAG, a
+finance-signal processor — as first-class, independently deployable
+workloads rather than library code linked into a monolithic agent
+process. Each protocol is registered with a typed specification:</p>
+
+<div class="eq">
+  Protocol = ⟨id, name, handler, ring_affinity, memory_mb, cpu_millicores, isolation, retries⟩
+</div>
+
+<p>Sixteen such protocols are registered in the reference implementation,
+spanning federation and task orchestration, multimodal synthesis, finance
+signal processing and trade execution, infrastructure code generation,
+AI model evaluation, website generation, and workflow templating. Each
+carries a declared ring affinity — the rings from which it may be
+deployed — and can be instantiated as a <code>Workload</code> through the
+identical deploy pipeline used for conventional Workers/canister/Lambda
+units, inheriting the same phi-weighted scheduling and coherence gate
+described in Section III.</p>
+
+<h2>VI. Duae Viae Executionis (Two Execution Paths)</h2>
+
+<p>The reference implementation ships two transports over one shared,
+transport-agnostic route-dispatch function, so that behavior cannot drift
+between them:</p>
+
+<table>
+<tr><th>Via (Path)</th><th>Runtime</th><th>Persistentia</th></tr>
+<tr><td>Self-hosted</td><td>Python stdlib <code>http.server</code>, containerized or under systemd</td><td>In-process memory</td></tr>
+<tr><td>Edge</td><td>Cloudflare Pages Functions (JavaScript) / Python Workers (Pyodide)</td><td>KV-backed JSON blob</td></tr>
+</table>
+
+<p>Both transports were exercised against a live request cycle prior to
+publication: health, fleet registration, heartbeat, phi-weighted deploy
+scheduling, protocol-as-workload deploy, rollback, and ring-based policy
+evaluation all round-tripped correctly, including the two designed error
+paths — an unrecognized target class returning a clean 400, and an
+unrecognized protocol identifier returning 404 — rather than an unhandled
+exception, which was the observed behavior of an earlier, unverified
+revision of this same code.</p>
+
+<h2>VII. Opus Cognatum (Related Work)</h2>
+
+<p>SUSE Rancher's Fleet controller performs percentage-based rolling
+updates against Kubernetes clusters, with RBAC delegated to Kubernetes'
+native cluster-role and role-binding objects scoped per namespace. The
+Aether model differs in kind, not degree: coherence is a measured
+property of the fleet's live state rather than a static rollout
+percentage set at deploy time, and authorization is a scalar comparison
+rather than a graph of role bindings. We do not claim the ring model is
+strictly more expressive — namespace-scoped RBAC can represent
+permission structures the eleven-ring total order cannot — only that for
+the common case (a small number of privilege tiers cutting across many
+resources) the total order is simpler to reason about and audit.</p>
+
+<h2>VIII. Conclusio (Conclusion)</h2>
+
+<p>We have shown that a single physical constant — the golden-ratio
+reciprocal already used elsewhere in this organism's architecture as a
+decay/growth factor — can serve simultaneously as a deploy-safety
+threshold and a scheduling-preference decay rate, and that an eleven-ring
+total order is sufficient to express the access-control policies actually
+exercised by a sovereign multi-substrate fleet. Future work includes
+extending the coherence measurement from the degenerate liveness-ratio
+form to the full phase-coupled Kuramoto computation in the production
+scheduler (currently only realized client-side, for visualization), and
+KV-backed state persistence for the Cloudflare Python Workers transport,
+which at the time of writing resets on cold start.</p>
+
+<h2>Notae Bibliographicae (References)</h2>
+
+<div class="ref">[1] Kuramoto, Y. (1975). Self-entrainment of a population of coupled non-linear oscillators. <em>Lecture Notes in Physics</em>, 39, 420–422.</div>
+<div class="ref">[2] Strogatz, S. H. (2000). From Kuramoto to Crawford: exploring the onset of synchronization in populations of coupled oscillators. <em>Physica D</em>, 143(1-4), 1–20.</div>
+<div class="ref">[3] Aether Sovereign Platform reference implementation, PROTOCOLS_MANIFEST.md and aether_platform/, itsnotAilabs.com, 2026.</div>
+<div class="ref">[4] SUSE Rancher Fleet documentation, docs.rancher.com/fleet, accessed 2026.</div>
+
+</div>
+
+<div class="back-link"><a href="papers-hub.html">← Back to Papers Hub</a></div>
+
+</body>
+</html>

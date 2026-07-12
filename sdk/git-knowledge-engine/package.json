@@ -1,0 +1,33 @@
+{
+  "name": "@medina/git-knowledge-engine",
+  "version": "1.0.0",
+  "description": "Git repository knowledge and execution engine — the entry point to the X ecosystem. Indexes any Git repo into a sovereign knowledge graph and dispatches missions through the X protocol layer.",
+  "license": "MIT",
+  "main": "src/index.js",
+  "type": "module",
+  "keywords": [
+    "git",
+    "knowledge-engine",
+    "knowledge-graph",
+    "mission-execution",
+    "sovereign",
+    "x-ecosystem",
+    "intelligence"
+  ],
+  "files": [
+    "src",
+    "microbots"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsnotailabs/production-.git",
+    "directory": "sdk/git-knowledge-engine"
+  },
+  "author": "Medina",
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,25 @@
+[Unit]
+Description=Aether Sovereign Platform API
+After=network.target
+
+[Service]
+Type=simple
+# Run from the repo root's PARENT so `aether_platform` resolves as a package,
+# e.g. if the repo lives at /opt/aether/PRODUCTION-, WorkingDirectory is
+# /opt/aether/PRODUCTION- (the directory containing aether_platform/).
+WorkingDirectory=/opt/aether/PRODUCTION-
+ExecStart=/usr/bin/python3 -m aether_platform.api.server
+Restart=on-failure
+RestartSec=3
+User=aether
+Group=aether
+Environment=PYTHONUNBUFFERED=1
+
+# Basic hardening — adjust if you need broader filesystem access
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/aether/PRODUCTION-
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,35 @@
+{
+  "id": "PYTHIA",
+  "name": "Pythia — Knowledge Synthesis Deep Learner",
+  "version": "1.0.0",
+  "role": "foundation-model",
+  "description": "Absorbs all CSV registers (protocols, models, extensions, architectures, marketplace) into a TF-IDF knowledge index at boot. Zero external dependencies — the registers ARE the corpus. Semantic retrieval over 251 protocols + all other registers without any embedding API.",
+  "sdks": [
+    "document-absorption-engine",
+    "git-knowledge-engine",
+    "sovereign-memory-sdk"
+  ],
+  "protocols": [
+    "PROTO-004",
+    "PROTO-009",
+    "PROTO-216",
+    "PROTO-182"
+  ],
+  "ring": "Memory Ring",
+  "placement": "Organism core / knowledge layer",
+  "intelligence_class": "Knowledge Synthesis Intelligence",
+  "training_sources": [
+    "AI_Protocols_Register.csv",
+    "AI_Model_Families_Register.csv",
+    "AI_Extensions_Register.csv",
+    "Architectural_Laws_Register.csv",
+    "Organism_Marketplace_Register.csv",
+    "Phantom_Blockchain_Model_Register.csv"
+  ],
+  "capabilities": [
+    "absorb(register) — ingest any CSV register into the knowledge index",
+    "query(text, topK) — TF-IDF cosine similarity search across all absorbed registers",
+    "synthesize(text) — multi-register synthesis report for a query",
+    "getCorpusStats() — size and coverage of the knowledge index"
+  ]
+}

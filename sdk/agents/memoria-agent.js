@@ -14,10 +14,17 @@
 const PHI = 1.618033988749895;
 const PHI_INV = 1 / PHI;
 
+// Memory protocol binding — temporal vault for encode/retrieve operations
+let _memoryProtocol = null;
+try {
+  _memoryProtocol = require('../../protocols/chrono-vault-protocol.js');
+} catch { /* protocol optional at runtime; wired when available */ }
+
 class MemoriaAgent {
   constructor(engines) {
     this.id = 'MEMORIA';
     this.engines = engines;
+    this.protocol = _memoryProtocol;
     
     // Memory stores
     this.stm = [];  // Short-term memory (recent, fast decay)

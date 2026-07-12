@@ -12,6 +12,8 @@ from .kernel import KernelExecutor, KernelStatus
 from .sensor import EdgeSensor, SensorType
 from .resonance import CrossOrganismResonance
 from .vitality import VitalityCalculator
+from .physics import Cell, formula, phi_decay, kuramoto_step, mean_field_kuramoto_step, order_parameter, PhaseCoupling
+from .neuroemergence import NeuroEmergenceCore, NEUROCHEMICALS, PROTOCOL_IDS
 
 __all__ = [
     "PHI",
@@ -26,4 +28,14 @@ __all__ = [
     "SensorType",
     "CrossOrganismResonance",
     "VitalityCalculator",
+    "Cell",
+    "formula",
+    "phi_decay",
+    "kuramoto_step",
+    "mean_field_kuramoto_step",
+    "order_parameter",
+    "PhaseCoupling",
+    "NeuroEmergenceCore",
+    "NEUROCHEMICALS",
+    "PROTOCOL_IDS",
 ]

@@ -14,10 +14,17 @@
 const PHI = 1.618033988749895;
 const PHI_INV = 1 / PHI;
 
+// Perception protocol binding — attention routing and signal gating
+let _attentionProtocol = null;
+try {
+  _attentionProtocol = require('../../protocols/attention-routing-protocol.js');
+} catch { /* protocol optional at runtime; wired when available */ }
+
 class SensusAgent {
   constructor(engines) {
     this.id = 'SENSUS';
     this.engines = engines;
+    this.protocol = _attentionProtocol;
     
     // Sensory channels
     this.channels = new Map();

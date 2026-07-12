@@ -1,0 +1,19 @@
+package organism
+
+authors    = "ItsNotAILABS"
+version    = 0.1.0
+brief      = "Organism sovereign intelligence runtime — Idris2 dependent-type layer"
+readme     = "README.md"
+license    = "Apache-2.0"
+
+sourcedir  = "src"
+
+modules = Organism.Constants
+        , Organism.Protocol
+        , Organism.Protocols.BoundedRegister
+        , Organism.Protocols.ProvenPipeline
+        , Organism.Protocols.SizedHistory
+        , Organism.Protocols.AffinityProof
+        , Organism.Protocols.CoherenceContract
+
+-- No third-party dependencies — pure Idris2 prelude only.

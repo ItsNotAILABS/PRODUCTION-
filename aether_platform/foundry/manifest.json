@@ -1,0 +1,294 @@
+{
+  "version": 1,
+  "description": "Aether Worker Foundry — pick a type, set a few params, download a worker that runs. Every template is a real, self-contained program, not a stub.",
+  "categories": ["compute", "web", "browser", "data", "ops", "ai"],
+  "templates": [
+    {
+      "id": "mesh-native-worker",
+      "name": "Mesh Compute Node (native)",
+      "category": "compute",
+      "runtime": "python",
+      "entry": "worker.py",
+      "summary": "Joins the Aether pull-mesh and computes Kuramoto chunks with the native C++ engine. Dials out — works behind NAT.",
+      "params": [
+        {"name": "SERVER", "label": "Coordinator URL", "default": "http://127.0.0.1:8900", "help": "mesh_server.py base URL"},
+        {"name": "NAME", "label": "Node name", "default": "native-node", "help": "id reported to the coordinator"}
+      ],
+      "needs": ["The native engine (organism/cpp) built, OR falls back to a pure-Python kernel."],
+      "run": "python3 worker.py"
+    },
+    {
+      "id": "mesh-http-worker",
+      "name": "Mesh Compute Node (HTTP, push)",
+      "category": "compute",
+      "runtime": "python",
+      "entry": "worker.py",
+      "summary": "A push-model compute node: exposes /compute/batch and computes any assigned population range. Stdlib only.",
+      "params": [
+        {"name": "PORT", "label": "Listen port", "default": "8801", "help": "TCP port to bind"}
+      ],
+      "needs": ["Point a coordinator at this node's URL."],
+      "run": "python3 worker.py --port 8801"
+    },
+    {
+      "id": "web-spider",
+      "name": "Web Spider / Crawler",
+      "category": "web",
+      "runtime": "python",
+      "entry": "spider.py",
+      "summary": "Breadth-first same-domain crawler. Respects robots.txt, rate-limits, writes one JSON line per page (url, status, title, links).",
+      "params": [
+        {"name": "START_URL", "label": "Start URL", "default": "https://example.com", "help": "seed URL"},
+        {"name": "MAX_PAGES", "label": "Max pages", "default": "100", "help": "crawl budget"},
+        {"name": "DELAY", "label": "Delay (s)", "default": "0.5", "help": "politeness delay between requests"}
+      ],
+      "needs": [],
+      "run": "python3 spider.py"
+    },
+    {
+      "id": "sitemap-crawler",
+      "name": "Sitemap Crawler",
+      "category": "web",
+      "runtime": "python",
+      "entry": "crawler.py",
+      "summary": "Fetches sitemap.xml (following nested sitemap indexes) and records status + last-modified for every listed URL.",
+      "params": [
+        {"name": "SITEMAP", "label": "Sitemap URL", "default": "https://example.com/sitemap.xml", "help": "sitemap or sitemap-index URL"}
+      ],
+      "needs": [],
+      "run": "python3 crawler.py"
+    },
+    {
+      "id": "link-checker",
+      "name": "Broken Link Checker",
+      "category": "web",
+      "runtime": "python",
+      "entry": "linkcheck.py",
+      "summary": "Crawls a site and reports every link that 4xx/5xx/times out, with the page it was found on.",
+      "params": [
+        {"name": "START_URL", "label": "Start URL", "default": "https://example.com", "help": "seed URL"},
+        {"name": "MAX_PAGES", "label": "Max pages", "default": "200", "help": "crawl budget"}
+      ],
+      "needs": [],
+      "run": "python3 linkcheck.py"
+    },
+    {
+      "id": "rss-poller",
+      "name": "RSS / Atom Feed Poller",
+      "category": "web",
+      "runtime": "python",
+      "entry": "rss.py",
+      "summary": "Polls feeds on an interval and emits only NEW items (dedup by id/link), optionally POSTing them to a webhook.",
+      "params": [
+        {"name": "FEEDS", "label": "Feed URLs", "default": "https://hnrss.org/frontpage", "help": "comma-separated feed URLs"},
+        {"name": "INTERVAL", "label": "Poll interval (s)", "default": "300", "help": "seconds between polls"},
+        {"name": "WEBHOOK", "label": "Webhook URL", "default": "", "help": "optional: POST new items here"}
+      ],
+      "needs": [],
+      "run": "python3 rss.py"
+    },
+    {
+      "id": "screenshot-worker",
+      "name": "Screenshot Worker (headless browser)",
+      "category": "browser",
+      "runtime": "node",
+      "entry": "screenshot.js",
+      "summary": "Headless Chromium via Playwright. Reads a queue of URLs and writes a full-page PNG for each. This is 'the browser, scripted'.",
+      "params": [
+        {"name": "URLS", "label": "URLs", "default": "https://example.com", "help": "comma-separated URLs"},
+        {"name": "WIDTH", "label": "Viewport width", "default": "1280", "help": "px"},
+        {"name": "OUTDIR", "label": "Output dir", "default": "./shots", "help": "where PNGs land"}
+      ],
+      "needs": ["Node + Playwright (npm i playwright)."],
+      "run": "node screenshot.js"
+    },
+    {
+      "id": "dom-scraper",
+      "name": "DOM Scraper (headless browser)",
+      "category": "browser",
+      "runtime": "node",
+      "entry": "scrape.js",
+      "summary": "Loads pages in a real browser (JS executes) and extracts fields by CSS selector — the stuff you'd hand-do in DevTools, automated.",
+      "params": [
+        {"name": "URL", "label": "URL", "default": "https://example.com", "help": "page to scrape"},
+        {"name": "SELECTORS", "label": "Selectors JSON", "default": "{\"title\":\"h1\",\"links\":\"a@href\"}", "help": "field -> css (use sel@attr for attributes; [] on a selector for all matches)"}
+      ],
+      "needs": ["Node + Playwright."],
+      "run": "node scrape.js"
+    },
+    {
+      "id": "browser-automation",
+      "name": "Browser Automation (scripted DevTools)",
+      "category": "browser",
+      "runtime": "node",
+      "entry": "automate.js",
+      "summary": "Runs a JSON action script (goto, click, type, wait, eval, screenshot) and captures console logs + network like the DevTools panels.",
+      "params": [
+        {"name": "START_URL", "label": "Start URL", "default": "https://example.com", "help": "first page"},
+        {"name": "SCRIPT", "label": "Actions JSON", "default": "[{\"eval\":\"document.title\"}]", "help": "array of action objects"}
+      ],
+      "needs": ["Node + Playwright."],
+      "run": "node automate.js"
+    },
+    {
+      "id": "http-batch",
+      "name": "HTTP Batch Caller",
+      "category": "data",
+      "runtime": "python",
+      "entry": "batch.py",
+      "summary": "Reads a JSONL of requests (method/url/body) and fires them with concurrency + retry, writing one response line each.",
+      "params": [
+        {"name": "INPUT", "label": "Input JSONL", "default": "requests.jsonl", "help": "one request per line"},
+        {"name": "CONCURRENCY", "label": "Concurrency", "default": "8", "help": "parallel in-flight requests"}
+      ],
+      "needs": [],
+      "run": "python3 batch.py"
+    },
+    {
+      "id": "webhook-relay",
+      "name": "Webhook Relay / Transformer",
+      "category": "data",
+      "runtime": "python",
+      "entry": "relay.py",
+      "summary": "Receives webhooks, applies a tiny transform, and forwards to one or more destinations with retry. Stdlib HTTP server.",
+      "params": [
+        {"name": "PORT", "label": "Listen port", "default": "8700", "help": "bind port"},
+        {"name": "FORWARD_TO", "label": "Forward URLs", "default": "", "help": "comma-separated destinations"}
+      ],
+      "needs": [],
+      "run": "python3 relay.py --port 8700"
+    },
+    {
+      "id": "etl-normalizer",
+      "name": "ETL Normalizer (CSV/JSON)",
+      "category": "data",
+      "runtime": "python",
+      "entry": "etl.py",
+      "summary": "Reads CSV or JSON, applies a field map + type coercion, and writes normalized JSONL. The boring glue, done.",
+      "params": [
+        {"name": "INPUT", "label": "Input file", "default": "input.csv", "help": ".csv or .json"},
+        {"name": "OUTPUT", "label": "Output JSONL", "default": "output.jsonl", "help": "destination"}
+      ],
+      "needs": [],
+      "run": "python3 etl.py"
+    },
+    {
+      "id": "llm-relay",
+      "name": "LLM Relay (Claude)",
+      "category": "ai",
+      "runtime": "python",
+      "entry": "llm.py",
+      "summary": "Reads a JSONL of prompts, calls Claude for each with concurrency + retry, writes completions. Model + system configurable.",
+      "params": [
+        {"name": "INPUT", "label": "Input JSONL", "default": "prompts.jsonl", "help": "one {\"prompt\":..} per line"},
+        {"name": "MODEL", "label": "Model", "default": "claude-sonnet-5", "help": "Anthropic model id"},
+        {"name": "SYSTEM", "label": "System prompt", "default": "You are a helpful assistant.", "help": "system message"}
+      ],
+      "needs": ["ANTHROPIC_API_KEY in the environment."],
+      "run": "python3 llm.py"
+    },
+    {
+      "id": "embedding-worker",
+      "name": "Embedding Worker",
+      "category": "ai",
+      "runtime": "python",
+      "entry": "embed.py",
+      "summary": "Reads text lines and POSTs them to an embeddings endpoint in batches, writing vectors as JSONL. Endpoint-agnostic.",
+      "params": [
+        {"name": "INPUT", "label": "Input text file", "default": "texts.txt", "help": "one text per line"},
+        {"name": "ENDPOINT", "label": "Embeddings endpoint", "default": "http://127.0.0.1:8080/embed", "help": "POST {texts:[...]} -> {vectors:[...]}"},
+        {"name": "BATCH", "label": "Batch size", "default": "32", "help": "texts per request"}
+      ],
+      "needs": ["An embeddings HTTP endpoint."],
+      "run": "python3 embed.py"
+    },
+    {
+      "id": "uptime-monitor",
+      "name": "Uptime Monitor",
+      "category": "ops",
+      "runtime": "python",
+      "entry": "uptime.py",
+      "summary": "Pings a list of URLs on an interval, tracks up/down transitions, and fires a webhook only when state changes.",
+      "params": [
+        {"name": "URLS", "label": "URLs", "default": "https://example.com", "help": "comma-separated"},
+        {"name": "INTERVAL", "label": "Interval (s)", "default": "60", "help": "seconds between checks"},
+        {"name": "WEBHOOK", "label": "Alert webhook", "default": "", "help": "optional: POST on state change"}
+      ],
+      "needs": [],
+      "run": "python3 uptime.py"
+    },
+    {
+      "id": "log-shipper",
+      "name": "Log Shipper (tail -> HTTP)",
+      "category": "ops",
+      "runtime": "python",
+      "entry": "logship.py",
+      "summary": "Tails a growing log file (survives rotation) and ships new lines to an HTTP sink in batches.",
+      "params": [
+        {"name": "FILE", "label": "Log file", "default": "/var/log/app.log", "help": "file to tail"},
+        {"name": "SINK", "label": "Sink URL", "default": "http://127.0.0.1:9000/ingest", "help": "POST {lines:[...]}"}
+      ],
+      "needs": [],
+      "run": "python3 logship.py"
+    },
+    {
+      "id": "cron-runner",
+      "name": "Cron Runner",
+      "category": "ops",
+      "runtime": "python",
+      "entry": "cron.py",
+      "summary": "Runs a shell command on a fixed interval with jitter, capturing output and reporting non-zero exits to a webhook.",
+      "params": [
+        {"name": "COMMAND", "label": "Command", "default": "echo hello", "help": "shell command to run"},
+        {"name": "INTERVAL", "label": "Interval (s)", "default": "3600", "help": "seconds between runs"},
+        {"name": "WEBHOOK", "label": "Failure webhook", "default": "", "help": "optional: POST on non-zero exit"}
+      ],
+      "needs": [],
+      "run": "python3 cron.py"
+    },
+    {
+      "id": "metrics-scraper",
+      "name": "Prometheus Metrics Scraper",
+      "category": "ops",
+      "runtime": "python",
+      "entry": "metrics.py",
+      "summary": "Scrapes Prometheus-format /metrics endpoints on an interval, parses samples, and forwards selected series to a sink.",
+      "params": [
+        {"name": "TARGETS", "label": "Targets", "default": "http://127.0.0.1:9100/metrics", "help": "comma-separated /metrics URLs"},
+        {"name": "INTERVAL", "label": "Interval (s)", "default": "15", "help": "scrape interval"},
+        {"name": "SINK", "label": "Sink URL", "default": "", "help": "optional: POST parsed samples"}
+      ],
+      "needs": [],
+      "run": "python3 metrics.py"
+    },
+    {
+      "id": "queue-consumer",
+      "name": "Work Queue Consumer",
+      "category": "compute",
+      "runtime": "python",
+      "entry": "queue.py",
+      "summary": "Generic claim -> process -> ack loop against any HTTP queue (claim/ack/nack endpoints). Drop your logic in handle().",
+      "params": [
+        {"name": "QUEUE", "label": "Queue base URL", "default": "http://127.0.0.1:8900", "help": "exposes /claim /ack /nack"},
+        {"name": "NAME", "label": "Consumer name", "default": "consumer-1", "help": "id reported on claim"}
+      ],
+      "needs": [],
+      "run": "python3 queue.py"
+    },
+    {
+      "id": "file-sync",
+      "name": "Directory Sync Worker",
+      "category": "ops",
+      "runtime": "python",
+      "entry": "sync.py",
+      "summary": "Watches a directory (hash-based, no deps) and uploads changed/new files to an HTTP endpoint. Survives restarts via a state file.",
+      "params": [
+        {"name": "DIR", "label": "Directory", "default": "./data", "help": "directory to watch"},
+        {"name": "ENDPOINT", "label": "Upload endpoint", "default": "http://127.0.0.1:9000/upload", "help": "POST file bytes"},
+        {"name": "INTERVAL", "label": "Scan interval (s)", "default": "10", "help": "seconds between scans"}
+      ],
+      "needs": [],
+      "run": "python3 sync.py"
+    }
+  ]
+}

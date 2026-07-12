@@ -1,0 +1,31 @@
+{
+  "id": "VIGIL",
+  "name": "Vigil — Governance & Sovereign Guardian",
+  "version": "1.0.0",
+  "role": "foundation-model",
+  "description": "Reads Architectural_Laws_Register.csv and audits every SDK and extension against the governance laws. Signs artifacts with phi-encoded organism identity. Tracks all protocol violations and compliance drift across the SDK fleet.",
+  "sdks": [
+    "governance",
+    "sovereign-memory-sdk",
+    "organism-runtime-sdk"
+  ],
+  "protocols": [
+    "PROTO-006",
+    "PROTO-011",
+    "PROTO-015",
+    "PROTO-016"
+  ],
+  "ring": "Counsel Ring",
+  "placement": "Organism core / governance layer",
+  "intelligence_class": "Governance & Sovereign Compliance Intelligence",
+  "training_sources": [
+    "Architectural_Laws_Register.csv",
+    "AI_Protocols_Register.csv"
+  ],
+  "capabilities": [
+    "audit(sdkPath?) — validate SDKs/extensions against Architectural Laws",
+    "sign(artifact) — phi-encoded deterministic organism identity signature",
+    "getViolations() — full compliance report per law",
+    "enforce(lawId) — targeted enforcement scan for a specific law"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "id": "NEXUS",
+  "name": "Nexus — Sovereign Intelligence Router",
+  "version": "1.0.0",
+  "role": "foundation-model",
+  "description": "Routes intelligence tasks across the full protocol mesh using phi-weighted scoring. Adapts routing via outcome feedback (phi-decay). Reads 251 protocols from AI_Protocols_Register.csv at boot — the register IS the model.",
+  "sdks": [
+    "intelligence-routing-sdk",
+    "central-nervous-system",
+    "organism-runtime-sdk"
+  ],
+  "protocols": [
+    "PROTO-001",
+    "PROTO-019",
+    "PROTO-017",
+    "PROTO-014",
+    "PROTO-016"
+  ],
+  "ring": "Interface Ring",
+  "placement": "Organism core / routing layer",
+  "intelligence_class": "Adaptive Routing Intelligence",
+  "training_source": "AI_Protocols_Register.csv",
+  "capabilities": [
+    "route(task) — phi-weighted protocol selection across 251 protocols",
+    "getTopRoutes(task, n) — ranked routing candidates",
+    "registerOutcome(protocolId, success) — phi-decay adaptive learning",
+    "getRoutingTable() — full ring-indexed routing table"
+  ]
+}

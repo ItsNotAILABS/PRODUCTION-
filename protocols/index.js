@@ -221,3 +221,61 @@ export { AlphaOrchestratorProtocol, ORCHESTRATOR_CONFIG, MESSAGE_TYPES as ORCHES
 
 // PROTO-256: Alpha Conductor — Signal routing, ensemble direction, harmonic coordination, tempo management
 export { AlphaConductorProtocol, CONDUCTOR_CONFIG, MESSAGE_TYPES as CONDUCTOR_MESSAGE_TYPES, CONDUCTOR_STATES as CONDUCTOR_PROTOCOL_STATES, CONDUCTOR_TYPES, ENSEMBLE_ROLES, SIGNAL_TYPES as CONDUCTOR_SIGNAL_TYPES, calculateSignalStrength, calculateHarmony, calculateOptimalTempo, calculateDissonance, calculateRoleWeight } from './alpha-conductor-protocol.js';
+
+// ─── Business Sub-Protocols (PROTO-B001 – PROTO-B010) ────────────────────────
+export { SalesIntelligenceProtocol, SALES_INTEL_VERSION }                          from './business/sales-intelligence-protocol.js';
+export { InventoryOptimizationProtocol, INVENTORY_OPT_VERSION }                    from './business/inventory-optimization-protocol.js';
+export { CustomerSegmentationProtocol, SEGMENTS }                                  from './business/customer-segmentation-protocol.js';
+export { FraudDetectionProtocol, RISK_LEVELS }                                     from './business/fraud-detection-protocol.js';
+export { RevenueForecastProtocol }                                                  from './business/revenue-forecast-protocol.js';
+export { CrossPlatformSyncProtocol, SYNC_STATUS, CONFLICT_STRATEGY }              from './business/cross-platform-sync-protocol.js';
+export { BusinessIntelligenceProtocol }                                            from './business/business-intelligence-protocol.js';
+export { PricingOptimizationProtocol }                                             from './business/pricing-optimization-protocol.js';
+export { SupplyChainProtocol }                                                     from './business/supply-chain-protocol.js';
+export { CustomerRetentionProtocol }                                               from './business/customer-retention-protocol.js';
+export { BUSINESS_PROTOCOL_VERSION, BUSINESS_PROTOCOL_COUNT }                     from './business/index.js';
+
+// ─── Operations Sub-Protocols (PROTO-O001 – PROTO-O008) ──────────────────────
+export { HealthMonitoringProtocol, HEALTH_STATUS }                                 from './operations/health-monitoring-protocol.js';
+export { AlertRoutingProtocol, SEVERITY }                                          from './operations/alert-routing-protocol.js';
+export { PerformanceOptimizationProtocol, PERF_STATUS }                            from './operations/performance-optimization-protocol.js';
+export { DeploymentOrchestrationProtocol, DEPLOY_STATUS, DEPLOY_STRATEGY }        from './operations/deployment-orchestration-protocol.js';
+export { SecurityGatewayProtocol, THREAT_LEVEL, ACCESS_RESULT }                   from './operations/security-gateway-protocol.js';
+export { ComplianceAuditProtocol, AUDIT_SEVERITY, COMPLIANCE_STATUS }             from './operations/compliance-audit-protocol.js';
+export { ResourceAllocationProtocol, ALLOCATION_STATUS }                           from './operations/resource-allocation-protocol.js';
+export { KnowledgeSynthesisProtocol, KNOWLEDGE_TYPE }                             from './operations/knowledge-synthesis-protocol.js';
+export { OPERATIONS_PROTOCOL_VERSION, OPERATIONS_PROTOCOL_COUNT }                 from './operations/index.js';
+
+// ─── Integration Sub-Protocols (PROTO-I001 – PROTO-I020) ─────────────────────
+export { MCPGatewayProtocol }                                  from './integrations/mcp-gateway-protocol.js';
+export { IntegrationOrchestrationProtocol, WORKFLOW_STATUS }   from './integrations/integration-orchestration-protocol.js';
+export { DataNormalizationProtocol }                           from './integrations/data-normalization-protocol.js';
+export { RateLimitManagerProtocol }                            from './integrations/rate-limit-manager-protocol.js';
+export { WebhookOrchestrationProtocol }                        from './integrations/webhook-orchestration-protocol.js';
+export { OAuthManagerProtocol }                                from './integrations/oauth-manager-protocol.js';
+export { APIKeyManagerProtocol }                               from './integrations/api-key-manager-protocol.js';
+export { DataSchemaProtocol }                                  from './integrations/data-schema-protocol.js';
+export { EventStreamingProtocol }                              from './integrations/event-streaming-protocol.js';
+export { BatchProcessingProtocol }                             from './integrations/batch-processing-protocol.js';
+export { RetryRecoveryProtocol, CIRCUIT_STATE }                from './integrations/retry-recovery-protocol.js';
+export { DataEnrichmentProtocol }                              from './integrations/data-enrichment-protocol.js';
+export { MultiCurrencyProtocol }                               from './integrations/multi-currency-protocol.js';
+export { TaxCalculationProtocol, TAX_TYPE }                    from './integrations/tax-calculation-protocol.js';
+export { ShippingIntelligenceProtocol }                        from './integrations/shipping-intelligence-protocol.js';
+export { LoyaltyRewardsProtocol }                              from './integrations/loyalty-rewards-protocol.js';
+export { ProductCatalogProtocol }                              from './integrations/product-catalog-protocol.js';
+export { OrderRoutingProtocol }                                from './integrations/order-routing-protocol.js';
+export { CustomerIdentityProtocol }                            from './integrations/customer-identity-protocol.js';
+export { AnalyticsAggregationProtocol }                        from './integrations/analytics-aggregation-protocol.js';
+export { MultiFederationProtocol, FEDERATION_MSG, MEMBER_HEALTH } from './integrations/multi-ai-federation-protocol.js';
+export { SemanticCacheProtocol }                               from './integrations/semantic-cache-protocol.js';
+export { ModelRouterProtocol }                                 from './integrations/model-router-protocol.js';
+export { SkillCompositionProtocol, SKILL_STRATEGY }            from './integrations/skill-composition-protocol.js';
+export { ContextWindowProtocol }                               from './integrations/context-window-protocol.js';
+export { VectorEmbeddingProtocol }                             from './integrations/vector-embedding-protocol.js';
+export { PromptEngineeringProtocol }                           from './integrations/prompt-engineering-protocol.js';
+export { KnowledgeGraphProtocol }                              from './integrations/knowledge-graph-protocol.js';
+export { SentimentProtocol }                                   from './integrations/sentiment-protocol.js';
+export { MultiModalProtocol }                                  from './integrations/multi-modal-protocol.js';
+export { ConsensusVotingProtocol }                             from './integrations/consensus-voting-protocol.js';
+export { INTEGRATIONS_PROTOCOL_VERSION, INTEGRATIONS_PROTOCOL_COUNT } from './integrations/index.js';

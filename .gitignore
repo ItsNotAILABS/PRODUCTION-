@@ -3,6 +3,9 @@ node_modules/
 *.pyc
 .DS_Store
 
+# Transient cross-step state for the sandcastle pipeline — never committed
+docs/.sandcastle-state.json
+
 # Built extension zips are created by build-extensions.sh
 # They are also auto-built by GitHub Actions and attached as release artifacts
 # Keep dist/ tracked so download links and GitHub Pages work

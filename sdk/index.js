@@ -369,5 +369,92 @@ export {
   createWorkerBinding,
 } from './nova-bindings/src/index.js';
 
+// Git Knowledge Engine (@medina/git-knowledge-engine)
+// Entry point to the X ecosystem — indexes any Git repo into a sovereign
+// knowledge graph and dispatches missions through the X protocol layer.
+export {
+  GitKnowledgeEngine,
+  GitIndexer,
+  GitKnowledgeGraph,
+  GitMissionRouter,
+  GitExecutor,
+  GIT_NODE_TYPES,
+  GIT_EDGE_TYPES,
+  MISSION_TYPES as GIT_MISSION_TYPES,
+} from './git-knowledge-engine/src/index.js';
+
+// X Ecosystem Engine (@medina/x-ecosystem)
+// Sovereign multi-tenant, multi-platform AI orchestration layer.
+// Binds Git knowledge engine, protocols, microbots, and platforms
+// into a single governed runtime with hash-chained audit.
+export {
+  XEcosystem,
+  XEcosystemConfig,
+  XTenant,
+  X_PERMISSIONS,
+  XGovernanceRuntime,
+  XProtocolRegistry,
+  XPlatformRegistry,
+  XMicrobotOrchestrator,
+  XMissionDispatch,
+  X_MISSION_TYPES,
+  AdaptiveConfig,
+  ADAPT_STRATEGY,
+} from './x-ecosystem/src/index.js';
+
+// X Platform Connectors (@medina/x-platform-connectors)
+// 50 platform connectors: e-commerce, payments, accounting, CRM, marketing,
+// analytics, logistics, HR, and productivity adapters.
+export {
+  XPlatformConnector,
+  X_PLATFORM_CONNECTORS_VERSION,
+  X_PLATFORM_CONNECTORS_COUNT,
+  // Original 7
+  SquareConnector, ShopifyConnector, StripeConnector, QuickBooksConnector,
+  PayPalConnector, WooCommerceConnector, GenericRestConnector,
+  // E-commerce
+  AmazonSellerConnector, EbayConnector, EtsyConnector, BigCommerceConnector,
+  MagentoConnector, WalmartSellerConnector, TikTokShopConnector, PinterestShoppingConnector,
+  // Payments / Fintech
+  BraintreeConnector, AuthorizeNetConnector, KlarnaConnector, AfterpayConnector,
+  AdyenConnector, PlaidConnector, CoinbaseCommerceConnector, VenmoBusinessConnector,
+  // Accounting / Finance
+  XeroConnector, FreshBooksConnector, WaveConnector, ZohoBooksConnector, NetSuiteConnector, SageConnector,
+  // CRM / Sales
+  SalesforceConnector, HubSpotConnector, PipedriveConnector, ZohoCRMConnector, FreshsalesConnector,
+  // Marketing / Communication
+  MailchimpConnector, KlaviyoConnector, SendGridConnector, TwilioConnector, ActiveCampaignConnector,
+  // Analytics / Data
+  GoogleAnalyticsConnector, MixpanelConnector, SegmentConnector,
+  // Logistics / Shipping
+  ShipStationConnector, EasyPostConnector, FedExConnector, UPSConnector,
+  // HR / Payroll
+  GustoConnector, RipplingConnector,
+  // Productivity / Data
+  AirtableConnector, GoogleSheetsConnector,
+} from './x-platform-connectors/src/index.js';
+
+// X Versioning SDK (@x-ecosystem/x-versioning)
+// Immutable version registry, semver tags, and hash-chained changelog.
+export {
+  XVersionRegistry,
+  XVersionTag,
+  XChangelog,
+  CHANGE_TYPE,
+  X_VERSIONING_VERSION,
+} from './x-versioning/src/index.js';
+
+// X MCP Servers (@x-ecosystem/x-mcp-servers)
+// BusinessOps, Operations, Platform MCP servers + unified gateway.
+export {
+  BusinessOpsMCPServer,
+  OperationsMCPServer,
+  PlatformMCPServer,
+  XMCPGateway,
+  MCPTransport,
+  MCP_VERSION,
+  X_MCP_SERVERS_VERSION,
+} from './x-mcp-servers/src/index.js';
+
 // Default export is the bootstrap function
 export { default } from './runtime/bootstrap.js';
