@@ -1,5 +1,75 @@
 {
-  "signals": {},
-  "velocityHistory": [],
-  "lastUpdated": null
+  "signals": {
+    "ci:core-api pytest suite": {
+      "prediction": 0.575,
+      "weight": 0.575,
+      "learningRate": 0.165,
+      "history": [
+        {
+          "outcome": 1,
+          "error": 0.5,
+          "at": "2026-07-12T07:10:01.230Z"
+        }
+      ]
+    },
+    "ci:Cloudflare Worker typecheck + dry-run": {
+      "prediction": 0.575,
+      "weight": 0.575,
+      "learningRate": 0.165,
+      "history": [
+        {
+          "outcome": 1,
+          "error": 0.5,
+          "at": "2026-07-12T07:10:01.230Z"
+        }
+      ]
+    },
+    "ci:docker-compose config validation": {
+      "prediction": 0.575,
+      "weight": 0.575,
+      "learningRate": 0.165,
+      "history": [
+        {
+          "outcome": 1,
+          "error": 0.5,
+          "at": "2026-07-12T07:10:01.230Z"
+        }
+      ]
+    },
+    "ci:gateway-node smoke test": {
+      "prediction": 0.575,
+      "weight": 0.575,
+      "learningRate": 0.165,
+      "history": [
+        {
+          "outcome": 1,
+          "error": 0.5,
+          "at": "2026-07-12T07:10:01.230Z"
+        }
+      ]
+    },
+    "dependency_freshness": {
+      "prediction": 0.575,
+      "weight": 0.575,
+      "learningRate": 0.165,
+      "history": [
+        {
+          "outcome": 1,
+          "error": 0.5,
+          "at": "2026-07-12T07:10:01.230Z"
+        }
+      ]
+    }
+  },
+  "velocityHistory": [
+    {
+      "velocity": 0.5,
+      "novelty": {
+        "signal": "ci:core-api pytest suite",
+        "absError": 0.5
+      },
+      "at": "2026-07-12T07:10:01.230Z"
+    }
+  ],
+  "lastUpdated": "2026-07-12T07:10:01.230Z"
 }
