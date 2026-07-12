@@ -4,6 +4,23 @@
   "description": "Sovereign X ecosystem engine — multi-tenant, multi-platform AI orchestration",
   "type": "module",
   "main": "src/index.js",
-  "exports": { ".": "./src/index.js" },
-  "license": "UNLICENSED"
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "license": "MIT",
+  "files": [
+    "src/"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FreddyCreates/potential-succotash.git",
+    "directory": "sdk/x-ecosystem"
+  },
+  "author": "Medina",
+  "publishConfig": {
+    "access": "public"
+  }
 }

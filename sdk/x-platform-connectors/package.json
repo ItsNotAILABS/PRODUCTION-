@@ -4,6 +4,23 @@
   "description": "X ecosystem platform connectors — Square, Shopify, Stripe, QuickBooks, PayPal, WooCommerce",
   "type": "module",
   "main": "src/index.js",
-  "exports": { ".": "./src/index.js" },
-  "license": "UNLICENSED"
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "license": "MIT",
+  "files": [
+    "src/"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FreddyCreates/potential-succotash.git",
+    "directory": "sdk/x-platform-connectors"
+  },
+  "author": "Medina",
+  "publishConfig": {
+    "access": "public"
+  }
 }

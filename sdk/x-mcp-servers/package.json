@@ -11,6 +11,27 @@
     "./platform": "./src/platform-mcp-server.js",
     "./gateway": "./src/x-mcp-gateway.js"
   },
-  "keywords": ["x-ecosystem", "mcp", "model-context-protocol", "ai", "tools"],
-  "license": "MIT"
+  "keywords": [
+    "x-ecosystem",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "tools"
+  ],
+  "license": "MIT",
+  "files": [
+    "src/"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FreddyCreates/potential-succotash.git",
+    "directory": "sdk/x-mcp-servers"
+  },
+  "author": "Medina",
+  "publishConfig": {
+    "access": "public"
+  }
 }
