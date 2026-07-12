@@ -1,0 +1,34 @@
+# Real CI for organism/adaptive-health/ — runs the actual unit test suite
+# for the learning core. No themed status messages; this either genuinely
+# passes or genuinely fails.
+
+name: Adaptive Health Tracker CI
+
+on:
+  pull_request:
+    paths:
+      - "organism/adaptive-health/**"
+  push:
+    branches: [main]
+    paths:
+      - "organism/adaptive-health/**"
+
+concurrency:
+  group: adaptive-health-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Learning core unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: organism/adaptive-health
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: node --test

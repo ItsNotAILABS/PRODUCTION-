@@ -1,0 +1,63 @@
+# ============================================================================
+# organism-adaptive-health-bot — Real CI/quality outcome learning loop
+#
+# Unlike the other organism-*-bot workflows, every number this bot writes is
+# a genuine measurement (CI job outcomes, CodeQL alert counts, Dependabot
+# staleness) folded through a real error-correction/Hebbian-style update —
+# see organism/adaptive-health/README.md for exactly what's real vs. what's
+# metaphor. It follows the same AGENT_BOUNDARIES.md conventions as the rest
+# of the bot fleet (skip-ci commits, concurrency group, rebase-before-push)
+# so it coexists with them without conflict.
+#
+# Identity: organism-adaptive-health-bot <organism-adaptive-health-bot@users.noreply.github.com>
+# ============================================================================
+
+name: "🧠 Adaptive Health Tracker"
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'  # every 6 hours, offset from alpha-bot's on-the-hour schedule
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  security-events: read
+  pull-requests: read
+  actions: read
+
+concurrency:
+  group: organism-adaptive-health-bot
+  cancel-in-progress: true
+
+jobs:
+  update-state:
+    name: "🧠 Fold in real outcomes"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Update adaptive health state
+        working-directory: organism/adaptive-health
+        run: node update-state.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit updated state
+        run: |
+          git config user.name "organism-adaptive-health-bot"
+          git config user.email "organism-adaptive-health-bot@users.noreply.github.com"
+          git add organism/adaptive-health/state.json
+          if git diff --cached --quiet; then
+            echo "No state changes to commit"
+          else
+            git commit -m "🧠 Adaptive-health-bot: state updated [skip ci]"
+            git pull --rebase origin main || true
+            git push || echo "⚠️ Push failed — skipping (concurrent bot conflict)"
+          fi
