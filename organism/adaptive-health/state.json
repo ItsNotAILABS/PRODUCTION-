@@ -1,9 +1,9 @@
 {
   "signals": {
     "ci:core-api pytest suite": {
-      "prediction": 0.9960093476816849,
-      "weight": 0.9960093476816849,
-      "learningRate": 0.3669286403851595,
+      "prediction": 0.9974736323110942,
+      "weight": 0.9974736323110942,
+      "learningRate": 0.3485822083659015,
       "history": [
         {
           "outcome": 1,
@@ -74,13 +74,18 @@
           "outcome": 1,
           "error": 0.00650198237296995,
           "at": "2026-07-15T12:46:48.297Z"
+        },
+        {
+          "outcome": 1,
+          "error": 0.00399065231831508,
+          "at": "2026-07-15T18:40:58.901Z"
         }
       ]
     },
     "ci:Cloudflare Worker typecheck + dry-run": {
-      "prediction": 0.9960093476816849,
-      "weight": 0.9960093476816849,
-      "learningRate": 0.3669286403851595,
+      "prediction": 0.9974736323110942,
+      "weight": 0.9974736323110942,
+      "learningRate": 0.3485822083659015,
       "history": [
         {
           "outcome": 1,
@@ -151,13 +156,18 @@
           "outcome": 1,
           "error": 0.00650198237296995,
           "at": "2026-07-15T12:46:48.297Z"
+        },
+        {
+          "outcome": 1,
+          "error": 0.00399065231831508,
+          "at": "2026-07-15T18:40:58.901Z"
         }
       ]
     },
     "ci:docker-compose config validation": {
-      "prediction": 0.9960093476816849,
-      "weight": 0.9960093476816849,
-      "learningRate": 0.3669286403851595,
+      "prediction": 0.9974736323110942,
+      "weight": 0.9974736323110942,
+      "learningRate": 0.3485822083659015,
       "history": [
         {
           "outcome": 1,
@@ -228,13 +238,18 @@
           "outcome": 1,
           "error": 0.00650198237296995,
           "at": "2026-07-15T12:46:48.297Z"
+        },
+        {
+          "outcome": 1,
+          "error": 0.00399065231831508,
+          "at": "2026-07-15T18:40:58.901Z"
         }
       ]
     },
     "ci:gateway-node smoke test": {
-      "prediction": 0.9960093476816849,
-      "weight": 0.9960093476816849,
-      "learningRate": 0.3669286403851595,
+      "prediction": 0.9974736323110942,
+      "weight": 0.9974736323110942,
+      "learningRate": 0.3485822083659015,
       "history": [
         {
           "outcome": 1,
@@ -305,13 +320,18 @@
           "outcome": 1,
           "error": 0.00650198237296995,
           "at": "2026-07-15T12:46:48.297Z"
+        },
+        {
+          "outcome": 1,
+          "error": 0.00399065231831508,
+          "at": "2026-07-15T18:40:58.901Z"
         }
       ]
     },
     "dependency_freshness": {
-      "prediction": 0.9960093476816849,
-      "weight": 0.9960093476816849,
-      "learningRate": 0.3669286403851595,
+      "prediction": 0.9974736323110942,
+      "weight": 0.9974736323110942,
+      "learningRate": 0.3485822083659015,
       "history": [
         {
           "outcome": 1,
@@ -382,6 +402,11 @@
           "outcome": 1,
           "error": 0.00650198237296995,
           "at": "2026-07-15T12:46:48.297Z"
+        },
+        {
+          "outcome": 1,
+          "error": 0.00399065231831508,
+          "at": "2026-07-15T18:40:58.901Z"
         }
       ]
     }
@@ -498,7 +523,15 @@
         "absError": 0.00650198237296995
       },
       "at": "2026-07-15T12:46:48.297Z"
+    },
+    {
+      "velocity": 0.00399065231831508,
+      "novelty": {
+        "signal": "ci:core-api pytest suite",
+        "absError": 0.00399065231831508
+      },
+      "at": "2026-07-15T18:40:58.901Z"
     }
   ],
-  "lastUpdated": "2026-07-15T12:46:48.297Z"
+  "lastUpdated": "2026-07-15T18:40:58.901Z"
 }
