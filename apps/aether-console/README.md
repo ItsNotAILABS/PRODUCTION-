@@ -52,7 +52,9 @@ have Claude build a custom one (Studio needs ANTHROPIC_API_KEY; the 20 ready
 types don't).
 
 **Or the desktop server** (`apps/aether-desktop/server.js`) — plain Node, local
-JSON persistence, same route core, but without the Foundry/Studio endpoints:
+JSON persistence, same route core, and now the **same Worker Foundry + Studio**
+(a JS engine reads the shared template bundle, so the Foundry tab works here and
+on Cloudflare Pages too, not just the Python backend):
 
 ```bash
 cd apps/aether-desktop && node -e "require('./server.js').createServer('./aether-state.json', 7873)"

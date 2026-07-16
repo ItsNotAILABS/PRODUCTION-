@@ -12,6 +12,7 @@
  */
 
 import { freshState, route } from './core.js';
+import { generateWorker } from './studio.js';
 
 async function loadState(kv, seedDemo = false) {
   if (!kv) return freshState(seedDemo);
@@ -54,6 +55,22 @@ export async function onRequest(context) {
 
   const url = new URL(request.url);
   const body = request.method === 'POST' ? await readBody(request) : {};
+
+  // Worker Studio needs env (API key) + async fetch — handled here, ahead of
+  // the pure route() core. Honest: 402 when no key is configured.
+  if (request.method === 'POST' && url.pathname.replace(/\/$/, '') === '/api/studio/generate') {
+    try {
+      const spec = await generateWorker({
+        prompt: body.prompt, apiKey: body.api_key || env.ANTHROPIC_API_KEY,
+        model: body.model,
+      });
+      return json(spec, 200);
+    } catch (e) {
+      const msg = String(e.message || e);
+      return json({ error: msg }, msg.startsWith('no_api_key') ? 402 : 400);
+    }
+  }
+
   const state = await loadState(kv, env.AETHER_SEED_DEMO === '1');
 
   const { status, data, dirty } = route(request.method, url.pathname, body, state);

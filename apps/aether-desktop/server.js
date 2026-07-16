@@ -13,6 +13,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { freshState, route } = require('../aether-console/functions/api/core.js');
+const { generateWorker } = require('../aether-console/functions/api/studio.js');
 
 const STATIC_ROOT = path.join(__dirname, '..', 'aether-console');
 
@@ -82,6 +83,26 @@ function createServer(statePath, port = 7873, host = '127.0.0.1') {
 
     if (url.pathname.startsWith('/api/')) {
       const body = req.method === 'POST' ? await readBody(req) : {};
+
+      // Worker Studio needs the API key from the environment + async fetch —
+      // handled here, ahead of the pure route() core. Honest 402 with no key.
+      if (req.method === 'POST' && url.pathname.replace(/\/$/, '') === '/api/studio/generate') {
+        let status = 200; let data;
+        try {
+          data = await generateWorker({
+            prompt: body.prompt, apiKey: body.api_key || process.env.ANTHROPIC_API_KEY,
+            model: body.model,
+          });
+        } catch (e) {
+          const msg = String(e.message || e);
+          status = msg.startsWith('no_api_key') ? 402 : 400;
+          data = { error: msg };
+        }
+        res.writeHead(status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data, null, 2));
+        return;
+      }
+
       const result = route(req.method, url.pathname, body, state);
       if (result.dirty) saveState(statePath, state);
       const payload = JSON.stringify(result.data, null, 2);
