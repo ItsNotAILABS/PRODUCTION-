@@ -30,7 +30,10 @@ async function main() {
   check('no-key generate throws no_api_key (never a fake worker)', raised.startsWith('no_api_key'), raised);
 
   let empty = '';
-  try { await studio.generateWorker({ prompt: '   ', apiKey: 'unused-empty-prompt' }); }
+  // A short, obviously-fake non-empty key just to clear the no-key guard and
+  // reach the empty-prompt check (kept < 16 chars so the secret scanner's
+  // apiKey heuristic doesn't false-positive on this test).
+  try { await studio.generateWorker({ prompt: '   ', apiKey: 'fake' }); }
   catch (e) { empty = String(e.message || e); }
   check('empty prompt rejected', empty.startsWith('empty_prompt'), empty);
 
