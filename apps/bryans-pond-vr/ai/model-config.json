@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "policy": {
+    "allowRemoteModels": false,
+    "localModelPath": "./models/",
+    "wasmPath": "./wasm/"
+  },
+  "preload": [],
+  "pipelines": {
+    "fishing-state": {
+      "task": "zero-shot-classification",
+      "model": "fishing-state",
+      "dtype": "q8",
+      "device": "wasm"
+    },
+    "fishing-guide": {
+      "task": "text-generation",
+      "model": "fishing-guide",
+      "dtype": "q4",
+      "device": "wasm"
+    },
+    "catch-embedding": {
+      "task": "feature-extraction",
+      "model": "catch-embedding",
+      "dtype": "q8",
+      "device": "wasm"
+    }
+  }
+}
