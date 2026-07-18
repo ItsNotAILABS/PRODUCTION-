@@ -1,13 +1,15 @@
-name: Bryan's Pond VR Pages
+name: Immersive Games Pages
 
 on:
   push:
     branches: [main]
     paths:
+      - 'apps/blackvector-vr/**'
       - 'apps/bryans-pond-vr/**'
       - '.github/workflows/bryans-pond-vr-pages.yml'
   pull_request:
     paths:
+      - 'apps/blackvector-vr/**'
       - 'apps/bryans-pond-vr/**'
       - '.github/workflows/bryans-pond-vr-pages.yml'
   workflow_dispatch:
@@ -18,26 +20,40 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bryans-pond-vr-pages
+  group: immersive-games-pages
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/bryans-pond-vr
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
-      - run: npm run certify
-      - run: npm run build -- --base=/PRODUCTION-/
+      - name: Build BLACKVECTOR VR
+        working-directory: apps/blackvector-vr
+        run: |
+          npm install
+          npm run certify
+          npm run build -- --base=/PRODUCTION-/blackvector/
+      - name: Build Bryan's Pond VR
+        working-directory: apps/bryans-pond-vr
+        run: |
+          npm install
+          npm run certify
+          npm run build -- --base=/PRODUCTION-/pond/
+      - name: Assemble Pages site
+        run: |
+          mkdir -p site/blackvector site/pond
+          cp -R apps/blackvector-vr/dist/. site/blackvector/
+          cp -R apps/bryans-pond-vr/dist/. site/pond/
+          cat > site/index.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ITSNotAI Labs Immersive Games</title><style>body{margin:0;background:#071018;color:#eef8ff;font-family:system-ui;display:grid;min-height:100vh;place-items:center}.wrap{width:min(900px,92vw)}h1{font-size:clamp(38px,8vw,80px);margin:0 0 20px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}a{display:block;padding:28px;border-radius:22px;background:#10202d;color:white;text-decoration:none;border:1px solid #7ce8ff33}b{font-size:24px;display:block;margin-bottom:8px}span{color:#9eb8c7}@media(max-width:700px){.grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><h1>IMMERSIVE GAMES</h1><div class="grid"><a href="./blackvector/"><b>BLACKVECTOR VR</b><span>Compact tactical wave FPS</span></a><a href="./pond/"><b>Bryan's Pond VR</b><span>Walkable wilderness fishing reserve</span></a></div></div></body></html>
+          HTML
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: apps/bryans-pond-vr/dist
+          path: site
 
   deploy:
     if: github.event_name != 'pull_request'
