@@ -5,7 +5,7 @@ if(missing.length){console.error('Missing:',missing);process.exit(1)}
 const js=fs.readFileSync('src/main-pro.js','utf8');
 for(const token of [
   'VRButton','XRControllerModelFactory','Water','Sky','renderer.xr.enabled',
-  'reelGesture','snap-turns','wrist','mission','drag','cycleWeather',
+  'reelGesture','lastSnap','wrist','mission','drag','cycleWeather',
   'casting','fight','haptic','local-floor'
 ]){
   if(!js.includes(token)){console.error('Missing Quest Pro system:',token);process.exit(1)}
