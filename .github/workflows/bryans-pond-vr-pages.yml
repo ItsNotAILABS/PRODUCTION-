@@ -19,6 +19,9 @@ permissions:
   pages: write
   id-token: write
 
+environment:
+  name: github-pages
+
 concurrency:
   group: immersive-games-pages
   cancel-in-progress: true
@@ -31,16 +34,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
       - name: Build BLACKVECTOR VR
         working-directory: apps/blackvector-vr
         run: |
-          npm install
+          npm ci
           npm run certify
           npm run build -- --base=/PRODUCTION-/blackvector/
       - name: Build Bryan's Pond VR
         working-directory: apps/bryans-pond-vr
         run: |
-          npm install
+          npm ci
           npm run certify
           npm run build -- --base=/PRODUCTION-/pond/
       - name: Assemble Pages site
@@ -48,10 +53,15 @@ jobs:
           mkdir -p site/blackvector site/pond
           cp -R apps/blackvector-vr/dist/. site/blackvector/
           cp -R apps/bryans-pond-vr/dist/. site/pond/
-          cat > site/index.html <<'HTML'
-          <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ITSNotAI Labs Immersive Games</title><style>body{margin:0;background:#071018;color:#eef8ff;font-family:system-ui;display:grid;min-height:100vh;place-items:center}.wrap{width:min(900px,92vw)}h1{font-size:clamp(38px,8vw,80px);margin:0 0 20px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}a{display:block;padding:28px;border-radius:22px;background:#10202d;color:white;text-decoration:none;border:1px solid #7ce8ff33}b{font-size:24px;display:block;margin-bottom:8px}span{color:#9eb8c7}@media(max-width:700px){.grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><h1>IMMERSIVE GAMES</h1><div class="grid"><a href="./blackvector/"><b>BLACKVECTOR VR</b><span>Compact tactical wave FPS</span></a><a href="./pond/"><b>Bryan's Pond VR</b><span>Walkable wilderness fishing reserve</span></a></div></div></body></html>
+          touch site/.nojekyll
+          cat > site/404.html <<'HTML'
+          <!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/PRODUCTION-/"><title>Immersive Games</title>
           HTML
-      - uses: actions/upload-pages-artifact@v3
+          cat > site/index.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071018"><title>ITSNotAI Labs Immersive Games</title><style>body{margin:0;background:#071018;color:#eef8ff;font-family:system-ui;display:grid;min-height:100vh;place-items:center}.wrap{width:min(900px,92vw)}h1{font-size:clamp(38px,8vw,80px);margin:0 0 20px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}a{display:block;padding:28px;border-radius:22px;background:#10202d;color:white;text-decoration:none;border:1px solid #7ce8ff33}b{font-size:24px;display:block;margin-bottom:8px}span{color:#9eb8c7}@media(max-width:700px){.grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><h1>IMMERSIVE GAMES</h1><div class="grid"><a href="./blackvector/"><b>BLACKVECTOR VR</b><span>Compact tactical wave FPS</span></a><a href="./pond/"><b>Bryan's Pond VR</b><span>Walkable wilderness fishing reserve</span></a></div></div></body></html>
+          HTML
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
@@ -59,6 +69,9 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
