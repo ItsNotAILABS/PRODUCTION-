@@ -36,13 +36,13 @@ jobs:
       - name: Build BLACKVECTOR VR
         working-directory: apps/blackvector-vr
         run: |
-          npm ci
+          npm install --no-audit --no-fund
           npm run certify
           npm run build -- --base=/PRODUCTION-/blackvector/
       - name: Build Bryan's Pond VR
         working-directory: apps/bryans-pond-vr
         run: |
-          npm ci
+          npm install --no-audit --no-fund
           npm run certify
           npm run build -- --base=/PRODUCTION-/pond/
       - name: Assemble Pages site
