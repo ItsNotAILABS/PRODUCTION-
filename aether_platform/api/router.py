@@ -26,6 +26,13 @@ Routes:
   GET  /api/protocols
   GET  /api/protocols/:id
   POST /api/protocols/:id/deploy
+  GET  /api/foundry/templates
+  POST /api/foundry/generate
+  POST /api/foundry/download
+  POST /api/studio/generate    - new worker from a prompt
+  POST /api/studio/configure   - recommend params for an existing template
+  POST /api/studio/remix       - adapt an existing template into a new one
+  POST /api/studio/download    - bundle a generate/remix spec into a zip
 """
 from __future__ import annotations
 
@@ -274,6 +281,58 @@ def handle(
                 msg = str(e)
                 code = 402 if msg.startswith("no_api_key") else 400
                 return code, {"error": msg}
+
+        # Recommends parameter values for an EXISTING template — "give me a
+        # better configuration" / "help with one of the configurations".
+        if p == "/api/studio/configure":
+            if not _FOUNDRY_OK:
+                return 503, {"error": "studio_unavailable"}
+            try:
+                result = _studio().configure(
+                    body.get("template_id", ""),
+                    body.get("goal", ""),
+                    api_key=body.get("api_key"),
+                    model=body.get("model"),
+                )
+                return 200, result
+            except FoundryError as e:
+                return 404, {"error": str(e)}
+            except StudioError as e:
+                msg = str(e)
+                code = 402 if msg.startswith("no_api_key") else 400
+                return code, {"error": msg}
+
+        # Adapts an EXISTING template's real source into a new worker —
+        # "take any of the forty and make a new one".
+        if p == "/api/studio/remix":
+            if not _FOUNDRY_OK:
+                return 503, {"error": "studio_unavailable"}
+            try:
+                spec = _studio().remix(
+                    body.get("template_id", ""),
+                    body.get("request", ""),
+                    api_key=body.get("api_key"),
+                    model=body.get("model"),
+                )
+                return 200, spec
+            except FoundryError as e:
+                return 404, {"error": str(e)}
+            except StudioError as e:
+                msg = str(e)
+                code = 402 if msg.startswith("no_api_key") else 400
+                return code, {"error": msg}
+
+        # Bundles a generate()/remix() spec into a real zip — worker file +
+        # README + run.sh — the same shape a Foundry download gets.
+        if p == "/api/studio/download":
+            if not _FOUNDRY_OK:
+                return 503, {"error": "studio_unavailable"}
+            spec = body.get("spec") or {}
+            if not spec.get("code") or not spec.get("filename"):
+                return 400, {"error": "invalid_spec: spec.code and spec.filename are required"}
+            blob = _studio().bundle_zip(spec)
+            slug = (spec.get("filename", "worker").rsplit(".", 1)[0] or "worker")
+            return 200, {"filename": f"{slug}.zip", "zip_base64": base64.b64encode(blob).decode()}
 
         return 404, {"error": "not_found"}
 

@@ -134,10 +134,14 @@ function crc32(bytes) {
   return (c ^ 0xFFFFFFFF) >>> 0;
 }
 
-function bundleZip(templateId, params) {
-  const rendered = render(templateId, params);
+/**
+ * Pack `[{path, content, executable}]` into a stored (uncompressed) ZIP.
+ * Shared by `bundleZip` (Foundry templates) and the Worker Studio's
+ * `bundleSpecZip` (Claude-generated workers) — one zip writer, two callers.
+ */
+function packZip(entries) {
   const enc = new TextEncoder();
-  const entries = [];
+  const central = [];
   const chunks = [];
   let offset = 0;
 
@@ -145,12 +149,11 @@ function bundleZip(templateId, params) {
   const u16 = (v) => new Uint8Array([v & 0xFF, (v >>> 8) & 0xFF]);
   const u32 = (v) => new Uint8Array([v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF]);
 
-  for (const [path, content] of Object.entries(rendered.files)) {
-    const name = enc.encode(`${templateId}/${path}`);
+  for (const { path, content, executable } of entries) {
+    const name = enc.encode(path);
     const data = enc.encode(content);
     const crc = crc32(data);
-    const exec = (path === rendered.entry || path === 'run.sh');
-    const externalAttr = ((exec ? 0o100755 : 0o100644) << 16) >>> 0;
+    const externalAttr = ((executable ? 0o100755 : 0o100644) << 16) >>> 0;
     const localOffset = offset;
 
     // local file header
@@ -160,11 +163,11 @@ function bundleZip(templateId, params) {
     push(u16(name.length)); push(u16(0));
     push(name); push(data);
 
-    entries.push({ name, crc, size: data.length, localOffset, externalAttr });
+    central.push({ name, crc, size: data.length, localOffset, externalAttr });
   }
 
   const centralStart = offset;
-  for (const e of entries) {
+  for (const e of central) {
     push(u32(0x02014b50)); push(u16(20)); push(u16(20)); push(u16(0)); push(u16(0));
     push(u16(0)); push(u16(0));                 // mod time/date
     push(u32(e.crc)); push(u32(e.size)); push(u32(e.size));
@@ -177,13 +180,22 @@ function bundleZip(templateId, params) {
 
   // end of central directory
   push(u32(0x06054b50)); push(u16(0)); push(u16(0));
-  push(u16(entries.length)); push(u16(entries.length));
+  push(u16(central.length)); push(u16(central.length));
   push(u32(centralSize)); push(u32(centralStart)); push(u16(0));
 
   const out = new Uint8Array(offset);
   let p = 0;
   for (const c of chunks) { out.set(c, p); p += c.length; }
   return out;
+}
+
+function bundleZip(templateId, params) {
+  const rendered = render(templateId, params);
+  const entries = Object.entries(rendered.files).map(([path, content]) => ({
+    path: `${templateId}/${path}`, content,
+    executable: path === rendered.entry || path === 'run.sh',
+  }));
+  return packZip(entries);
 }
 
 function bytesToBase64(bytes) {
@@ -200,4 +212,4 @@ function bytesToBase64(bytes) {
   return out;
 }
 
-module.exports = { listTemplates, categories, render, bundleZip, bytesToBase64 };
+module.exports = { listTemplates, categories, render, bundleZip, bytesToBase64, packZip };

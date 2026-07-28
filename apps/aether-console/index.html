@@ -112,6 +112,9 @@
   button.secondary:hover { color: var(--text-primary); border-color: var(--border-accent); }
   button.danger { background: rgba(244,63,94,0.15); color: var(--accent-rose); }
   button.small { padding: 0.3rem 0.65rem; font-size: 0.72rem; }
+  .studio-tab { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary); }
+  .studio-tab:hover { color: var(--text-primary); border-color: var(--border-accent); }
+  .studio-tab.active { background: rgba(74,144,217,0.12); color: var(--primary-light); border-color: var(--border-accent); }
   .section-title { font-size: 0.95rem; font-weight: 600; margin: 1.5rem 0 0.75rem; color: var(--text-primary); }
   .section-title:first-child { margin-top: 0; }
 
@@ -327,17 +330,49 @@
         then reload.
       </div>
 
-      <div class="section-title">Describe a worker — Claude builds it</div>
+      <div class="section-title">Forge Intelligence <span class="stat-hint">— Claude, working inside the Foundry</span></div>
       <div class="card">
-        <textarea id="studio-prompt" rows="3" placeholder="e.g. A headless node that logs into our dashboard, exports the CSV, and uploads it to our endpoint every hour"
-          style="width:100%; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:8px; padding:0.6rem; font-family:var(--font-mono); font-size:0.82rem;"></textarea>
-        <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center;">
-          <button onclick="studioGenerate()">⚒ Generate with Claude</button>
-          <span class="stat-hint" id="studio-status"></span>
+        <div class="row" id="studio-tabs" style="gap:0.4rem; margin-bottom:0.75rem;">
+          <button data-mode="generate" onclick="studioSetMode('generate')" class="studio-tab active">New worker</button>
+          <button data-mode="configure" onclick="studioSetMode('configure')" class="studio-tab">Configure a blueprint</button>
+          <button data-mode="remix" onclick="studioSetMode('remix')" class="studio-tab">Remix a blueprint</button>
         </div>
+
+        <!-- New worker: free-text -> a brand-new worker -->
+        <div id="studio-pane-generate" class="studio-pane">
+          <p class="stat-hint" style="margin-bottom:0.4rem;">Describe a worker that isn't in the catalog yet — Claude writes the whole thing.</p>
+          <textarea id="studio-prompt" rows="3" placeholder="e.g. A headless node that logs into our dashboard, exports the CSV, and uploads it to our endpoint every hour"
+            style="width:100%; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:8px; padding:0.6rem; font-family:var(--font-mono); font-size:0.82rem;"></textarea>
+          <div style="margin-top:0.5rem;"><button onclick="studioGenerate()">⚒ Generate with Claude</button></div>
+        </div>
+
+        <!-- Configure: pick a blueprint, describe the goal -> recommended params, forge directly -->
+        <div id="studio-pane-configure" class="studio-pane" style="display:none;">
+          <p class="stat-hint" style="margin-bottom:0.4rem;">Pick one of the 40 and say what you're trying to do — Claude recommends the parameter values, then forges it for real.</p>
+          <select id="studio-cfg-template" style="width:100%; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:8px; padding:0.5rem; font-family:var(--font-mono); font-size:0.8rem; margin-bottom:0.5rem;"></select>
+          <textarea id="studio-cfg-goal" rows="2" placeholder="e.g. Watch our pricing page and our two competitors', alert Slack only when a price actually changes"
+            style="width:100%; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:8px; padding:0.6rem; font-family:var(--font-mono); font-size:0.82rem;"></textarea>
+          <div style="margin-top:0.5rem;"><button onclick="studioConfigure()">🎛 Recommend configuration</button></div>
+          <div id="studio-cfg-result" style="display:none; margin-top:0.75rem;">
+            <div id="studio-cfg-rationale" class="stat-hint" style="margin-bottom:0.5rem;"></div>
+            <div id="studio-cfg-params" style="font-family:var(--font-mono); font-size:0.78rem; background:var(--bg-elevated); border:1px solid var(--border); border-radius:8px; padding:0.6rem;"></div>
+            <div style="margin-top:0.5rem;"><button onclick="studioForgeConfigured()">⚒ Forge with these settings ↓</button></div>
+          </div>
+        </div>
+
+        <!-- Remix: pick a blueprint, describe the change -> a new, complete worker -->
+        <div id="studio-pane-remix" class="studio-pane" style="display:none;">
+          <p class="stat-hint" style="margin-bottom:0.4rem;">Pick one of the 40 as a starting point — Claude edits the real source and hands back a new, complete worker.</p>
+          <select id="studio-rmx-template" style="width:100%; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:8px; padding:0.5rem; font-family:var(--font-mono); font-size:0.8rem; margin-bottom:0.5rem;"></select>
+          <textarea id="studio-rmx-request" rows="2" placeholder="e.g. Same crawler, but also follow pagination links and stop after 500 pages"
+            style="width:100%; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:8px; padding:0.6rem; font-family:var(--font-mono); font-size:0.82rem;"></textarea>
+          <div style="margin-top:0.5rem;"><button onclick="studioRemix()">⚒ Remix with Claude</button></div>
+        </div>
+
+        <div style="margin-top:0.6rem;"><span class="stat-hint" id="studio-status"></span></div>
         <pre id="studio-output" style="display:none; margin-top:0.75rem; max-height:340px; overflow:auto; background:var(--bg-elevated); border:1px solid var(--border); border-radius:8px; padding:0.75rem; font-family:var(--font-mono); font-size:0.76rem; white-space:pre-wrap;"></pre>
         <div id="studio-actions" style="display:none; margin-top:0.5rem;">
-          <button onclick="downloadStudio()">↓ Download</button>
+          <button onclick="downloadStudio()">↓ Download the real zip</button>
         </div>
       </div>
 
@@ -383,6 +418,7 @@ async function api(path, opts = {}) {
 // ── Worker Foundry + Studio ──────────────────────────
 let _foundryLoaded = false;
 let _studioSpec = null;
+let _studioCfg = null;
 
 function b64ToBlob(b64, type) {
   const bin = atob(b64); const arr = new Uint8Array(bin.length);
@@ -395,6 +431,8 @@ function download(blob, name) {
   a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+let _foundryTemplates = [];
+
 async function loadFoundry() {
   if (_foundryLoaded) return;
   const grid = document.getElementById('foundry-grid');
@@ -406,6 +444,7 @@ async function loadFoundry() {
     return;
   }
   _foundryLoaded = true;
+  _foundryTemplates = data.templates;
   document.getElementById('foundry-unavailable').style.display = 'none';
   document.getElementById('foundry-count').textContent = data.templates.length + ' types';
   grid.innerHTML = data.templates.map((t, i) => `
@@ -425,6 +464,10 @@ async function loadFoundry() {
         <button onclick="downloadWorker('${t.id}', ${i})">↓ Download</button>
       </div>
     </div>`).join('');
+
+  const opts = data.templates.map(t => `<option value="${t.id}">${t.name} (${t.category})</option>`).join('');
+  document.getElementById('studio-cfg-template').innerHTML = opts;
+  document.getElementById('studio-rmx-template').innerHTML = opts;
 }
 
 function collectParams(cardIdx) {
@@ -444,6 +487,26 @@ async function downloadWorker(templateId, cardIdx) {
   } catch (e) { toast('Download failed', false); }
 }
 
+let _studioMode = 'generate';
+function studioSetMode(mode) {
+  _studioMode = mode;
+  document.querySelectorAll('.studio-tab').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.querySelectorAll('.studio-pane').forEach(p => p.style.display = 'none');
+  document.getElementById('studio-pane-' + mode).style.display = 'block';
+  document.getElementById('studio-status').textContent = '';
+  document.getElementById('studio-output').style.display = 'none';
+  document.getElementById('studio-actions').style.display = 'none';
+  document.getElementById('studio-cfg-result').style.display = 'none';
+  _studioSpec = null;
+  _studioCfg = null;
+}
+
+function studioNoKeyMessage(err) {
+  return err.startsWith('no_api_key')
+    ? 'Studio needs an Anthropic API key. Set ANTHROPIC_API_KEY on the backend, then retry. (The 40 ready-made types download without a key.)'
+    : err;
+}
+
 async function studioGenerate() {
   const prompt = document.getElementById('studio-prompt').value.trim();
   if (!prompt) { toast('Describe the worker first', false); return; }
@@ -454,23 +517,72 @@ async function studioGenerate() {
   let res;
   try { res = await api('/studio/generate', { method: 'POST', body: { prompt } }); }
   catch { status.textContent = 'Studio backend not reachable.'; return; }
-  if (res.error) {
-    status.textContent = res.error.startsWith('no_api_key')
-      ? 'Studio needs an Anthropic API key. Set ANTHROPIC_API_KEY on the backend, then retry. (The 40 ready-made types download without a key.)'
-      : res.error;
-    return;
-  }
+  if (res.error) { status.textContent = studioNoKeyMessage(res.error); return; }
   _studioSpec = res;
   status.textContent = `${res.filename} · ${res.runtime}` + (res.needs && res.needs.length ? ` · needs: ${res.needs.join(', ')}` : '');
   out.textContent = (res.notes ? '// ' + res.notes + '\n// run: ' + res.run + '\n\n' : '') + res.code;
   out.style.display = 'block'; actions.style.display = 'block';
 }
 
-function downloadStudio() {
+async function studioConfigure() {
+  const templateId = document.getElementById('studio-cfg-template').value;
+  const goal = document.getElementById('studio-cfg-goal').value.trim();
+  if (!templateId) { toast('Pick a blueprint first', false); return; }
+  if (!goal) { toast('Describe the goal first', false); return; }
+  const status = document.getElementById('studio-status');
+  const result = document.getElementById('studio-cfg-result');
+  status.textContent = 'Claude is choosing parameter values…'; result.style.display = 'none';
+  let res;
+  try { res = await api('/studio/configure', { method: 'POST', body: { template_id: templateId, goal } }); }
+  catch { status.textContent = 'Studio backend not reachable.'; return; }
+  if (res.error) { status.textContent = studioNoKeyMessage(res.error); return; }
+  _studioCfg = res;
+  status.textContent = '';
+  document.getElementById('studio-cfg-rationale').textContent = res.rationale || '';
+  const entries = Object.entries(res.params || {});
+  document.getElementById('studio-cfg-params').innerHTML = entries.length
+    ? entries.map(([k, v]) => `<div><b>${k}</b> = ${v || '(default)'}</div>`).join('')
+    : '<div class="stat-hint">Claude kept every default as-is.</div>';
+  result.style.display = 'block';
+}
+
+async function studioForgeConfigured() {
+  if (!_studioCfg) return;
+  try {
+    const res = await api('/foundry/download', { method: 'POST', body: { template_id: _studioCfg.template_id, params: _studioCfg.params } });
+    if (res.error) { toast(res.error, false); return; }
+    download(b64ToBlob(res.zip_base64, 'application/zip'), res.filename);
+    toast('Forged ' + res.filename + ' with Claude\'s configuration');
+  } catch (e) { toast('Forge failed', false); }
+}
+
+async function studioRemix() {
+  const templateId = document.getElementById('studio-rmx-template').value;
+  const request = document.getElementById('studio-rmx-request').value.trim();
+  if (!templateId) { toast('Pick a blueprint first', false); return; }
+  if (!request) { toast('Describe the change first', false); return; }
+  const status = document.getElementById('studio-status');
+  const out = document.getElementById('studio-output');
+  const actions = document.getElementById('studio-actions');
+  status.textContent = 'Claude is remixing ' + templateId + '…'; out.style.display = 'none'; actions.style.display = 'none';
+  let res;
+  try { res = await api('/studio/remix', { method: 'POST', body: { template_id: templateId, request } }); }
+  catch { status.textContent = 'Studio backend not reachable.'; return; }
+  if (res.error) { status.textContent = studioNoKeyMessage(res.error); return; }
+  _studioSpec = res;
+  status.textContent = `${res.filename} · ${res.runtime} · based on ${res.base_template_id}` + (res.needs && res.needs.length ? ` · needs: ${res.needs.join(', ')}` : '');
+  out.textContent = (res.notes ? '// ' + res.notes + '\n// run: ' + res.run + '\n\n' : '') + res.code;
+  out.style.display = 'block'; actions.style.display = 'block';
+}
+
+async function downloadStudio() {
   if (!_studioSpec) return;
-  const type = _studioSpec.runtime === 'node' ? 'text/javascript' : 'text/x-python';
-  download(new Blob([_studioSpec.code], { type }), _studioSpec.filename);
-  toast('Downloaded ' + _studioSpec.filename);
+  try {
+    const res = await api('/studio/download', { method: 'POST', body: { spec: _studioSpec } });
+    if (res.error) { toast(res.error, false); return; }
+    download(b64ToBlob(res.zip_base64, 'application/zip'), res.filename);
+    toast('Downloaded ' + res.filename + ' — worker + README + run.sh');
+  } catch (e) { toast('Download failed', false); }
 }
 
 // ── Overview ─────────────────────────────────────────

@@ -7,12 +7,15 @@ Run:  python3 -m aether_platform.studio.test_studio
 """
 from __future__ import annotations
 
+import io
 import os
 import py_compile
 import sys
 import tempfile
+import zipfile
 
 sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..")))
+from aether_platform.foundry import FoundryError  # noqa: E402
 from aether_platform.studio import WorkerStudio, StudioError  # noqa: E402
 from aether_platform.studio.studio import _parse_worker_json  # noqa: E402
 
@@ -44,9 +47,68 @@ def run():
         except StudioError as e:
             emptied = str(e)
         check("empty prompt is rejected", emptied.startswith("empty_prompt"), emptied)
+
+        # ── configure(): recommend params for an existing template ──────
+        raised = ""
+        try:
+            studio.configure("web-spider", "crawl our docs site daily", api_key="")
+        except StudioError as e:
+            raised = str(e)
+        check("no-key configure raises no_api_key", raised.startswith("no_api_key"), raised)
+
+        emptied = ""
+        try:
+            studio.configure("web-spider", "   ", api_key="fake")
+        except StudioError as e:
+            emptied = str(e)
+        check("empty goal is rejected", emptied.startswith("empty_goal"), emptied)
+
+        unknown = False
+        try:
+            studio.configure("not-a-real-template", "do something", api_key="fake")
+        except FoundryError:
+            unknown = True
+        check("configure rejects an unknown template", unknown)
+
+        # ── remix(): adapt an existing template's real source ───────────
+        raised = ""
+        try:
+            studio.remix("web-spider", "add basic auth headers", api_key="")
+        except StudioError as e:
+            raised = str(e)
+        check("no-key remix raises no_api_key", raised.startswith("no_api_key"), raised)
+
+        emptied = ""
+        try:
+            studio.remix("web-spider", "   ", api_key="fake")
+        except StudioError as e:
+            emptied = str(e)
+        check("empty remix request is rejected", emptied.startswith("empty_request"), emptied)
+
+        unknown = False
+        try:
+            studio.remix("not-a-real-template", "do something", api_key="fake")
+        except FoundryError:
+            unknown = True
+        check("remix rejects an unknown template", unknown)
     finally:
         if saved is not None:
             os.environ["ANTHROPIC_API_KEY"] = saved
+
+    # ── bundle_zip(): any Studio spec packs into a real, runnable zip ───
+    spec = {"filename": "relay.py", "runtime": "python", "code": "print('hi')\n",
+            "run": "python3 relay.py", "needs": [], "notes": "test worker",
+            "base_template_id": "webhook-relay"}
+    blob = studio.bundle_zip(spec)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    names = zf.namelist()
+    check("bundle_zip contains the worker, README, and run.sh",
+          any(n.endswith("relay.py") for n in names)
+          and any(n.endswith("README.md") for n in names)
+          and any(n.endswith("run.sh") for n in names), str(names))
+    check("bundle_zip is well-formed", zf.testzip() is None)
+    readme = zf.read([n for n in names if n.endswith("README.md")][0]).decode()
+    check("bundle_zip README credits the base template", "webhook-relay" in readme)
 
     # ── Catalog context grounds the model in the 40 Foundry types ───────
     ctx = studio._catalog_context()
