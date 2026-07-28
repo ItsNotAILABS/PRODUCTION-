@@ -47,12 +47,15 @@ python3 -m aether_platform.api.server
 ```
 
 Starts empty (register your real targets), deploys aren't gated on an empty
-fleet, and the Foundry tab lets you download any of 20 real headless workers or
-have Claude build a custom one (Studio needs ANTHROPIC_API_KEY; the 20 ready
-types don't).
+fleet, and the Foundry tab lets you download any of 40 real headless workers,
+or use Forge Intelligence to have Claude write a new one, recommend a
+configuration for an existing blueprint, or remix one into something new
+(Studio needs ANTHROPIC_API_KEY; the 40 ready-made types don't).
 
 **Or the desktop server** (`apps/aether-desktop/server.js`) — plain Node, local
-JSON persistence, same route core, but without the Foundry/Studio endpoints:
+JSON persistence, same route core, and now the **same Worker Foundry + Studio**
+(a JS engine reads the shared template bundle, so the Foundry tab works here and
+on Cloudflare Pages too, not just the Python backend):
 
 ```bash
 cd apps/aether-desktop && node -e "require('./server.js').createServer('./aether-state.json', 7873)"
@@ -97,6 +100,27 @@ Then either:
 Redeploy (or trigger a new deployment) for the binding to take effect. The
 console will show a banner on the Overview page if no binding is detected.
 
+### Turning on Forge Intelligence (Claude in the Foundry)
+
+The 40 ready-made blueprints download with zero configuration. The AI layer
+— generate a new worker, recommend a configuration, or remix an existing
+blueprint — needs your own Anthropic API key, set as a **secret**, never
+committed:
+
+```bash
+cd apps/aether-console
+npx wrangler pages secret put ANTHROPIC_API_KEY
+# paste the key when prompted; wrangler stores it encrypted, not in any file here
+```
+
+Or in the dashboard: your Pages project → **Settings** → **Environment
+variables** → add `ANTHROPIC_API_KEY` as an **encrypted** variable, then
+redeploy. Without it, `/api/studio/*` responds `402 no_api_key` with a clear
+message — the rest of the console works normally. On the desktop/self-hosted
+transports the same variable is just a regular environment variable
+(`ANTHROPIC_API_KEY=sk-... node apps/aether-desktop/server.js`, or set it in
+the systemd unit / Docker Compose env for the Python backend).
+
 ## API surface
 
 All routes live under `/api/*`, served by the single catch-all function:
@@ -118,6 +142,14 @@ POST /api/policy/evaluate
 GET  /api/protocols
 GET  /api/protocols/:id
 POST /api/protocols/:id/deploy
+
+GET  /api/foundry/templates      — the 40-blueprint catalog
+POST /api/foundry/generate       — render one blueprint's source
+POST /api/foundry/download       — render + zip one blueprint
+POST /api/studio/generate        — Claude writes a new worker from a prompt
+POST /api/studio/configure       — Claude recommends params for an existing blueprint
+POST /api/studio/remix           — Claude adapts an existing blueprint into a new one
+POST /api/studio/download        — zip a generate/remix result
 ```
 
 ## Zero build step

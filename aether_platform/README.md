@@ -116,6 +116,52 @@ POST /api/policy/evaluate
 GET  /api/protocols
 GET  /api/protocols/:id
 POST /api/protocols/:id/deploy
+
+GET  /api/foundry/templates          — the 40-blueprint catalog (no key needed)
+POST /api/foundry/generate           — render one blueprint's source (no key needed)
+POST /api/foundry/download           — render + zip one blueprint (no key needed)
+
+POST /api/studio/generate            — Claude writes a brand-new worker from a prompt
+POST /api/studio/configure           — Claude recommends param values for an existing blueprint
+POST /api/studio/remix               — Claude adapts an existing blueprint's real source into a new one
+POST /api/studio/download            — zip a generate/remix result (worker + README + run.sh)
+```
+
+Every `/api/foundry/*` route needs nothing but the deployment itself — the
+catalog and its 40 templates are static, checked-in files. The four
+`/api/studio/*` routes are the AI layer: they call Claude, so they need
+`ANTHROPIC_API_KEY` set on whichever backend you deployed (env var on
+Docker/systemd, `wrangler secret put ANTHROPIC_API_KEY` on Cloudflare). With
+no key set they return `402 no_api_key` and a clear message — they never
+fabricate a worker.
+
+**Curl examples** (against a local `python3 -m aether_platform.api.server`,
+port 7700 — swap the base URL for wherever you deployed):
+
+```bash
+# Catalog — no key required
+curl localhost:7700/api/foundry/templates | jq '.templates | length'   # -> 40
+
+# Download a ready-made blueprint as a real, runnable zip
+curl -s localhost:7700/api/foundry/download \
+  -d '{"template_id":"web-spider","params":{"START_URL":"https://example.com","MAX_PAGES":"50"}}' \
+  | jq -r '.zip_base64' | base64 -d > web-spider.zip
+
+# Claude recommends parameter values for an existing blueprint
+curl -s localhost:7700/api/studio/configure \
+  -d '{"template_id":"price-tracker","goal":"watch our three competitors nightly"}' | jq
+
+# Claude adapts an existing blueprint's real source into a new worker
+curl -s localhost:7700/api/studio/remix \
+  -d '{"template_id":"uptime-monitor","request":"also check TLS cert expiry per host"}' | jq
+
+# Claude writes something entirely new
+curl -s localhost:7700/api/studio/generate \
+  -d '{"prompt":"a worker that logs into our dashboard, exports the CSV, uploads it hourly"}' | jq
+
+# Bundle any generate/remix result into a real zip (worker + README + run.sh)
+curl -s localhost:7700/api/studio/download -d '{"spec": <the JSON object from generate/remix above>}' \
+  | jq -r '.zip_base64' | base64 -d > worker.zip
 ```
 
 ## Package layout

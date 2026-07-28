@@ -1,7 +1,7 @@
 """
 Tests for the Worker Foundry. Proves generation is REAL, not stubs:
 
-  1. All 20 templates load, list, and render.
+  1. All 40 templates load, list, and render.
   2. Every `{{TOKEN}}` for a declared param is substituted (no placeholders
      leak into a downloaded worker).
   3. Every generated Python file compiles; every Node file passes `node
@@ -43,7 +43,7 @@ def run():
 
     f = Foundry()
     templates = f.list_templates()
-    check("manifest lists 20 templates", len(templates) == 20, f"got {len(templates)}")
+    check("manifest lists 40 templates", len(templates) == 40, f"got {len(templates)}")
 
     node_ok = shutil.which("node") is not None
     tmp = tempfile.mkdtemp(prefix="foundry-test-")
@@ -144,7 +144,7 @@ def run():
     if failures:
         print(f"RESULT: {len(failures)} FAILED: {failures}")
         raise SystemExit(1)
-    print("RESULT: Worker Foundry generates 20 real workers — every one substitutes its "
+    print("RESULT: Worker Foundry generates 40 real workers — every one substitutes its "
           "params, compiles/checks clean, and the sampled ones actually run (ETL normalizes "
           "a CSV, the spider crawls a live site). Zip bundles are ready to download and run.")
 

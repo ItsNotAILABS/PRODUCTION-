@@ -289,6 +289,315 @@
       ],
       "needs": [],
       "run": "python3 sync.py"
+    },
+    {
+      "id": "distributed-map",
+      "name": "Distributed Map",
+      "category": "compute",
+      "runtime": "python",
+      "entry": "map.py",
+      "summary": "Applies handle() to every item in a JSONL input across a thread pool, then reduce() over all results. Drop your logic in and go.",
+      "params": [
+        {"name": "INPUT", "label": "Input JSONL", "default": "items.jsonl", "help": "one item per line"},
+        {"name": "CONCURRENCY", "label": "Concurrency", "default": "8", "help": "worker threads"}
+      ],
+      "needs": [],
+      "run": "python3 map.py"
+    },
+    {
+      "id": "rate-limited-proxy",
+      "name": "Rate-Limited Reverse Proxy",
+      "category": "compute",
+      "runtime": "python",
+      "entry": "proxy.py",
+      "summary": "Forwards requests to a backend URL, enforcing a per-client token-bucket rate limit (429 once exhausted). Stdlib HTTP server.",
+      "params": [
+        {"name": "PORT", "label": "Listen port", "default": "8600", "help": "bind port"},
+        {"name": "BACKEND", "label": "Backend URL", "default": "http://127.0.0.1:9000", "help": "upstream to proxy to"},
+        {"name": "RATE", "label": "Requests/sec per client", "default": "5", "help": "sustained rate"}
+      ],
+      "needs": [],
+      "run": "python3 proxy.py --port 8600"
+    },
+    {
+      "id": "task-scheduler",
+      "name": "Task Scheduler",
+      "category": "compute",
+      "runtime": "python",
+      "entry": "scheduler.py",
+      "summary": "In-memory priority job scheduler: POST /submit a shell command (with optional run_at), GET /status to watch it run. Stdlib only.",
+      "params": [
+        {"name": "PORT", "label": "Listen port", "default": "8850", "help": "bind port"},
+        {"name": "WORKERS", "label": "Worker threads", "default": "4", "help": "concurrent jobs"}
+      ],
+      "needs": [],
+      "run": "python3 scheduler.py --port 8850"
+    },
+    {
+      "id": "api-poller",
+      "name": "API Poller (record diff)",
+      "category": "web",
+      "runtime": "python",
+      "entry": "poller.py",
+      "summary": "Polls a JSON REST endpoint returning a list of records and emits only added/removed/changed records by key, on an interval.",
+      "params": [
+        {"name": "URL", "label": "API URL", "default": "https://example.com/api/items", "help": "returns a JSON list (or object containing one)"},
+        {"name": "KEY", "label": "Record key field", "default": "id", "help": "field identifying each record"},
+        {"name": "INTERVAL", "label": "Poll interval (s)", "default": "60", "help": "seconds between polls"},
+        {"name": "WEBHOOK", "label": "Webhook URL", "default": "", "help": "optional: POST each change"}
+      ],
+      "needs": [],
+      "run": "python3 poller.py"
+    },
+    {
+      "id": "price-tracker",
+      "name": "Price Tracker",
+      "category": "web",
+      "runtime": "python",
+      "entry": "pricetrack.py",
+      "summary": "Fetches page(s) and pulls a price via regex, alerting a webhook only when the price actually changes. No browser needed.",
+      "params": [
+        {"name": "URLS", "label": "URLs", "default": "https://example.com/product", "help": "comma-separated"},
+        {"name": "PRICE_REGEX", "label": "Price regex", "default": "\\$([0-9,]+\\.[0-9]{2})", "help": "capture group = raw price text"},
+        {"name": "INTERVAL", "label": "Interval (s)", "default": "1800", "help": "seconds between checks"},
+        {"name": "WEBHOOK", "label": "Alert webhook", "default": "", "help": "optional: POST on price change"}
+      ],
+      "needs": [],
+      "run": "python3 pricetrack.py"
+    },
+    {
+      "id": "keyword-alert",
+      "name": "Keyword Alert",
+      "category": "web",
+      "runtime": "python",
+      "entry": "keywordalert.py",
+      "summary": "Polls pages for keyword matches and fires a webhook the first time each (url, keyword) pair shows up. A simple mention/search monitor.",
+      "params": [
+        {"name": "URLS", "label": "URLs", "default": "https://example.com", "help": "comma-separated"},
+        {"name": "KEYWORDS", "label": "Keywords", "default": "outage,recall", "help": "comma-separated, case-insensitive"},
+        {"name": "INTERVAL", "label": "Interval (s)", "default": "300", "help": "seconds between polls"},
+        {"name": "WEBHOOK", "label": "Alert webhook", "default": "", "help": "optional: POST on match"}
+      ],
+      "needs": [],
+      "run": "python3 keywordalert.py"
+    },
+    {
+      "id": "pdf-renderer",
+      "name": "PDF Renderer (headless browser)",
+      "category": "browser",
+      "runtime": "node",
+      "entry": "pdf.js",
+      "summary": "Headless Chromium via Playwright. Loads each URL and prints it to a PDF file — page-perfect, JS rendered first.",
+      "params": [
+        {"name": "URLS", "label": "URLs", "default": "https://example.com", "help": "comma-separated URLs"},
+        {"name": "FORMAT", "label": "Page format", "default": "A4", "help": "A4, Letter, Legal, ..."},
+        {"name": "OUTDIR", "label": "Output dir", "default": "./pdfs", "help": "where PDFs land"}
+      ],
+      "needs": ["Node + Playwright (npm i playwright)."],
+      "run": "node pdf.js"
+    },
+    {
+      "id": "form-filler",
+      "name": "Form Filler (headless browser)",
+      "category": "browser",
+      "runtime": "node",
+      "entry": "formfill.js",
+      "summary": "Goes to a URL, fills selector->value fields, submits, and captures the resulting URL + a screenshot. Login flows, lead forms, repeat submissions.",
+      "params": [
+        {"name": "URL", "label": "Form URL", "default": "https://example.com/login", "help": "page with the form"},
+        {"name": "FIELDS", "label": "Fields JSON", "default": "{\"#user\":\"demo\",\"#pass\":\"demo\"}", "help": "css selector -> value"},
+        {"name": "SUBMIT_SELECTOR", "label": "Submit selector", "default": "button[type=submit]", "help": "clicked after fields are filled"}
+      ],
+      "needs": ["Node + Playwright."],
+      "run": "node formfill.js"
+    },
+    {
+      "id": "visual-diff",
+      "name": "Visual Diff (headless browser)",
+      "category": "browser",
+      "runtime": "node",
+      "entry": "visualdiff.js",
+      "summary": "Screenshots two URLs and pixel-diffs them entirely inside the browser's own canvas (no image libraries), writing a highlighted diff.png.",
+      "params": [
+        {"name": "URL_A", "label": "URL A (baseline)", "default": "https://example.com", "help": "e.g. production"},
+        {"name": "URL_B", "label": "URL B (candidate)", "default": "https://example.com", "help": "e.g. staging"},
+        {"name": "WIDTH", "label": "Viewport width", "default": "1280", "help": "px"}
+      ],
+      "needs": ["Node + Playwright."],
+      "run": "node visualdiff.js"
+    },
+    {
+      "id": "json-diff-watcher",
+      "name": "JSON Diff Watcher",
+      "category": "data",
+      "runtime": "python",
+      "entry": "jsondiff.py",
+      "summary": "Deep-diffs two JSON documents (files or URLs) and reports every added/removed/changed path. Catches config drift or compares two snapshots.",
+      "params": [
+        {"name": "BASELINE", "label": "Baseline (file or URL)", "default": "baseline.json", "help": "the 'before'"},
+        {"name": "CURRENT", "label": "Current (file or URL)", "default": "current.json", "help": "the 'after'"}
+      ],
+      "needs": [],
+      "run": "python3 jsondiff.py"
+    },
+    {
+      "id": "dedupe-worker",
+      "name": "Dedupe Worker",
+      "category": "data",
+      "runtime": "python",
+      "entry": "dedupe.py",
+      "summary": "Streams JSONL and drops duplicates by a key field (or the whole record), writing unique records out with a drop-count summary.",
+      "params": [
+        {"name": "INPUT", "label": "Input JSONL", "default": "records.jsonl", "help": "one record per line"},
+        {"name": "OUTPUT", "label": "Output JSONL", "default": "unique.jsonl", "help": "deduped output"},
+        {"name": "KEY", "label": "Dedupe key field", "default": "", "help": "empty = whole record"}
+      ],
+      "needs": [],
+      "run": "python3 dedupe.py"
+    },
+    {
+      "id": "csv-merger",
+      "name": "CSV Merger",
+      "category": "data",
+      "runtime": "python",
+      "entry": "merge.py",
+      "summary": "Joins two CSV files on a key column (like a SQL join, inner or left) and writes merged records as JSONL.",
+      "params": [
+        {"name": "LEFT", "label": "Left CSV", "default": "left.csv", "help": "base table"},
+        {"name": "RIGHT", "label": "Right CSV", "default": "right.csv", "help": "joined table (columns prefixed right_)"},
+        {"name": "KEY", "label": "Join key column", "default": "id", "help": "must exist in both files"},
+        {"name": "HOW", "label": "Join type", "default": "inner", "help": "inner or left"}
+      ],
+      "needs": [],
+      "run": "python3 merge.py"
+    },
+    {
+      "id": "schema-validator",
+      "name": "Schema Validator",
+      "category": "data",
+      "runtime": "python",
+      "entry": "validate.py",
+      "summary": "Validates a JSONL stream against a JSON Schema subset (type/required/enum/min/max) with zero dependencies, splitting valid vs invalid records.",
+      "params": [
+        {"name": "INPUT", "label": "Input JSONL", "default": "records.jsonl", "help": "one record per line"},
+        {"name": "SCHEMA", "label": "JSON Schema", "default": "{\"required\":[\"id\"],\"properties\":{\"id\":{\"type\":\"string\"}}}", "help": "schema object, inline JSON or a file path"},
+        {"name": "VALID_OUT", "label": "Valid output", "default": "valid.jsonl", "help": "records that passed"},
+        {"name": "INVALID_OUT", "label": "Invalid output", "default": "invalid.jsonl", "help": "records + error reasons"}
+      ],
+      "needs": [],
+      "run": "python3 validate.py"
+    },
+    {
+      "id": "classification-relay",
+      "name": "Classification Relay (Claude)",
+      "category": "ai",
+      "runtime": "python",
+      "entry": "classify.py",
+      "summary": "Reads a JSONL of texts and asks Claude to pick exactly one label from a fixed set for each, with concurrency + retry.",
+      "params": [
+        {"name": "INPUT", "label": "Input JSONL", "default": "texts.jsonl", "help": "one {\"text\":..} per line"},
+        {"name": "LABELS", "label": "Labels", "default": "positive,neutral,negative", "help": "comma-separated closed set"},
+        {"name": "MODEL", "label": "Model", "default": "claude-sonnet-5", "help": "Anthropic model id"}
+      ],
+      "needs": ["ANTHROPIC_API_KEY in the environment."],
+      "run": "python3 classify.py"
+    },
+    {
+      "id": "summarization-worker",
+      "name": "Summarization Worker (Claude)",
+      "category": "ai",
+      "runtime": "python",
+      "entry": "summarize.py",
+      "summary": "Summarizes every text/markdown file in a directory to a target word count, one Claude call per file, writing JSONL summaries.",
+      "params": [
+        {"name": "DIR", "label": "Directory", "default": "./docs", "help": "folder of documents"},
+        {"name": "GLOB", "label": "File pattern", "default": "*.md", "help": "glob within DIR"},
+        {"name": "WORDS", "label": "Target length (words)", "default": "150", "help": "approximate summary length"},
+        {"name": "MODEL", "label": "Model", "default": "claude-sonnet-5", "help": "Anthropic model id"}
+      ],
+      "needs": ["ANTHROPIC_API_KEY in the environment."],
+      "run": "python3 summarize.py"
+    },
+    {
+      "id": "moderation-worker",
+      "name": "Moderation Worker (Claude)",
+      "category": "ai",
+      "runtime": "python",
+      "entry": "moderate.py",
+      "summary": "Reads a JSONL of texts and asks Claude to flag each against a plain-language policy, writing {flagged, reason} per record.",
+      "params": [
+        {"name": "INPUT", "label": "Input JSONL", "default": "texts.jsonl", "help": "one {\"text\":..} per line"},
+        {"name": "POLICY", "label": "Policy", "default": "No harassment, hate speech, or spam.", "help": "plain-language moderation policy"},
+        {"name": "MODEL", "label": "Model", "default": "claude-sonnet-5", "help": "Anthropic model id"}
+      ],
+      "needs": ["ANTHROPIC_API_KEY in the environment."],
+      "run": "python3 moderate.py"
+    },
+    {
+      "id": "disk-usage-monitor",
+      "name": "Disk Usage Monitor",
+      "category": "ops",
+      "runtime": "python",
+      "entry": "diskmon.py",
+      "summary": "Walks a directory tree on an interval, tracks total size, and fires a webhook when usage crosses a cap.",
+      "params": [
+        {"name": "DIR", "label": "Directory", "default": "./data", "help": "directory to measure"},
+        {"name": "CAP_BYTES", "label": "Cap (bytes)", "default": "10737418240", "help": "alert when total exceeds this (default 10 GiB)"},
+        {"name": "INTERVAL", "label": "Interval (s)", "default": "300", "help": "seconds between scans"},
+        {"name": "WEBHOOK", "label": "Alert webhook", "default": "", "help": "optional: POST when over cap"}
+      ],
+      "needs": [],
+      "run": "python3 diskmon.py"
+    },
+    {
+      "id": "cert-expiry-monitor",
+      "name": "TLS Certificate Expiry Monitor",
+      "category": "ops",
+      "runtime": "python",
+      "entry": "certmon.py",
+      "summary": "Checks each host's TLS certificate on an interval and fires a webhook when one is within N days of expiring.",
+      "params": [
+        {"name": "HOSTS", "label": "Hosts", "default": "example.com:443", "help": "comma-separated host[:port]"},
+        {"name": "WARN_DAYS", "label": "Warn threshold (days)", "default": "14", "help": "alert when fewer days remain"},
+        {"name": "INTERVAL", "label": "Interval (s)", "default": "86400", "help": "seconds between checks"},
+        {"name": "WEBHOOK", "label": "Alert webhook", "default": "", "help": "optional: POST when expiring soon"}
+      ],
+      "needs": [],
+      "run": "python3 certmon.py"
+    },
+    {
+      "id": "backup-worker",
+      "name": "Backup Worker",
+      "category": "ops",
+      "runtime": "python",
+      "entry": "backup.py",
+      "summary": "Tars+gzips a directory on an interval into timestamped archives, keeps only the last N, and optionally uploads each one over HTTP.",
+      "params": [
+        {"name": "DIR", "label": "Directory to back up", "default": "./data", "help": "source directory"},
+        {"name": "OUTDIR", "label": "Archive dir", "default": "./backups", "help": "where .tar.gz files land"},
+        {"name": "KEEP", "label": "Keep last N", "default": "7", "help": "older archives are rotated out"},
+        {"name": "INTERVAL", "label": "Interval (s)", "default": "86400", "help": "seconds between backups"},
+        {"name": "UPLOAD_URL", "label": "Upload URL", "default": "", "help": "optional: POST each archive"}
+      ],
+      "needs": [],
+      "run": "python3 backup.py"
+    },
+    {
+      "id": "process-watchdog",
+      "name": "Process Watchdog",
+      "category": "ops",
+      "runtime": "python",
+      "entry": "watchdog.py",
+      "summary": "Checks that a TCP port is up on an interval; if it isn't, runs a restart command and fires a webhook.",
+      "params": [
+        {"name": "HOST", "label": "Host", "default": "127.0.0.1", "help": "host to check"},
+        {"name": "PORT", "label": "Port", "default": "8080", "help": "TCP port that should be listening"},
+        {"name": "RESTART_COMMAND", "label": "Restart command", "default": "systemctl restart myapp", "help": "shell command run when the port is down"},
+        {"name": "INTERVAL", "label": "Check interval (s)", "default": "30", "help": "seconds between checks"},
+        {"name": "WEBHOOK", "label": "Alert webhook", "default": "", "help": "optional: POST on every restart"}
+      ],
+      "needs": [],
+      "run": "python3 watchdog.py"
     }
   ]
 }

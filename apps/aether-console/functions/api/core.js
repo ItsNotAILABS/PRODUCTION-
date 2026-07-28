@@ -15,6 +15,12 @@
 
 'use strict';
 
+// Worker Foundry (stateless): shared 20-template engine so the Foundry tab
+// works on the Cloudflare and desktop transports, not just the Python backend.
+// Import-guarded so the core still loads if the bundle is ever absent.
+let FOUNDRY = null;
+try { FOUNDRY = require('./foundry.js'); } catch (e) { FOUNDRY = null; }
+
 const PHI = 1.618033988749895;
 const PHI_INV = 0.618033988749895;
 const HEARTBEAT_MS = 873;
@@ -296,6 +302,10 @@ function route(method, path, body, state) {
       if (!spec) return ok(404, { error: 'not_found' });
       return ok(200, w ? workloadToDict(w) : { ...spec, deployed: false });
     }
+    if (parts.length === 2 && parts[0] === 'foundry' && parts[1] === 'templates') {
+      if (!FOUNDRY) return ok(503, { error: 'foundry_unavailable' });
+      return ok(200, { templates: FOUNDRY.listTemplates(), categories: FOUNDRY.categories() });
+    }
     return ok(404, { error: 'not_found' });
   }
 
@@ -358,6 +368,22 @@ function route(method, path, body, state) {
       if (!w) return ok(404, { error: `protocol_not_found: ${parts[1]}` });
       const tick = doDeployTick(state, body.force === true);
       return { status: 201, data: { workload: workloadToDict(w), deploy_result: tick }, dirty: true };
+    }
+    if (parts.length === 2 && parts[0] === 'foundry' && parts[1] === 'generate') {
+      if (!FOUNDRY) return ok(503, { error: 'foundry_unavailable' });
+      try { return ok(200, FOUNDRY.render(body.template_id || '', body.params || {})); }
+      catch (e) { return ok(400, { error: String(e.message || e) }); }
+    }
+    if (parts.length === 2 && parts[0] === 'foundry' && parts[1] === 'download') {
+      if (!FOUNDRY) return ok(503, { error: 'foundry_unavailable' });
+      try {
+        const bytes = FOUNDRY.bundleZip(body.template_id || '', body.params || {});
+        return ok(200, {
+          template_id: body.template_id || '',
+          filename: `${body.template_id || 'worker'}.zip`,
+          zip_base64: FOUNDRY.bytesToBase64(bytes),
+        });
+      } catch (e) { return ok(400, { error: String(e.message || e) }); }
     }
     return ok(404, { error: 'not_found' });
   }
