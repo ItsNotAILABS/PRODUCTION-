@@ -1,0 +1,33 @@
+{
+  "input": "raw.webm",
+  "output": "out/console-forge-intelligence.polished.mp4",
+  "videoSize": { "width": 1920, "height": 1080 },
+  "intro": {
+    "duration": 1.8,
+    "bg": "0x0A0E18",
+    "lines": [
+      { "text": "FORGE INTELLIGENCE", "size": 84, "color": "0xFFFFFF", "dy": -90 },
+      { "text": "Claude, working inside the Foundry.", "size": 38, "color": "0x9FB3D9", "dy": 20 },
+      { "text": "Generate. Configure. Remix.", "size": 30, "color": "0x2F6FED", "dy": 80 }
+    ]
+  },
+  "outro": {
+    "duration": 2.0,
+    "bg": "0x0A0E18",
+    "lines": [
+      { "text": "Real API calls.", "size": 70, "color": "0xFFFFFF", "dy": -60 },
+      { "text": "Honest failures. No fake demos.", "size": 34, "color": "0x9FB3D9", "dy": 20 }
+    ]
+  },
+  "segments": [
+    { "start": 17.0, "end": 20.0, "caption": "New worker: describe something that is not in the catalog yet",
+      "crop": { "w": 1280, "h": 720, "x": 280, "y": 30 } },
+    { "start": 20.0, "end": 24.0, "caption": "No API key set - an honest error, never a fake result",
+      "crop": { "w": 1280, "h": 720, "x": 280, "y": 30 } },
+    { "start": 24.0, "end": 28.0, "caption": "Configure mode: Claude recommends real values for a blueprint",
+      "crop": { "w": 1280, "h": 720, "x": 280, "y": 30 } },
+    { "start": 28.0, "end": 33.0, "caption": "Remix mode: Claude edits the real source, hands back a new worker",
+      "crop": { "w": 1280, "h": 720, "x": 280, "y": 30 } },
+    { "start": 33.0, "end": 36.0, "caption": "40 ready-made types underneath, no key required" }
+  ]
+}
