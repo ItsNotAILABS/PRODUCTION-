@@ -37,7 +37,7 @@ async function main() {
   catch (e) { empty = String(e.message || e); }
   check('empty prompt rejected', empty.startsWith('empty_prompt'), empty);
 
-  check('catalog context lists 20 types', (studio.catalogContext().match(/\n- /g) || []).length === 20);
+  check('catalog context lists 40 types', (studio.catalogContext().match(/\n- /g) || []).length === 40);
   check('parse bare JSON', studio.parseWorkerJson(worker).filename === 'x.py');
   check('parse fenced JSON', studio.parseWorkerJson('```json\n' + worker + '\n```').runtime === 'python');
   check('parse prose-wrapped JSON', studio.parseWorkerJson('Here:\n' + worker + '\ndone').code === 'print(1)');
@@ -64,7 +64,7 @@ async function main() {
     check('desktop serves console static', home.status === 200 && home.body.includes('Worker Foundry'));
 
     const cat = await req('GET', '/api/foundry/templates');
-    check('desktop GET /api/foundry/templates', cat.status === 200 && JSON.parse(cat.body).templates.length === 20);
+    check('desktop GET /api/foundry/templates', cat.status === 200 && JSON.parse(cat.body).templates.length === 40);
 
     const dl = await req('POST', '/api/foundry/download', { template_id: 'web-spider', params: { START_URL: 'https://d.test' } });
     check('desktop POST /api/foundry/download returns zip', dl.status === 200 && JSON.parse(dl.body).zip_base64.length > 100);
@@ -83,7 +83,7 @@ async function main() {
   console.log();
   if (fail) { console.log(`RESULT: ${fail} FAILED`); process.exit(1); }
   console.log('RESULT: the JS Worker Studio is honest without a key and parses robustly; the desktop '
-    + 'transport now serves the console, the 20-template Foundry (download included), and the Studio '
+    + 'transport now serves the console, the 40-template Foundry (download included), and the Studio '
     + 'endpoint — parity with the Python backend.');
 }
 

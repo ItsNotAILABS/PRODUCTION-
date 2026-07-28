@@ -1,9 +1,9 @@
 /**
- * test_foundry_js.js — the JS Foundry generates the same 20 workers as the
+ * test_foundry_js.js — the JS Foundry generates the same 40 workers as the
  * Python engine, and the console routes reach them.
  *
  * Proves:
- *  1. Lists 20 templates with categories.
+ *  1. Lists 40 templates with categories.
  *  2. Every template renders with all declared params substituted (no leaks).
  *  3. RENDERED BYTES MATCH the Python engine for every file of a sample
  *     template (invokes gen-equivalent Python render and diffs) — so the JS
@@ -28,7 +28,7 @@ const check = (label, cond, detail = '') => {
 
 // 1. catalog
 const list = foundry.listTemplates();
-check('lists 20 templates', list.length === 20, `got ${list.length}`);
+check('lists 40 templates', list.length === 40, `got ${list.length}`);
 check('has categories', foundry.categories().length > 0);
 
 // 2. every template substitutes its declared params
@@ -99,7 +99,7 @@ try {
 
 // 5. core.route wiring
 const t = core.route('GET', '/api/foundry/templates', {}, core.freshState());
-check('route GET /api/foundry/templates', t.status === 200 && t.data.templates.length === 20);
+check('route GET /api/foundry/templates', t.status === 200 && t.data.templates.length === 40);
 const g = core.route('POST', '/api/foundry/generate', { template_id: 'rss-poller', params: { FEEDS: 'https://f.test/rss' } }, core.freshState());
 check('route POST /api/foundry/generate', g.status === 200 && g.data.files['rss.py'].includes('https://f.test/rss'));
 const d = core.route('POST', '/api/foundry/download', { template_id: 'etl-normalizer', params: {} }, core.freshState());
@@ -107,6 +107,6 @@ check('route POST /api/foundry/download', d.status === 200 && typeof d.data.zip_
 
 console.log();
 if (fail) { console.log(`RESULT: ${fail} FAILED`); process.exit(1); }
-console.log('RESULT: the JS Foundry lists, substitutes, and packs 20 real workers identically to the '
+console.log('RESULT: the JS Foundry lists, substitutes, and packs 40 real workers identically to the '
   + 'Python engine, produces valid zips, and is wired into the console routes — the Foundry tab now '
   + 'works on the Cloudflare and desktop transports too.');

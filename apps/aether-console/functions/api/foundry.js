@@ -3,7 +3,7 @@
  * ═══════════════════════════════════════════════════════════════════════
  *
  * The Python Foundry (aether_platform/foundry) is the source of truth for the
- * 20 templates. `gen_foundry_bundle.py` freezes its manifest + template files
+ * 40 templates. `gen_foundry_bundle.py` freezes its manifest + template files
  * into `foundry_bundle.js`, which this module reads — so the Foundry tab works
  * on Cloudflare Workers and the desktop server (which can't call Python),
  * without maintaining the templates twice.

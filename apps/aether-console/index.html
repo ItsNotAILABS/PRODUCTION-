@@ -456,7 +456,7 @@ async function studioGenerate() {
   catch { status.textContent = 'Studio backend not reachable.'; return; }
   if (res.error) {
     status.textContent = res.error.startsWith('no_api_key')
-      ? 'Studio needs an Anthropic API key. Set ANTHROPIC_API_KEY on the backend, then retry. (The 20 ready-made types download without a key.)'
+      ? 'Studio needs an Anthropic API key. Set ANTHROPIC_API_KEY on the backend, then retry. (The 40 ready-made types download without a key.)'
       : res.error;
     return;
   }

@@ -1,7 +1,7 @@
 """
 Worker Studio — Claude, embedded in the platform, builds custom workers.
 
-The Foundry (aether_platform/foundry) ships 20 ready-made worker types. The
+The Foundry (aether_platform/foundry) ships 40 ready-made worker types. The
 Studio covers everything the catalog doesn't: describe what you want in plain
 language — "a spider that logs into my dashboard and exports the CSV every
 hour", "a headless node that renders our marketing pages to PDF" — and Claude
@@ -97,7 +97,7 @@ class WorkerStudio:
             raise StudioError(
                 "no_api_key: Worker Studio needs an Anthropic API key to "
                 "generate a worker. Set ANTHROPIC_API_KEY (or pass one in the "
-                "request). The rest of the platform — the 20-template Foundry, "
+                "request). The rest of the platform — the 40-template Foundry, "
                 "the mesh, the browser tools — works without a key.")
         if not prompt or not prompt.strip():
             raise StudioError("empty_prompt: describe the worker you want.")

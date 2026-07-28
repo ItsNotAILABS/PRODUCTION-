@@ -4,7 +4,7 @@ gen_foundry_bundle.py — freeze the Python Worker Foundry (manifest + every
 template file) into a single JS module the JS transports can consume.
 
 Cloudflare Pages Functions and the browser can't read arbitrary files, and we
-don't want to hand-maintain the 20 templates in two languages. So the Python
+don't want to hand-maintain the 40 templates in two languages. So the Python
 templates remain the single source of truth and this script inlines them into
 `foundry_bundle.js` (checked in), which `foundry.js` reads. Re-run whenever a
 template or the manifest changes:

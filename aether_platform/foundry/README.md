@@ -1,21 +1,21 @@
 # Aether Worker Foundry
 
 Spinning up a headless worker should be **one pick and one download**, not an
-afternoon of boilerplate. The Foundry ships 20 real, runnable worker types and
+afternoon of boilerplate. The Foundry ships 40 real, runnable worker types and
 a generator that bakes your parameters into a ready-to-run file — plus a
 **Studio** where Claude writes a custom worker from a plain-language
 description.
 
-## The 20 types
+## The 40 types
 
 | category | types |
 |---|---|
-| compute | mesh compute node (native pull), mesh compute node (HTTP push), work-queue consumer |
-| web | web spider, sitemap crawler, broken-link checker, RSS/Atom poller |
-| browser | screenshot worker, DOM scraper, browser automation (all headless Chromium via Playwright) |
-| data | HTTP batch caller, webhook relay, ETL normalizer |
-| ai | LLM relay (Claude), embedding worker |
-| ops | uptime monitor, log shipper, cron runner, Prometheus metrics scraper, directory sync |
+| compute | mesh compute node (native pull), mesh compute node (HTTP push), work-queue consumer, distributed map, rate-limited reverse proxy, task scheduler |
+| web | web spider, sitemap crawler, broken-link checker, RSS/Atom poller, API poller (record diff), price tracker, keyword alert |
+| browser | screenshot worker, DOM scraper, browser automation, PDF renderer, form filler, visual diff (all headless Chromium via Playwright) |
+| data | HTTP batch caller, webhook relay, ETL normalizer, JSON diff watcher, dedupe worker, CSV merger, schema validator |
+| ai | LLM relay (Claude), embedding worker, classification relay, summarization worker, moderation worker |
+| ops | uptime monitor, log shipper, cron runner, Prometheus metrics scraper, directory sync, disk usage monitor, TLS certificate expiry monitor, backup worker, process watchdog |
 
 Every one is a **real program**, not a stub: `manifest.json` describes them and
 `templates/<id>/` holds the actual files with `{{TOKEN}}` parameters. Most are
@@ -61,11 +61,11 @@ open("spider.zip", "wb").write(f.bundle_zip("web-spider", {"START_URL": "..."}))
 `claude-opus-4-8`) with the Foundry catalog as context, so generated workers
 match the house style. It is **honest about credentials**: with no
 `ANTHROPIC_API_KEY` it returns `402 no_api_key` and a clear message — never a
-fake worker. The 20 ready-made types download with no key.
+fake worker. The 40 ready-made types download with no key.
 
 ## Tested, not asserted
 
-`test_foundry.py`: all 20 render with every declared param substituted (no
+`test_foundry.py`: all 40 render with every declared param substituted (no
 placeholder leaks), every generated Python compiles and every Node file passes
 `node --check`, param overrides land in the output, the zip is well-formed, and
 sampled workers actually **run** — the ETL normalizer transforms a real CSV and

@@ -47,7 +47,7 @@ python3 -m aether_platform.api.server
 ```
 
 Starts empty (register your real targets), deploys aren't gated on an empty
-fleet, and the Foundry tab lets you download any of 20 real headless workers or
+fleet, and the Foundry tab lets you download any of 40 real headless workers or
 have Claude build a custom one (Studio needs ANTHROPIC_API_KEY; the 20 ready
 types don't).
 

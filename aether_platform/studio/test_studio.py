@@ -48,9 +48,9 @@ def run():
         if saved is not None:
             os.environ["ANTHROPIC_API_KEY"] = saved
 
-    # ── Catalog context grounds the model in the 20 Foundry types ───────
+    # ── Catalog context grounds the model in the 40 Foundry types ───────
     ctx = studio._catalog_context()
-    check("catalog context lists Foundry templates", ctx.count("\n- ") == 20, f"lines={ctx.count(chr(10) + '- ')}")
+    check("catalog context lists Foundry templates", ctx.count("\n- ") == 40, f"lines={ctx.count(chr(10) + '- ')}")
     check("catalog context names a known template", "web-spider" in ctx)
 
     # ── JSON parser tolerates fences, bare JSON, and prose wrapping ─────
@@ -91,7 +91,7 @@ def run():
         print(f"RESULT: {len(failures)} FAILED: {failures}")
         raise SystemExit(1)
     print("RESULT: Worker Studio is honest without a key (clear error, never a fake worker), "
-          "grounds Claude in the 20-template Foundry catalog, and robustly parses the generated "
+          "grounds Claude in the 40-template Foundry catalog, and robustly parses the generated "
           "worker JSON. With a key set it generates a real, compiling worker.")
 
 

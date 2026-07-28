@@ -3,7 +3,7 @@ Worker Foundry — turn a template + a few params into a real, downloadable
 worker. The whole point: spinning up a headless worker should be one pick and
 one download, not an afternoon of boilerplate.
 
-`manifest.json` is the source of truth (20 templates). `templates/<id>/` holds
+`manifest.json` is the source of truth (40 templates). `templates/<id>/` holds
 the real, runnable files with `{{TOKEN}}` placeholders. This engine loads them,
 substitutes params, and emits either a dict of files or a ready-to-run zip
 (worker file + README + run script).
