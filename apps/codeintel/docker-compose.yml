@@ -1,0 +1,15 @@
+services:
+  codeintel:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Change this. Keys are hashed with it; rotating it invalidates every key.
+      CODEINTEL_KEY_SALT: "${CODEINTEL_KEY_SALT:?set a salt, e.g. openssl rand -hex 32}"
+      CODEINTEL_DB: /data/codeintel.db
+    volumes:
+      - codeintel-data:/data
+    restart: unless-stopped
+
+volumes:
+  codeintel-data:
