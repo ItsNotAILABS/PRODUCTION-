@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Code Intelligence — live demo</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#151b23; --panel2:#1c232c; --ink:#e6edf3; --muted:#8b98a5;
+    --line:#252d38; --accent:#2f81f7; --good:#3fb950; --warn:#d29922; --bad:#f85149;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,monospace;
+    --sans:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans)}
+  .app{display:grid;grid-template-rows:auto 1fr auto;height:100vh}
+
+  header{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .logo{font-weight:700;letter-spacing:-.02em;font-size:15px}
+  .logo span{color:var(--accent)}
+  .badge{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:3px 10px}
+  .badge.live{color:var(--good);border-color:#1f4a2c}
+  .spacer{flex:1}
+
+  main{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);overflow:hidden}
+  .col{background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+  .colhead{padding:9px 16px;background:var(--panel);border-bottom:1px solid var(--line);
+    font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+    display:flex;align-items:center;gap:8px}
+  .colhead .tag{margin-left:auto;font-size:10px;padding:2px 7px;border-radius:3px}
+  .tag.old{background:#3a1d1d;color:#ff9c8f}
+  .tag.new{background:#12301c;color:var(--good)}
+  .body{flex:1;overflow:auto;padding:14px 16px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;line-height:1.55}
+
+  .meter{display:flex;gap:10px;padding:10px 16px;border-top:1px solid var(--line);background:var(--panel2);
+    font-family:var(--mono);font-size:11.5px;align-items:center;flex-wrap:wrap}
+  .m{display:flex;flex-direction:column;gap:1px}
+  .m .k{color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+  .m .v{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+  .v.good{color:var(--good)} .v.bad{color:var(--bad)}
+
+  footer{padding:12px 20px;border-top:1px solid var(--line);background:var(--panel);
+    display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  input,button{font:inherit;font-family:var(--mono);font-size:13px}
+  input{flex:1;min-width:220px;background:var(--bg);color:var(--ink);border:1px solid var(--line);
+    border-radius:6px;padding:9px 12px}
+  input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  button{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:9px 18px;font-weight:600;cursor:pointer}
+  button.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  button:disabled{opacity:.5;cursor:default}
+
+  .step{color:var(--muted);font-family:var(--mono);font-size:11.5px;padding:0 20px 10px}
+  .hit{padding:6px 9px;border:1px solid var(--line);border-radius:5px;margin-bottom:6px;background:var(--panel)}
+  .hit .n{color:var(--accent);font-weight:600}
+  .hit .loc{color:var(--muted);font-size:11px}
+  .dim{color:var(--muted)}
+  .hl{background:#1f2f47;display:block;margin:0 -16px;padding:0 16px}
+  mark{background:#3d2f00;color:#f0d67a;border-radius:2px;padding:0 2px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">code<span>intel</span></div>
+    <div class="badge" id="api-badge">connecting…</div>
+    <div class="badge" id="repo-badge">no repo</div>
+    <div class="spacer"></div>
+    <div class="badge">the same edit, both ways</div>
+  </header>
+
+  <div class="step" id="step">Ready. Press “Run the loop”.</div>
+
+  <main>
+    <div class="col">
+      <div class="colhead">Without codeintel <span class="tag old">reads the whole file</span></div>
+      <div class="body" id="left"><span class="dim">waiting…</span></div>
+    </div>
+    <div class="col">
+      <div class="colhead">With codeintel <span class="tag new">search → read span</span></div>
+      <div class="body" id="right"><span class="dim">waiting…</span></div>
+    </div>
+  </main>
+
+  <div class="meter">
+    <div class="m"><span class="k">whole-file bytes</span><span class="v bad" id="m-full">—</span></div>
+    <div class="m"><span class="k">codeintel bytes</span><span class="v good" id="m-served">—</span></div>
+    <div class="m"><span class="k">reduction</span><span class="v good" id="m-ratio">—</span></div>
+    <div class="m"><span class="k">tokens avoided</span><span class="v good" id="m-tokens">—</span></div>
+    <div class="m"><span class="k">indexed</span><span class="v" id="m-lines">—</span></div>
+  </div>
+
+  <footer>
+    <input id="q" value="optimal price from elasticity" />
+    <button id="run">Run the loop</button>
+    <button id="reset" class="ghost">Reset</button>
+  </footer>
+</div>
+
+<script>
+const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8899";
+const KEY = new URLSearchParams(location.search).get("key") || "";
+const REPO = "demo";
+const H = { "Authorization": "Bearer " + KEY, "Content-Type": "application/json" };
+
+const $ = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const step = (t) => { $("step").textContent = t; };
+
+// The demo indexes a real file and then performs a real edit-location task
+// against it. Nothing here is pre-baked: every number on screen comes back
+// from the API.
+const FILE_PATH = "pricing.py";
+let FILE_TEXT = "";
+
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, { headers: H, ...opts });
+  if (!r.ok && r.status !== 409) throw new Error(path + " -> " + r.status);
+  return r.json();
+}
+
+async function boot() {
+  try {
+    const h = await (await fetch(API + "/health")).json();
+    $("api-badge").textContent = "api " + h.version;
+    $("api-badge").classList.add("live");
+  } catch { $("api-badge").textContent = "api unreachable"; return; }
+
+  FILE_TEXT = await (await fetch("./pricing.py")).text();
+  const res = await api(`/v1/repos/${REPO}/files`, {
+    method: "POST",
+    body: JSON.stringify({ files: [{ path: FILE_PATH, content: FILE_TEXT }] }),
+  });
+  const stats = await api(`/v1/repos/${REPO}/stats`);
+  $("repo-badge").textContent = `${stats.files} file · ${stats.lines} lines · ${stats.symbols} symbols`;
+  $("m-lines").textContent = stats.lines.toLocaleString();
+  step(`Indexed ${FILE_PATH} — ${stats.symbols} symbols. Source was parsed and discarded.`);
+}
+
+function typeset(el, text, cls) {
+  el.innerHTML = "";
+  const pre = document.createElement("span");
+  if (cls) pre.className = cls;
+  pre.textContent = text;
+  el.appendChild(pre);
+}
+
+async function run() {
+  $("run").disabled = true;
+  const q = $("q").value.trim();
+
+  // ---- left: what an agent does today -----------------------------------
+  step("Without codeintel: the agent has no idea where the symbol is, so it loads the entire file.");
+  const fullBytes = new TextEncoder().encode(FILE_TEXT).length;
+  const lines = FILE_TEXT.split("\n");
+  typeset($("left"), lines.map((l, i) => String(i + 1).padStart(4) + " | " + l).join("\n"));
+  $("m-full").textContent = fullBytes.toLocaleString() + " B";
+  await sleep(1600);
+
+  // ---- right step 1: search ----------------------------------------------
+  step(`With codeintel, step 1 — search the index for “${q}”. No file content moves.`);
+  $("right").innerHTML = "";
+  const hits = await api(`/v1/repos/${REPO}/search?q=${encodeURIComponent(q)}&top_k=3`);
+  for (const h of hits.results) {
+    const d = document.createElement("div");
+    d.className = "hit";
+    d.innerHTML = `<span class="n">${h.name}</span> <span class="loc">${h.path}:L${h.line_start}–${h.line_end}</span>`
+                + `<div class="loc">score ${h.score} · ${h.intent || ""}</div>`;
+    $("right").appendChild(d);
+    await sleep(320);
+  }
+  await sleep(900);
+
+  // ---- right step 2: read only that span ---------------------------------
+  const top = hits.results[0];
+  step(`Step 2 — read only ${top.name}, lines ${top.line_start}–${top.line_end}. That is the whole request.`);
+  const r = await api(`/v1/repos/${REPO}/read_symbol`, {
+    method: "POST",
+    body: JSON.stringify({ name: top.name, content: FILE_TEXT, path: top.path, pad: 1 }),
+  });
+  typeset($("right"), r.text, "hl");
+
+  const served = r.context.bytes_served;
+  const ratio = r.context.reduction_factor;
+  $("m-served").textContent = served.toLocaleString() + " B";
+  $("m-ratio").textContent = ratio + "×";
+  $("m-tokens").textContent = Math.round((fullBytes - served) / 4).toLocaleString();
+  step(`Same edit, same information — ${served} bytes instead of ${fullBytes}. ${ratio}× less context.`);
+  $("run").disabled = false;
+}
+
+$("run").addEventListener("click", () => run().catch(e => step("error: " + e.message)));
+$("reset").addEventListener("click", () => {
+  typeset($("left"), "waiting…", "dim"); typeset($("right"), "waiting…", "dim");
+  ["m-full","m-served","m-ratio","m-tokens"].forEach(i => $(i).textContent = "—");
+  step("Ready. Press “Run the loop”.");
+});
+boot();
+</script>
+</body>
+</html>
