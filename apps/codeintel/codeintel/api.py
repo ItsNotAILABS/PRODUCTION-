@@ -25,6 +25,7 @@ import os
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Path as PathParam, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -47,6 +48,22 @@ app = FastAPI(
         "retained. Enterprise deployments run entirely inside your own perimeter."
     ),
 )
+
+# Without CORS no browser-based client can call this at all — an editor
+# extension, a web IDE, or a dashboard would be blocked before the request is
+# sent. Origins are configurable and default to none, so a self-hosted operator
+# opts in to exactly the front-ends they run rather than inheriting a wildcard.
+# Credentials are not allowed: this API authenticates with a bearer token, not
+# cookies, so there is no reason to widen the surface.
+_origins = [o.strip() for o in os.environ.get("CODEINTEL_CORS_ORIGINS", "").split(",") if o.strip()]
+if _origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
 
 
 # --- models -------------------------------------------------------------------

@@ -106,6 +106,50 @@ pip install -r requirements.txt
 CODEINTEL_KEY_SALT=$(openssl rand -hex 32) uvicorn codeintel.api:app --port 8080
 ```
 
+## Browser clients
+
+Nothing in a browser — an editor webview, a web IDE, a dashboard, the demo in
+`demo/` — can call this service until CORS allows its origin. The browser
+refuses before the request is sent, so this is a hard prerequisite rather than a
+nicety.
+
+```bash
+CODEINTEL_CORS_ORIGINS=https://app.yourco.com,https://ide.yourco.com \
+  uvicorn codeintel.api:app --port 8080
+```
+
+Unset, no origin is allowed and no CORS headers are emitted: an operator opts in
+to exactly the front-ends they run rather than inheriting a wildcard. Credentials
+are never allowed — auth here is a bearer token, not a cookie, so there is
+nothing to gain by widening the surface.
+
+## Demo and showcase
+
+```bash
+# serve the demo page and point it at a running instance
+python3 -m http.server 8898 --directory demo
+open 'http://127.0.0.1:8898/index.html?api=http://127.0.0.1:8080&key=ci_...'
+```
+
+`demo/index.html` indexes `demo/pricing.py` live and runs the same edit both
+ways side by side — whole file on the left, `search` → `read_symbol` on the
+right — with the byte counters filled from the actual responses. The page must
+be served over http; Chrome blocks `fetch()` on `file://` outright, so it cannot
+load its own sample from disk.
+
+`demo/record.mjs` drives that page with a real browser and records it. Nothing
+is staged: if the API breaks, the video breaks.
+
+```bash
+node demo/record.mjs --api http://127.0.0.1:8080 --key ci_... \
+  --url http://127.0.0.1:8898/index.html
+```
+
+`site/` is the marketing page. `site/index.html` is the source and keeps
+`__VIDEO__` / `__POSTER__` placeholders so its diffs stay readable;
+`python3 site/build.py` inlines the media as data URIs into a single
+self-contained `site/dist/index.html` that renders with no external requests.
+
 ## Security posture
 
 - API keys are stored as **salted SHA-256 hashes**; the plaintext is returned
@@ -119,7 +163,7 @@ CODEINTEL_KEY_SALT=$(openssl rand -hex 32) uvicorn codeintel.api:app --port 8080
 ## Tests
 
 ```bash
-python3 -m pytest tests/ -q     # 31 passing
+python3 -m pytest tests/ -q     # 40 passing
 ```
 
 Weighted toward what a customer or security reviewer will probe: tenant

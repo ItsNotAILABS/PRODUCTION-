@@ -341,3 +341,58 @@ def test_tokens_split_identifiers_without_shingle_noise():
 def test_read_lines_rejects_zero_index():
     with pytest.raises(ValueError):
         read_lines(SAMPLE, 0, 5)
+
+
+# --- browser access -----------------------------------------------------------
+#
+# A demo page, an editor webview, or a dashboard cannot call this service at all
+# without CORS — the browser refuses before the request leaves. The middleware is
+# configured at import time from the environment, so these tests rebuild the app
+# under a controlled env rather than mutating the already-imported one.
+
+def _app_with_origins(value):
+    import importlib
+    import codeintel.api as api_mod
+    old = os.environ.get("CODEINTEL_CORS_ORIGINS")
+    if value is None:
+        os.environ.pop("CODEINTEL_CORS_ORIGINS", None)
+    else:
+        os.environ["CODEINTEL_CORS_ORIGINS"] = value
+    try:
+        return TestClient(importlib.reload(api_mod).app)
+    finally:
+        if old is None:
+            os.environ.pop("CODEINTEL_CORS_ORIGINS", None)
+        else:
+            os.environ["CODEINTEL_CORS_ORIGINS"] = old
+        importlib.reload(api_mod)
+
+
+def test_cors_is_off_unless_an_operator_opts_in():
+    c = _app_with_origins(None)
+    r = c.get("/health", headers={"Origin": "https://evil.example"})
+    assert r.status_code == 200
+    assert "access-control-allow-origin" not in {k.lower() for k in r.headers}
+
+
+def test_configured_origin_is_allowed_and_others_are_not():
+    c = _app_with_origins("https://app.example.com,https://demo.example.com")
+
+    allowed = c.options("/v1/repos/r/search", headers={
+        "Origin": "https://app.example.com",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "authorization"})
+    assert allowed.status_code == 200
+    assert allowed.headers["access-control-allow-origin"] == "https://app.example.com"
+    assert "authorization" in allowed.headers["access-control-allow-headers"].lower()
+
+    denied = c.get("/health", headers={"Origin": "https://evil.example"})
+    assert denied.headers.get("access-control-allow-origin") != "https://evil.example"
+
+
+def test_cors_never_allows_credentials():
+    # Auth here is a bearer token, not a cookie. Allowing credentials would widen
+    # the surface for nothing, and it is what makes a wildcard origin dangerous.
+    c = _app_with_origins("https://app.example.com")
+    r = c.get("/health", headers={"Origin": "https://app.example.com"})
+    assert "access-control-allow-credentials" not in {k.lower() for k in r.headers}
