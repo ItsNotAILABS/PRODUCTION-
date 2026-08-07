@@ -36,7 +36,13 @@ jobs:
         run: node scripts/lint-manifests.js
 
       - name: Run tests
-        run: node --test test/**/*.test.js
+        # `dot` rather than the default TAP reporter. TAP emits ~300KB per run,
+        # which pushes the actual failures far enough up the log that neither
+        # the Actions UI nor the API's log tail can reach them — a red job that
+        # cannot tell you what broke costs more than it saves. The dot reporter
+        # prints one character per test and the full failure detail at the end,
+        # where it is always readable. Exit code semantics are unchanged.
+        run: node --test --test-reporter=dot test/**/*.test.js
 
   build-extensions:
     name: Build & Commit Extensions
