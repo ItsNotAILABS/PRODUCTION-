@@ -95,10 +95,15 @@ describe('Sacred Geometry Timers', () => {
   });
 
   describe('createMultiHeartGenerator()', () => {
-    it('should return interval id', () => {
-      const timer = sacredGeometry.createMultiHeartGenerator(() => {}, { baseMs: 100000 });
-      assert.ok(timer);
-      clearInterval(timer);
+    // heartCount is the FIRST argument. Passing the callback there made
+    // `i < heartCount` compare a number against a function, which is always
+    // false — the loop never ran, no hearts were built, and the test asserted
+    // nothing while appearing to pass.
+    it('should create the requested number of hearts', () => {
+      const generator = sacredGeometry.createMultiHeartGenerator(3, () => {}, { baseMs: 100000 });
+      assert.ok(generator);
+      assert.equal(generator.hearts.length, 3);
+      generator.stop();
     });
   });
 
@@ -107,16 +112,16 @@ describe('Sacred Geometry Timers', () => {
       const suite = sacredGeometry.createSacredGeometrySuite(() => {}, { baseMs: 100000 });
       assert.ok(suite);
       assert.ok('fibonacci' in suite);
-      
-      // Stop all timers
-      if (suite.fibonacci) suite.fibonacci.stop?.() || clearInterval(suite.fibonacci);
-      if (suite.spiral) clearInterval(suite.spiral);
-      if (suite.oscillator) clearInterval(suite.oscillator);
-      if (suite.rotator) clearInterval(suite.rotator);
-      if (suite.phyllotaxis) clearInterval(suite.phyllotaxis);
-      if (suite.metatron) clearInterval(suite.metatron);
-      if (suite.multiHeart) clearInterval(suite.multiHeart);
-      if (suite.dualOscillator) clearInterval(suite.dualOscillator);
+
+      // The suite mixes two shapes: some entries are raw interval ids and some
+      // are objects that own their own timers (`fibonacci`, `multiHeart`).
+      // Calling clearInterval on one of the objects is a silent no-op, so
+      // multiHeart's three intervals stayed pending and `node --test` never
+      // exited — the whole suite hung after the last assertion passed.
+      for (const timer of Object.values(suite)) {
+        if (timer && typeof timer.stop === 'function') timer.stop();
+        else clearInterval(timer);
+      }
     });
   });
 });
