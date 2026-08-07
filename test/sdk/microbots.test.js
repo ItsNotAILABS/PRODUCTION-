@@ -326,8 +326,16 @@ describe('MicrobotBase', () => {
         return {};
       };
       await bot.run();
-      assert.ok(bot.duration() >= 50);
-      assert.ok(bot.duration() < 200);
+      // Slack on both ends. `setTimeout(50)` is a floor in intent but not in
+      // practice — Node can fire it a hair early relative to Date.now(), whose
+      // resolution is about a millisecond, so `>= 50` failed roughly one run in
+      // ten. The old `< 200` ceiling was equally thin: a 50ms sleep on a loaded
+      // CI runner sharing cores with other test files can easily land past it.
+      // The property worth asserting is that duration tracks the work done and
+      // is not nonsense, not that the platform's timer is exact.
+      const elapsed = bot.duration();
+      assert.ok(elapsed >= 45, `expected at least ~50ms of work, got ${elapsed}ms`);
+      assert.ok(elapsed < 5000, `expected a sane duration, got ${elapsed}ms`);
     });
   });
 

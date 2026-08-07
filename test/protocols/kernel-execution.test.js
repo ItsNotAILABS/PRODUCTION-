@@ -607,7 +607,11 @@ describe('KernelExecutionProtocol', () => {
       
       const stats = protocol.getKernelStats();
       assert.equal(stats[0].runCount, 5);
-      assert.ok(stats[0].avgTimeMs >= 5);
+      // Slack: a 5ms setTimeout can be observed as 4ms once Date.now()'s
+      // ~1ms resolution and Node's early-firing are accounted for, and at this
+      // scale that rounding is a large fraction of the value being asserted.
+      assert.ok(stats[0].avgTimeMs >= 4,
+        `expected ~5ms average, got ${stats[0].avgTimeMs}ms`);
     });
   });
 

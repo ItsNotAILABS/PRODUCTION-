@@ -196,9 +196,12 @@ describe('PhiResonanceSyncProtocol', () => {
     });
 
     it('should handle single oscillator', () => {
+      // Same floating-point trap as getOrderParameter's single-oscillator case:
+      // perfect sync is R within an ulp of 1, not R === 1.
       protocol.registerOscillator('osc-1');
       const result = protocol.step(0.1);
-      assert.equal(result.orderParameter.R, 1); // Single oscillator = perfect sync
+      assert.ok(Math.abs(result.orderParameter.R - 1) < 1e-9,
+        `expected R within 1e-9 of 1, got ${result.orderParameter.R}`);
     });
   });
 
@@ -210,9 +213,17 @@ describe('PhiResonanceSyncProtocol', () => {
     });
 
     it('should return R=1 for single oscillator', () => {
+      // Tolerance, not strict equality. R is sqrt(cos²θ + sin²θ), which is
+      // exactly 1 only in exact arithmetic — in floating point it lands within
+      // an ulp of 1 depending on θ, and registerOscillator seeds θ with
+      // Math.random(). A strict compare therefore failed on roughly 19% of
+      // runs at random, which is what made this suite non-deterministic. Every
+      // other assertion in this file, and in kuramoto-oscillator.test.js,
+      // already compares R with a tolerance.
       protocol.registerOscillator('osc-1');
       const result = protocol.getOrderParameter();
-      assert.equal(result.R, 1);
+      assert.ok(Math.abs(result.R - 1) < 1e-9,
+        `expected R within 1e-9 of 1, got ${result.R}`);
     });
 
     it('should return R near 1 for synchronized oscillators', () => {

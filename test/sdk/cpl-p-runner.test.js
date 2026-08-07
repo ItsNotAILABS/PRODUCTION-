@@ -387,7 +387,12 @@ steps:
       
       const result = await runner.run();
       const stepAudit = result.audit.find(a => a.id === 'step_one' && a.status === 'ok');
-      assert.ok(stepAudit.ms >= 50);
+      // Slack, for the same reason as microbots' duration test: Node can fire a
+      // setTimeout a hair before the wall clock agrees it has elapsed, so a
+      // hard `>= 50` against a 50ms sleep failed a few runs in a hundred. What
+      // is worth asserting is that the audit timed the work at all.
+      assert.ok(stepAudit.ms >= 45,
+        `expected the audit to record ~50ms of work, got ${stepAudit.ms}ms`);
     });
   });
 
