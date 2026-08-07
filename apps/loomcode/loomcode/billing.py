@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS rate (
   account_id TEXT, minute INTEGER, count INTEGER, PRIMARY KEY (account_id, minute));
 """
 
-_SALT = os.environ.get("CODEINTEL_KEY_SALT", "codeintel-dev-salt-change-me")
+_SALT = os.environ.get("LOOM_KEY_SALT", "loomcode-dev-salt-change-me")
 
 
 def hash_key(key: str) -> str:
@@ -89,7 +89,7 @@ def hash_key(key: str) -> str:
 
 
 class Billing:
-    def __init__(self, db_path: str = "codeintel.db"):
+    def __init__(self, db_path: str = "loomcode.db"):
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(_SCHEMA)
@@ -110,7 +110,7 @@ class Billing:
         """Mint a key. The plaintext is returned once and never stored."""
         if self.conn.execute("SELECT 1 FROM accounts WHERE id=?", (account_id,)).fetchone() is None:
             raise KeyError(f"no such account: {account_id}")
-        raw = "ci_" + secrets.token_urlsafe(32)
+        raw = "lc_" + secrets.token_urlsafe(32)
         self.conn.execute(
             "INSERT INTO api_keys (key_hash, account_id, prefix, label, created_at) "
             "VALUES (?,?,?,?,?)",

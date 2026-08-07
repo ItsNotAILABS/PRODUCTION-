@@ -7,19 +7,19 @@ lives behind shell access to the box.
 
     python3 admin.py account create ops@acme.com --plan business
     python3 admin.py key issue acct_1234 --label ci
-    python3 admin.py key revoke ci_AbC123
+    python3 admin.py key revoke lc_AbC123
     python3 admin.py usage acct_1234
 """
 import argparse
 import json
 import os
 
-from codeintel.billing import PLANS, Billing
+from loomcode.billing import PLANS, Billing
 
 
 def main():
-    ap = argparse.ArgumentParser(description="codeintel operator CLI")
-    ap.add_argument("--db", default=os.environ.get("CODEINTEL_DB", "codeintel.db"))
+    ap = argparse.ArgumentParser(description="loomcode operator CLI")
+    ap.add_argument("--db", default=os.environ.get("LOOM_DB", "loomcode.db"))
     sub = ap.add_subparsers(dest="group", required=True)
 
     a = sub.add_parser("account").add_subparsers(dest="cmd", required=True)

@@ -1,15 +1,15 @@
 services:
-  codeintel:
+  loomcode:
     build: .
     ports:
       - "8080:8080"
     environment:
       # Change this. Keys are hashed with it; rotating it invalidates every key.
-      CODEINTEL_KEY_SALT: "${CODEINTEL_KEY_SALT:?set a salt, e.g. openssl rand -hex 32}"
-      CODEINTEL_DB: /data/codeintel.db
+      LOOM_KEY_SALT: "${LOOM_KEY_SALT:?set a salt, e.g. openssl rand -hex 32}"
+      LOOM_DB: /data/loomcode.db
     volumes:
-      - codeintel-data:/data
+      - loomcode-data:/data
     restart: unless-stopped
 
 volumes:
-  codeintel-data:
+  loomcode-data:

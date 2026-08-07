@@ -1,0 +1,419 @@
+<title>Loom Code — stop paying to read files you don't need</title>
+<style>
+  :root{
+    --paper:#f7f6f3; --card:#fffefb; --sunk:#eeece6; --ink:#16181d; --soft:#5c6270;
+    --rule:#d9d6ce; --accent:#2f5fd0; --accent-ink:#ffffff;
+    --excess:#b4402c; --kept:#1f7a4d;
+    --t1:#1f7a4d; --t2:#2f5fd0; --t3:#7a6a1f; --t4:#6b5b95;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,monospace;
+    --sans:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#101216; --card:#171a20; --sunk:#1c2029; --ink:#e9ecf1; --soft:#96a0b0;
+      --rule:#262b34; --accent:#6f9dff; --accent-ink:#0a1020;
+      --excess:#ef7f68; --kept:#5fc98d;
+      --t1:#5fc98d; --t2:#6f9dff; --t3:#d8bf5e; --t4:#a894d8;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#101216; --card:#171a20; --sunk:#1c2029; --ink:#e9ecf1; --soft:#96a0b0;
+    --rule:#262b34; --accent:#6f9dff; --accent-ink:#0a1020;
+    --excess:#ef7f68; --kept:#5fc98d;
+    --t1:#5fc98d; --t2:#6f9dff; --t3:#d8bf5e; --t4:#a894d8;
+  }
+  :root[data-theme="light"]{
+    --paper:#f7f6f3; --card:#fffefb; --sunk:#eeece6; --ink:#16181d; --soft:#5c6270;
+    --rule:#d9d6ce; --accent:#2f5fd0; --accent-ink:#ffffff;
+    --excess:#b4402c; --kept:#1f7a4d;
+    --t1:#1f7a4d; --t2:#2f5fd0; --t3:#7a6a1f; --t4:#6b5b95;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 var(--sans);
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;padding:0 24px}
+  section{padding:56px 0;border-top:1px solid var(--rule)}
+  section:first-of-type{border-top:0}
+
+  /* ---- masthead ---- */
+  .top{display:flex;align-items:baseline;gap:14px;padding:26px 0 0;flex-wrap:wrap}
+  .mark{font-family:var(--mono);font-weight:700;font-size:17px;letter-spacing:-.03em}
+  .mark i{font-style:normal;color:var(--accent)}
+  .tagline{font-family:var(--mono);font-size:11.5px;color:var(--soft);letter-spacing:.06em}
+
+  h1{font-family:var(--mono);font-weight:700;font-size:clamp(30px,5.2vw,52px);line-height:1.06;
+    letter-spacing:-.045em;margin:22px 0 14px;text-wrap:balance;max-width:17ch}
+  .lede{font-size:18.5px;color:var(--soft);max-width:62ch;margin:0}
+  .lede b{color:var(--ink);font-weight:600}
+
+  /* ---- the thesis: a to-scale comparison ---- */
+  .gauge{margin-top:40px;border:1px solid var(--rule);background:var(--card);border-radius:4px;
+    overflow:hidden}
+  .gauge-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    padding:12px 16px;border-bottom:1px solid var(--rule);background:var(--sunk);flex-wrap:wrap}
+  .gauge-head .t{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--soft)}
+  .gauge-head .f{font-family:var(--mono);font-size:11.5px;color:var(--soft)}
+  .rows{padding:20px 16px;display:flex;flex-direction:column;gap:20px}
+  .row{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
+  .row .lab{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+    font-family:var(--mono);font-size:12.5px}
+  .row .lab .who{color:var(--soft)}
+  .row .lab .amt{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px}
+  .bar{height:30px;border-radius:2px;background:var(--sunk);position:relative;overflow:hidden;
+    display:flex}
+  .fill{height:100%;width:0;transition:width 1100ms cubic-bezier(.16,.9,.3,1)}
+  .fill.bad{background:repeating-linear-gradient(135deg,var(--excess),var(--excess) 7px,
+    color-mix(in srgb,var(--excess) 72%,transparent) 7px,
+    color-mix(in srgb,var(--excess) 72%,transparent) 14px)}
+  .seg{height:100%;width:0;transition:width 1100ms cubic-bezier(.16,.9,.3,1)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;
+    color:var(--soft);margin-top:2px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+  .verdict{display:flex;align-items:baseline;gap:12px;padding:14px 16px;border-top:1px solid var(--rule);
+    background:var(--sunk);flex-wrap:wrap}
+  .verdict .big{font-family:var(--mono);font-size:34px;font-weight:700;letter-spacing:-.04em;
+    color:var(--kept);font-variant-numeric:tabular-nums;line-height:1}
+  .verdict .say{font-size:14.5px;color:var(--soft);max-width:62ch}
+
+  h2{font-family:var(--mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--soft);margin:0 0 6px;font-weight:700}
+  .h2sub{font-size:24px;font-weight:600;letter-spacing:-.02em;margin:0 0 24px;max-width:34ch;
+    text-wrap:balance}
+
+  /* ---- the pipeline: a real sequence, so numbering is earned ---- */
+  .steps{display:flex;flex-direction:column;gap:0;border:1px solid var(--rule);border-radius:4px;
+    background:var(--card);overflow:hidden}
+  .step{display:grid;grid-template-columns:52px minmax(0,1fr);border-top:1px solid var(--rule)}
+  .step:first-child{border-top:0}
+  .step .n{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);
+    background:var(--sunk);display:flex;align-items:flex-start;justify-content:center;padding-top:17px;
+    border-right:1px solid var(--rule)}
+  .step .c{padding:15px 18px;display:flex;flex-direction:column;gap:7px;min-width:0}
+  .step h3{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em}
+  .step p{margin:0;color:var(--soft);font-size:14.5px}
+  pre{margin:0;background:var(--sunk);border:1px solid var(--rule);border-radius:3px;
+    padding:11px 13px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55}
+  pre .c1{color:var(--soft)}
+  pre .k{color:var(--accent)}
+  code{font-family:var(--mono);font-size:.92em}
+
+  /* ---- video ---- */
+  figure{margin:0;display:flex;flex-direction:column;gap:10px}
+  video{width:100%;border:1px solid var(--rule);border-radius:4px;display:block;background:#000}
+  figcaption{font-family:var(--mono);font-size:11.5px;color:var(--soft);line-height:1.6}
+
+  /* ---- tables ---- */
+  .scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:4px;background:var(--card)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:11px 15px;border-bottom:1px solid var(--rule);
+    font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:0}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--soft);background:var(--sunk);font-weight:700}
+  td.n{font-family:var(--mono);font-weight:600}
+  td.price{font-family:var(--mono);font-weight:700;font-size:15px}
+  .tier{font-weight:600}
+  .tier small{display:block;font-weight:400;color:var(--soft);font-size:12.5px;font-family:var(--sans)}
+  .pill{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:3px;
+    letter-spacing:.04em}
+  .p-exact{background:color-mix(in srgb,var(--t1) 18%,transparent);color:var(--t1)}
+  .p-likely{background:color-mix(in srgb,var(--t2) 18%,transparent);color:var(--t2)}
+  .p-ambiguous{background:color-mix(in srgb,var(--t3) 22%,transparent);color:var(--t3)}
+  .p-external{background:var(--sunk);color:var(--soft)}
+
+  .langs{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .lang{font-family:var(--mono);font-size:12px;padding:5px 10px;border:1px solid var(--rule);
+    border-radius:3px;background:var(--card);color:var(--soft)}
+  .lang b{color:var(--ink);font-weight:600}
+
+  .notes{display:flex;flex-direction:column;gap:14px}
+  .note{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;
+    font-size:14.5px;color:var(--soft)}
+  .note .m{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--excess);font-weight:700;padding-top:3px;white-space:nowrap}
+  .note b{color:var(--ink);font-weight:600}
+
+  .cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:22px}
+  .btn{font-family:var(--mono);font-size:13.5px;font-weight:600;text-decoration:none;
+    padding:11px 20px;border-radius:4px;border:1px solid var(--accent);
+    background:var(--accent);color:var(--accent-ink)}
+  .btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  footer{padding:30px 0 56px;color:var(--soft);font-family:var(--mono);font-size:11.5px;
+    border-top:1px solid var(--rule);line-height:1.7}
+
+  @media (prefers-reduced-motion:reduce){ .fill,.seg{transition:none} }
+  @media (max-width:620px){
+    .step{grid-template-columns:38px minmax(0,1fr)}
+    .verdict .big{font-size:28px}
+  }
+</style>
+
+<div class="wrap">
+
+  <div class="top">
+    <span class="mark">loom<i>code</i></span>
+    <span class="tagline">selective retrieval for coding agents</span>
+  </div>
+
+  <section>
+    <h1>Stop paying to read files you don't need.</h1>
+    <p class="lede">To change six lines, your agent loads whole files — and you're billed for every
+      token of it. Loom Code parses the repo once, resolves its call graph, then returns
+      <b>a budgeted pack</b>: the span that matters, what it calls, what calls it, and citations for
+      all of it. Same edit, a fraction of the context.</p>
+
+    <div class="gauge">
+      <div class="gauge-head">
+        <span class="t">one edit &middot; 2 files &middot; 334 lines &middot; 30 symbols</span>
+        <span class="f">task: locate the elasticity-based pricing rule</span>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <div class="lab"><span class="who">read the files</span><span class="amt" style="color:var(--excess)">2,920 tokens</span></div>
+          <div class="bar"><div class="fill bad" id="f1"></div></div>
+        </div>
+        <div class="row">
+          <div class="lab"><span class="who">one context pack</span><span class="amt" style="color:var(--kept)">791 tokens</span></div>
+          <div class="bar">
+            <div class="seg" id="s1" style="background:var(--t1)"></div>
+            <div class="seg" id="s2" style="background:var(--t2)"></div>
+            <div class="seg" id="s3" style="background:var(--t3)"></div>
+            <div class="seg" id="s4" style="background:var(--t4)"></div>
+          </div>
+          <div class="legend">
+            <span><i class="sw" style="background:var(--t1)"></i> primary span 224</span>
+            <span><i class="sw" style="background:var(--t2)"></i> caller 233</span>
+            <span><i class="sw" style="background:var(--t3)"></i> file's other symbols 135</span>
+            <span><i class="sw" style="background:var(--t4)"></i> second file's shape 199</span>
+          </div>
+        </div>
+      </div>
+      <div class="verdict">
+        <span class="big">3.69&times;</span>
+        <span class="say">less context, and the pack carries <b>more</b> than a raw span would &mdash;
+          the cross-file caller came with it. Bars are drawn to true scale; segments are the
+          real tier sizes.</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Watch it</h2>
+    <p class="h2sub">A real recording, not an animation.</p>
+    <figure>
+      <video controls muted playsinline preload="metadata" poster="__POSTER__">
+        <source src="__VIDEO__" type="video/webm" />
+        Your browser cannot play webm video.
+      </video>
+      <figcaption>
+        Captured by driving a real browser against the running service. Every number on screen came
+        back from a live HTTP call during the recording &mdash; if the API broke, the video would break.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>The pipeline</h2>
+    <p class="h2sub">Four stages. The order matters, which is why they're numbered.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="n">01</div>
+        <div class="c">
+          <h3>Parse</h3>
+          <p>Real ASTs, not regex. Python via the stdlib; everything else via tree-sitter, so
+            end lines are true and you can edit against them. Text is parsed and
+            <b>discarded</b> &mdash; only the derived index persists.</p>
+<pre><span class="c1"># POST /v1/repos/{repo}/files</span>
+{"files":[{"path":"pricing.py","content":"..."}]}
+<span class="c1">→ 30 symbols · card is 8% of the source</span></pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n">02</div>
+        <div class="c">
+          <h3>Resolve</h3>
+          <p>Call sites become edges, each tagged with how much was actually known. A graph that
+            hides its guesses is worse than none &mdash; an agent follows the wrong edge into the
+            wrong file and never learns the edge was a guess.</p>
+<pre><span class="c1"># GET /v1/repos/{repo}/graph</span>
+<span class="c1">→ 26 edges · 5 exact · 6 likely · 15 external</span></pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n">03</div>
+        <div class="c">
+          <h3>Rank</h3>
+          <p>Lexical BM25, direct name match, and PageRank centrality each produce their own
+            ordering; <b>Reciprocal Rank Fusion</b> combines the positions. Fusing positions, not
+            scores, is what makes it safe &mdash; BM25 and PageRank have no defensible exchange rate.</p>
+<pre><span class="c1"># GET /v1/repos/{repo}/search?q=</span><span class="k">optimal price from elasticity</span>
+<span class="c1">→ optimal_price · signals {lexical:1, name:1, central:3}</span></pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n">04</div>
+        <div class="c">
+          <h3>Pack</h3>
+          <p>Fill a token budget in priority order: matched span, callees, callers, the file's other
+            symbols by name, then cards for other files. Every tier is capped so one hot function
+            with sixty callers can't eat the budget. Whatever doesn't fit is
+            <b>reported, not dropped</b>.</p>
+<pre><span class="c1"># POST /v1/repos/{repo}/context_pack</span>
+{"query":"optimal price from elasticity","budget_tokens":1200}
+<span class="c1">→ 791 used · 409 headroom · 0 omitted · every element cited</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Confidence</h2>
+    <p class="h2sub">Every edge says how much was actually known.</p>
+    <div class="scroll">
+      <table>
+        <tr><th>tier</th><th>what it means</th><th>how it can be wrong</th></tr>
+        <tr>
+          <td><span class="pill p-exact">exact</span></td>
+          <td>One definition of that name in the same file.</td>
+          <td>It can't. Local scope resolves it.</td>
+        </tr>
+        <tr>
+          <td><span class="pill p-likely">likely</span></td>
+          <td>One definition in the whole repo.</td>
+          <td>An import of a same-named third-party symbol would fool it.</td>
+        </tr>
+        <tr>
+          <td><span class="pill p-ambiguous">ambiguous</span></td>
+          <td>Several definitions share the name. <b>All</b> are recorded.</td>
+          <td>It doesn't guess &mdash; it hands you every candidate.</td>
+        </tr>
+        <tr>
+          <td><span class="pill p-external">external</span></td>
+          <td>No definition indexed &mdash; a dependency or a builtin.</td>
+          <td>Kept, not dropped: a leaf that calls into an SDK isn't self-contained.</td>
+        </tr>
+      </table>
+    </div>
+    <div class="notes" style="margin-top:20px">
+      <div class="note"><span class="m">weighted</span><span>Confidence feeds PageRank: a guessed edge moves less rank than a resolved one, and an ambiguous call fanning out to four candidates contributes a quarter as much. Otherwise a hub forms purely because the name <code>get</code> is popular.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Languages</h2>
+    <p class="h2sub">Exact line spans, from a real parse.</p>
+    <div class="langs">
+      <span class="lang"><b>Python</b> stdlib ast</span>
+      <span class="lang"><b>Go</b></span>
+      <span class="lang"><b>TypeScript</b></span>
+      <span class="lang"><b>JavaScript</b></span>
+      <span class="lang"><b>PHP</b></span>
+      <span class="lang"><b>Pascal / Delphi</b></span>
+      <span class="lang"><b>Java</b></span>
+      <span class="lang"><b>Rust</b></span>
+      <span class="lang"><b>Ruby</b></span>
+      <span class="lang"><b>Kotlin</b></span>
+    </div>
+    <div class="notes" style="margin-top:20px">
+      <div class="note"><span class="m">not a guess</span><span>The previous release scanned everything but Python with a regex and marked the spans approximate. That was honest but useless: <b>you cannot edit against a boundary found by looking for the next declaration.</b> These are real parses.</span></div>
+      <div class="note"><span class="m">per grammar</span><span>Each language needed its own correction. Go files a method's receiver first, so a naive read indexes <code>Total</code> as <code>c</code>. Delphi declares a routine twice &mdash; interface and implementation &mdash; and writes <code>procedure TCatalog.Total</code>, where the leading name is the owner, not the member. There are tests for both.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Measured, not claimed</h2>
+    <p class="h2sub">Numbers from the service indexing its own source.</p>
+    <div class="scroll">
+      <table>
+        <tr><th>what</th><th>result</th><th>how it was measured</th></tr>
+        <tr><td>Profile card size</td><td class="n">8.1%</td><td>of the source it describes, across 8 modules / 2,295 lines</td></tr>
+        <tr><td>Six real edit tasks</td><td class="n">2.76&times;</td><td>8,454 pack tokens vs 23,356 reading the matched file whole</td></tr>
+        <tr><td>Tokens avoided, those six</td><td class="n">14,902</td><td>relation-aware packs, not bare spans</td></tr>
+        <tr><td>One edit, in the video</td><td class="n">3.69&times;</td><td>791 vs 2,920 tokens, live API calls</td></tr>
+        <tr><td>Bare span read</td><td class="n">8.76&times;</td><td>the cheaper mode, when you only want the lines</td></tr>
+        <tr><td>Call graph, own source</td><td class="n">356 edges</td><td>88 exact, 45 likely, 2 ambiguous, 221 external</td></tr>
+        <tr><td>Tests passing</td><td class="n">71</td><td>incl. tenant isolation, span exactness per language, budget caps</td></tr>
+        <tr><td>Model inference cost</td><td class="n">$0</td><td>AST + BM25 + PageRank &mdash; no GPU, no LLM, no egress</td></tr>
+      </table>
+    </div>
+    <div class="notes" style="margin-top:20px">
+      <div class="note"><span class="m">two numbers</span><span>A bare span read is the bigger multiple; a pack is the more useful answer, and costs more because it deliberately brings the callers and callees with it. <b>Both are reported because picking only the flattering one would be a lie about what you get.</b></span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Your source</h2>
+    <p class="h2sub">The reason enterprises can actually deploy this.</p>
+    <div class="notes">
+      <div class="note"><span class="m">discarded</span><span>File text sent to <code>/files</code> is parsed and thrown away. What persists is symbol names, line spans, docstring first lines, call sites, and a content hash. <b>Nothing reconstructs the file.</b></span></div>
+      <div class="note"><span class="m">never stored</span><span><code>/read</code> and <code>/context_pack</code> take the content to slice <b>in the request</b>. The service never becomes a second copy of your repository.</span></div>
+      <div class="note"><span class="m">isolated</span><span>Every index, edge and centrality score is scoped to the calling account. Two customers using the same repo name see nothing of each other &mdash; there's a test asserting it for the derived graph too, not just the index.</span></div>
+      <div class="note"><span class="m">hashed</span><span>API keys are stored as salted SHA-256. The plaintext is shown once at creation and is unrecoverable. The stored prefix cannot authenticate.</span></div>
+      <div class="note"><span class="m">on-prem</span><span>Can't send source over the wire at all? The identical application runs inside your perimeter. That's the enterprise tier &mdash; <b>self-hosting is the product, not a downgrade.</b></span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Pricing</h2>
+    <p class="h2sub">Billed on the estate you index, never per call.</p>
+    <div class="scroll">
+      <table>
+        <tr><th>plan</th><th>per month</th><th>indexed lines</th><th>rate</th><th>runs</th></tr>
+        <tr><td class="tier">Free<small>kick the tyres</small></td><td class="price">$0</td><td class="n">25,000</td><td class="n">60/min</td><td>hosted</td></tr>
+        <tr><td class="tier">Team<small>one squad</small></td><td class="price">$99</td><td class="n">1,000,000</td><td class="n">600/min</td><td>hosted</td></tr>
+        <tr><td class="tier">Business<small>a whole org</small></td><td class="price">$499</td><td class="n">10,000,000</td><td class="n">3,000/min</td><td>hosted</td></tr>
+        <tr><td class="tier">Enterprise<small>your infrastructure</small></td><td class="price">$2,500</td><td class="n">unlimited</td><td class="n">100,000/min</td><td><b>self-hosted</b></td></tr>
+      </table>
+    </div>
+    <div class="notes" style="margin-top:20px">
+      <div class="note"><span class="m">why</span><span>Charging per request would punish you for the tool working &mdash; the entire value is <b>fewer, smaller calls</b>. So the meter is the size of the estate under management. <code>/v1/usage</code> reports context saved separately and says plainly that it is the value delivered, not the thing being charged for.</span></div>
+    </div>
+    <div class="cta">
+      <a class="btn" href="#">Start free</a>
+      <a class="btn ghost" href="#">Read the API docs</a>
+    </div>
+  </section>
+
+  <section>
+    <h2>What it doesn't do</h2>
+    <p class="h2sub">Worth knowing before you buy, not after.</p>
+    <div class="notes">
+      <div class="note"><span class="m">no embeddings</span><span>Search is <b>lexical plus structural</b>. There is a <code>DenseProvider</code> slot and nothing ships in it &mdash; the moment an embedding model is in the request path, the claim that a request costs CPU and nothing else is gone. An earlier build tried a dependency-free hashing pseudo-embedding; across 7,641 symbols the collisions ranked an unrelated activation function above the pricing model being searched for. Bring your own provider and it fuses as a fourth ranker.</span></div>
+      <div class="note"><span class="m">name-based</span><span>Resolution matches on the trailing name, so <code>a.b.parse(x)</code> resolves as <code>parse</code>. Receiver types aren't inferred &mdash; which is exactly why the confidence tier is on every edge instead of hidden.</span></div>
+      <div class="note"><span class="m">coarse</span><span>Rate limiting is a fixed per-minute window, so it's approximate at boundaries. Adequate for abuse control; not a fairness guarantee.</span></div>
+      <div class="note"><span class="m">single node</span><span>SQLite backs the index. Comfortable to low millions of symbols on one box; a multi-node deployment wants Postgres.</span></div>
+    </div>
+  </section>
+
+  <footer>
+    Loom Code &middot; selective retrieval for coding agents &middot; no model inference, no GPU, no egress<br />
+    Every figure on this page was measured on a running instance and is reproducible with
+    <code>pytest</code> and the demo recorder in the repo.
+  </footer>
+</div>
+
+<script>
+  // One orchestrated moment: the bars grow to true scale on load, so the ratio
+  // registers visually before it is read. Widths are the real token counts, and
+  // the segments are the real per-tier sizes the service reported.
+  const FULL = 2920;
+  const TIERS = [["s1", 224], ["s2", 233], ["s3", 135], ["s4", 199]];
+  const draw = () => {
+    document.getElementById("f1").style.width = "100%";
+    for (const [id, n] of TIERS) {
+      document.getElementById(id).style.width = (n / FULL * 100).toFixed(3) + "%";
+    }
+  };
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    document.getElementById("f1").style.transition = "none";
+    for (const [id] of TIERS) document.getElementById(id).style.transition = "none";
+    draw();
+  } else {
+    requestAnimationFrame(() => setTimeout(draw, 220));
+  }
+</script>

@@ -1,4 +1,4 @@
-"""Code Intelligence API — navigate a codebase without loading it.
+"""Loom Code API — navigate a codebase without loading it.
 
 The loop an agent runs against this service:
 
@@ -29,15 +29,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from codeintel.billing import PLANS, Billing
-from codeintel.index import CodeIndex, profile_text, read_lines
+from loomcode.billing import PLANS, Billing
+from loomcode.index import CodeIndex, profile_text, read_lines
 
-DB = os.environ.get("CODEINTEL_DB", "codeintel.db")
+DB = os.environ.get("LOOM_DB", "loomcode.db")
 index = CodeIndex(DB)
 billing = Billing(DB)
 
 app = FastAPI(
-    title="Code Intelligence API",
+    title="Loom Code API",
     version="1.0.0",
     description=(
         "Hierarchical codebase navigation for AI agents and developer tools. "
@@ -55,7 +55,7 @@ app = FastAPI(
 # opts in to exactly the front-ends they run rather than inheriting a wildcard.
 # Credentials are not allowed: this API authenticates with a bearer token, not
 # cookies, so there is no reason to widen the surface.
-_origins = [o.strip() for o in os.environ.get("CODEINTEL_CORS_ORIGINS", "").split(",") if o.strip()]
+_origins = [o.strip() for o in os.environ.get("LOOM_CORS_ORIGINS", "").split(",") if o.strip()]
 if _origins:
     app.add_middleware(
         CORSMiddleware,
@@ -86,6 +86,20 @@ class ReadRequest(BaseModel):
     pad: int = Field(0, ge=0, le=50, description="Extra context lines each side")
 
 
+class ContextPackRequest(BaseModel):
+    query: str = Field(..., min_length=2, description="What you are trying to change")
+    files: list[FileIn] = Field(
+        ..., description="Current text of the files you want sliced. The service stores "
+                         "no source, so spans are cut from what you send.")
+    budget_tokens: int = Field(4000, ge=50, le=200_000,
+                               description="Hard ceiling on the assembled pack. The floor "
+                                           "is low on purpose: a caller squeezing a pack "
+                                           "into what is left of a window deserves an "
+                                           "answer and an omission list, not a 422.")
+    anchor: str | None = Field(None, description="Symbol you are already working near")
+    anchor_path: str | None = Field(None, description="Disambiguates the anchor")
+
+
 class SymbolReadRequest(BaseModel):
     name: str = Field(..., description="Symbol to locate and read")
     content: str = Field(..., description="Text of the file containing it")
@@ -104,7 +118,7 @@ async def caller(authorization: str = Header(None, description="Bearer <api key>
     parts = (authorization or "").split()
     if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1].strip():
         raise HTTPException(401, "missing or malformed bearer token — send "
-                                 "'Authorization: Bearer ci_...'")
+                                 "'Authorization: Bearer lc_...'")
     ident = billing.authenticate(parts[1].strip())
     if ident is None:
         raise HTTPException(401, "invalid, revoked, or inactive API key")
@@ -121,7 +135,7 @@ async def caller(authorization: str = Header(None, description="Bearer <api key>
 
 @app.get("/health", tags=["meta"])
 def health() -> dict:
-    return {"status": "ok", "service": "codeintel", "version": app.version}
+    return {"status": "ok", "service": "loomcode", "version": app.version}
 
 
 @app.get("/v1/plans", tags=["meta"])
@@ -193,7 +207,7 @@ def get_card(repo: str, path: str = Query(..., description="File to profile"),
 
     text = None
     if render:
-        from codeintel.index import Card, Symbol
+        from loomcode.index import Card, Symbol
         text = Card(path=card["path"], language=card["language"], lines=card["lines"],
                     bytes=card["bytes"], content_hash="", module_intent=card["module_intent"],
                     imports=card["imports"], sections=card["sections"],
@@ -271,6 +285,91 @@ def read_symbol(payload: SymbolReadRequest, repo: str, who: dict = Depends(calle
                         "bytes_if_full_read": len(payload.content.encode()),
                         "reduction_factor": round(len(payload.content.encode()) / r["bytes"], 2)
                         if r["bytes"] else None}}
+
+
+# --- structure ----------------------------------------------------------------
+
+@app.get("/v1/repos/{repo}/graph", tags=["structure"])
+def graph(repo: str, rebuild: bool = Query(False, description="Force resolution to rerun"),
+          who: dict = Depends(caller)) -> dict:
+    """Call-graph summary: node and edge counts, broken down by confidence.
+
+    The breakdown is the point. A repo whose edges are mostly ``ambiguous`` has
+    a naming problem, and any tool that navigates it — including this one — is
+    guessing more often than it looks.
+    """
+    scoped = f"{who['account_id']}/{repo}"
+    if rebuild:
+        index.build_graph(scoped)
+    stats = index.graph_summary(scoped)
+    return {"repo": repo, **stats,
+            "confidence_meaning": {
+                "exact": "one definition of that name in the same file",
+                "likely": "one definition in the whole repo",
+                "ambiguous": "several definitions share the name; all recorded",
+                "external": "no definition indexed — a dependency or a builtin"}}
+
+
+@app.get("/v1/repos/{repo}/important", tags=["structure"])
+def important(repo: str, top_k: int = Query(20, ge=1, le=200),
+              who: dict = Depends(caller)) -> dict:
+    """The repo map — symbols ranked by PageRank over the call graph.
+
+    What to read first in a codebase nobody on the team has seen. Centrality
+    answers that; a text index cannot, because the most important function is
+    rarely the one whose name matches your question.
+    """
+    rows = index.important(f"{who['account_id']}/{repo}", top_k=top_k)
+    billing.record(who["account_id"], "important", bytes_served=len(str(rows).encode()))
+    return {"repo": repo, "count": len(rows), "symbols": rows,
+            "ranking": "pagerank over confidence-weighted call edges"}
+
+
+@app.get("/v1/repos/{repo}/relations", tags=["structure"])
+def relations(repo: str, name: str = Query(..., description="Symbol name"),
+              path: str | None = Query(None, description="Disambiguate a repeated name"),
+              who: dict = Depends(caller)) -> dict:
+    """Callers, callees and external calls for one symbol, each with confidence."""
+    try:
+        rel = index.relations(f"{who['account_id']}/{repo}", name, path)
+    except KeyError:
+        raise HTTPException(404, f"symbol '{name}' not found in repo '{repo}'")
+    if rel.get("ambiguous"):
+        return JSONResponse(status_code=409, content={
+            "error": "ambiguous symbol", **rel,
+            "hint": "resend with 'path' set to one of the candidate paths"})
+    return {"repo": repo, **rel}
+
+
+@app.post("/v1/repos/{repo}/context_pack", tags=["structure"])
+def context_pack(payload: ContextPackRequest, repo: str,
+                 who: dict = Depends(caller)) -> dict:
+    """Everything needed to make one edit, under a token budget.
+
+    The difference from ``/search`` is that this answers "what do I need in
+    front of me", not "where is it": the matched span, what it calls, what calls
+    it, its file's other symbols by name, and cards for the other files that
+    came up — filled in that priority order until the budget runs out, with
+    whatever did not fit reported rather than dropped silently.
+    """
+    scoped = f"{who['account_id']}/{repo}"
+    contents = {f.path: f.content for f in payload.files}
+    anchor = None
+    if payload.anchor:
+        hits = index.locate(scoped, payload.anchor)
+        if payload.anchor_path:
+            hits = [h for h in hits if h["path"] == payload.anchor_path]
+        if len(hits) == 1:
+            anchor = (hits[0]["path"], payload.anchor)
+        elif len(hits) > 1:
+            raise HTTPException(409, f"anchor '{payload.anchor}' is ambiguous; "
+                                     "set anchor_path to one of its locations")
+    result = index.context_pack(scoped, payload.query, contents,
+                                budget_tokens=payload.budget_tokens, anchor=anchor)
+    billing.record(who["account_id"], "context_pack",
+                   bytes_served=len(result.get("rendered", "").encode()),
+                   bytes_full=sum(len(c.encode()) for c in contents.values()))
+    return {"repo": repo, **result}
 
 
 # --- account ------------------------------------------------------------------
