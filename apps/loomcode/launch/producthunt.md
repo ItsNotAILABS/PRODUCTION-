@@ -177,8 +177,11 @@ value is fewer and smaller calls.
 
 - [ ] Upload `demo.webm` to YouTube, paste the link into the video field
 - [ ] Hosted instance up with `LOOM_CORS_ORIGINS` set to the site's origin
+      (optional — the launch stands on self-hosting alone)
 - [ ] `LOOM_KEY_SALT` set to a real random value, not the dev placeholder
-- [ ] Free-tier signup path working end to end from the "Start free" button
-- [ ] The two CTAs on the showcase page point somewhere real (they are `#` today)
-- [ ] `/docs` reachable on the hosted instance
+- [x] The showcase page's CTAs point somewhere real — "Run it yourself" jumps to
+      a working self-host quickstart, "Read the source" goes to the repo. There
+      is no hosted signup yet and the page says so rather than faking one.
+- [ ] Free-tier signup path, if a hosted tier launches alongside
+- [ ] `/docs` reachable on the hosted instance (works on a local instance today)
 - [ ] Someone watching the comments for the first four hours

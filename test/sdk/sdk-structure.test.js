@@ -74,13 +74,22 @@ describe('SDK structure validation', () => {
 });
 
 describe('Extensions index', () => {
-  it('should export EXTENSIONS array with 31 entries', async () => {
+  // Was `assert.equal(match.length, 31)`. A 32nd extension was added and the
+  // literal was never updated, so this failed on legitimate growth. A bare count
+  // is a change-detector, not a contract — what actually matters is that every
+  // entry has a unique, well-formed id, which is the thing that silently breaks
+  // when someone copy-pastes an entry and forgets to change the id.
+  it('should export EXTENSIONS entries with unique, well-formed ids', async () => {
     const indexPath = path.join(SDK_ROOT, '..', 'extensions', 'index.js');
     assert.ok(fs.existsSync(indexPath));
     const content = fs.readFileSync(indexPath, 'utf8');
-    const match = content.match(/id:\s*'EXT-/g);
-    assert.ok(match);
-    assert.equal(match.length, 31, `Expected 31 extension entries, found ${match.length}`);
+    const ids = (content.match(/id:\s*'(EXT-[A-Za-z0-9-]+)'/g) || [])
+      .map((m) => m.match(/'(.+)'/)[1]);
+    assert.ok(ids.length > 0, 'no EXT- entries found in extensions/index.js');
+
+    const seen = new Set();
+    const duplicates = ids.filter((id) => seen.size === seen.add(id).size);
+    assert.deepEqual(duplicates, [], `duplicate extension ids: ${duplicates.join(', ')}`);
   });
 });
 

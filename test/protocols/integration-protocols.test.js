@@ -4,6 +4,8 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import { MCPGatewayProtocol }                                  from '../../protocols/integrations/mcp-gateway-protocol.js';
 import { IntegrationOrchestrationProtocol, WORKFLOW_STATUS }   from '../../protocols/integrations/integration-orchestration-protocol.js';
@@ -29,8 +31,19 @@ import { INTEGRATIONS_PROTOCOL_VERSION, INTEGRATIONS_PROTOCOL_COUNT } from '../.
 
 // ─── Index ────────────────────────────────────────────────────────────────────
 describe('integrations/index', () => {
-  it('exports INTEGRATIONS_PROTOCOL_COUNT = 20', () => {
-    assert.equal(INTEGRATIONS_PROTOCOL_COUNT, 20);
+  // Was `assert.equal(INTEGRATIONS_PROTOCOL_COUNT, 20)`. Twelve protocols were
+  // added and the literal was never touched, so the test failed for a year of
+  // legitimate growth while catching nothing. The count only means something if
+  // it matches the protocols actually exported — assert that instead, and it
+  // now fails exactly when someone adds a protocol and forgets to bump it.
+  it('declares a protocol count matching the protocols it exports', () => {
+    const index = fs.readFileSync(
+      path.join(import.meta.dirname, '../../protocols/integrations/index.js'), 'utf8');
+    const exported = index.match(/^export \{[^}]*Protocol\b/gm) || [];
+    assert.ok(exported.length > 0, 'no protocol exports found');
+    assert.equal(INTEGRATIONS_PROTOCOL_COUNT, exported.length,
+      `INTEGRATIONS_PROTOCOL_COUNT is ${INTEGRATIONS_PROTOCOL_COUNT} but `
+      + `${exported.length} protocols are exported`);
   });
   it('exports INTEGRATIONS_PROTOCOL_VERSION string', () => {
     assert.ok(typeof INTEGRATIONS_PROTOCOL_VERSION === 'string');

@@ -134,7 +134,28 @@ class ChronoEngine {
    * Cancel a scheduled task
    */
   cancelTask(taskId) {
+    const before = this.scheduledTasks.length;
     this.scheduledTasks = this.scheduledTasks.filter(t => t.id !== taskId);
+    // Report whether anything was actually cancelled. Returning nothing meant a
+    // caller cancelling a task that had already fired got the same silence as
+    // one that cancelled successfully.
+    return this.scheduledTasks.length < before;
+  }
+
+  /**
+   * The engine's current instant, as one object.
+   *
+   * `getBeat`, `getTime`, `getPhiPhase` and `getTimeScale` each answer a
+   * fraction of the same question, and reading them separately means four calls
+   * that can straddle a beat boundary and disagree with each other.
+   */
+  now() {
+    return {
+      beat: this.beatCount,
+      time: this.getTime(),
+      phase: this.getPhiPhase(),
+      scale: this.getTimeScale(),
+    };
   }
 
   // ── Time-Based Decay Functions ─────────────────────────────────────────
