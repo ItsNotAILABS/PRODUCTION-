@@ -36,13 +36,28 @@ jobs:
         run: node scripts/lint-manifests.js
 
       - name: Run tests
-        # `dot` rather than the default TAP reporter. TAP emits ~300KB per run,
-        # which pushes the actual failures far enough up the log that neither
-        # the Actions UI nor the API's log tail can reach them — a red job that
-        # cannot tell you what broke costs more than it saves. The dot reporter
-        # prints one character per test and the full failure detail at the end,
-        # where it is always readable. Exit code semantics are unchanged.
-        run: node --test --test-reporter=dot test/**/*.test.js
+        # Two reporters, because each one alone loses something that matters.
+        #
+        # TAP on stdout emits ~300KB per run, which pushes the actual failures
+        # far enough up the log that neither the Actions UI nor the API's log
+        # tail can reach them — a red job that cannot say what broke costs more
+        # than it saves. But `dot` alone prints no counts, so a file that
+        # silently stops registering its tests would look identical to a clean
+        # run.
+        #
+        # So: dot to stdout for the failures, TAP to a file for the totals,
+        # printed by the step below. Exit code semantics are unchanged.
+        run: |
+          node --test \
+            --test-reporter=dot --test-reporter-destination=stdout \
+            --test-reporter=tap --test-reporter-destination=test-results.tap \
+            test/**/*.test.js
+
+      - name: Test summary
+        # always(), so the totals are visible on a red run too — that is exactly
+        # when "how many tests even ran?" is the question worth answering.
+        if: always()
+        run: tail -n 9 test-results.tap
 
   build-extensions:
     name: Build & Commit Extensions
