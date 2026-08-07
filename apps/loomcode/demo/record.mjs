@@ -1,5 +1,5 @@
 /**
- * record.mjs — capture a real demo video of the Code Intelligence API.
+ * record.mjs — capture a real demo video of the Loom Code API.
  *
  * This drives the actual demo page against the actual running service with a
  * real browser and records what happens. Nothing is staged: every number that
@@ -7,7 +7,8 @@
  * service breaks, the video breaks — which is the point of recording it this
  * way rather than animating a mockup.
  *
- *   node record.mjs --api http://127.0.0.1:8899 --key ci_xxx --out demo.webm
+ *   node record.mjs --api http://127.0.0.1:8899 --key lc_xxx \
+ *     --url http://127.0.0.1:8898/index.html --outdir /tmp/loom-video
  */
 import { chromium } from "/opt/node22/lib/node_modules/playwright/index.mjs";
 import { fileURLToPath } from "url";
@@ -23,7 +24,7 @@ const args = Object.fromEntries(
 
 const API = args.api || "http://127.0.0.1:8899";
 const KEY = args.key || "";
-const OUTDIR = args.outdir || "/tmp/codeintel-video";
+const OUTDIR = args.outdir || "/tmp/loomcode-video";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 if (!KEY) {
@@ -46,8 +47,23 @@ const context = await browser.newContext({
 
 const page = await context.newPage();
 const errors = [];
-page.on("pageerror", (e) => errors.push(String(e)));
-page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+// Chrome requests /favicon.ico on its own and logs a console error when the
+// static server has none. That is the browser talking to itself, not the page
+// failing, and letting it set a non-zero exit code would make this unusable as
+// a CI check for whether the demo still works.
+const isNoise = (t) => /favicon\.ico/i.test(t);
+page.on("pageerror", (e) => { if (!isNoise(String(e))) errors.push(String(e)); });
+page.on("console", (m) => {
+  // The 404 text says nothing about which resource failed; the URL lives in
+  // the location, so both have to be checked or the filter never fires.
+  const where = m.location() && m.location().url ? m.location().url : "";
+  if (m.type() === "error" && !isNoise(m.text()) && !isNoise(where)) {
+    errors.push(m.text() + (where ? ` (${where})` : ""));
+  }
+});
+page.on("requestfailed", (r) => {
+  if (!isNoise(r.url())) errors.push(`request failed: ${r.url()}`);
+});
 
 // The demo must be served over http, not opened from file://. Chrome blocks
 // fetch() on file:// URLs outright ("cross origin requests are only supported

@@ -3,17 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Code Intelligence — live demo</title>
+<title>Loom Code — live demo</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d1117'/%3E%3Cpath d='M8 8h3v13h8v3H8z' fill='%232f81f7'/%3E%3C/svg%3E" />
 <style>
   :root{
     --bg:#0d1117; --panel:#151b23; --panel2:#1c232c; --ink:#e6edf3; --muted:#8b98a5;
     --line:#252d38; --accent:#2f81f7; --good:#3fb950; --warn:#d29922; --bad:#f85149;
+    --exact:#3fb950; --likely:#58a6ff; --ambig:#d29922; --ext:#8b98a5;
     --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,monospace;
     --sans:-apple-system,"Segoe UI",system-ui,sans-serif;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans)}
-  .app{display:grid;grid-template-rows:auto 1fr auto;height:100vh}
+  .app{display:grid;grid-template-rows:auto auto 1fr auto auto;height:100vh}
 
   header{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
   .logo{font-weight:700;letter-spacing:-.02em;font-size:15px}
@@ -21,6 +23,8 @@
   .badge{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:3px 10px}
   .badge.live{color:var(--good);border-color:#1f4a2c}
   .spacer{flex:1}
+
+  .step{color:var(--muted);font-family:var(--mono);font-size:11.5px;padding:9px 20px;border-bottom:1px solid var(--line);background:var(--panel2)}
 
   main{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);overflow:hidden}
   .col{background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
@@ -32,7 +36,7 @@
   .tag.new{background:#12301c;color:var(--good)}
   .body{flex:1;overflow:auto;padding:14px 16px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;line-height:1.55}
 
-  .meter{display:flex;gap:10px;padding:10px 16px;border-top:1px solid var(--line);background:var(--panel2);
+  .meter{display:flex;gap:22px;padding:10px 16px;border-top:1px solid var(--line);background:var(--panel2);
     font-family:var(--mono);font-size:11.5px;align-items:center;flex-wrap:wrap}
   .m{display:flex;flex-direction:column;gap:1px}
   .m .k{color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
@@ -42,28 +46,35 @@
   footer{padding:12px 20px;border-top:1px solid var(--line);background:var(--panel);
     display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   input,button{font:inherit;font-family:var(--mono);font-size:13px}
-  input{flex:1;min-width:220px;background:var(--bg);color:var(--ink);border:1px solid var(--line);
+  input{flex:1;min-width:200px;background:var(--bg);color:var(--ink);border:1px solid var(--line);
     border-radius:6px;padding:9px 12px}
   input:focus{outline:2px solid var(--accent);outline-offset:-1px}
   button{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:9px 18px;font-weight:600;cursor:pointer}
   button.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
   button:disabled{opacity:.5;cursor:default}
 
-  .step{color:var(--muted);font-family:var(--mono);font-size:11.5px;padding:0 20px 10px}
   .hit{padding:6px 9px;border:1px solid var(--line);border-radius:5px;margin-bottom:6px;background:var(--panel)}
   .hit .n{color:var(--accent);font-weight:600}
   .hit .loc{color:var(--muted);font-size:11px}
+  .sig{font-size:10px;color:var(--muted)}
   .dim{color:var(--muted)}
-  .hl{background:#1f2f47;display:block;margin:0 -16px;padding:0 16px}
-  mark{background:#3d2f00;color:#f0d67a;border-radius:2px;padding:0 2px}
+  .tier{display:block;margin:10px -16px 4px;padding:3px 16px;background:var(--panel);
+    color:var(--muted);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+  .cite{color:var(--accent);font-size:11px}
+  .conf{font-size:10px;padding:1px 5px;border-radius:3px;margin-left:6px}
+  .c-exact{background:#12301c;color:var(--exact)}
+  .c-likely{background:#0d2b4e;color:var(--likely)}
+  .c-ambiguous{background:#3a2d0c;color:var(--ambig)}
+  .cut{color:var(--warn);font-size:11px}
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <div class="logo">code<span>intel</span></div>
+    <div class="logo">loom<span>code</span></div>
     <div class="badge" id="api-badge">connecting…</div>
     <div class="badge" id="repo-badge">no repo</div>
+    <div class="badge" id="graph-badge">no graph</div>
     <div class="spacer"></div>
     <div class="badge">the same edit, both ways</div>
   </header>
@@ -72,21 +83,21 @@
 
   <main>
     <div class="col">
-      <div class="colhead">Without codeintel <span class="tag old">reads the whole file</span></div>
+      <div class="colhead">Without Loom Code <span class="tag old">reads whole files</span></div>
       <div class="body" id="left"><span class="dim">waiting…</span></div>
     </div>
     <div class="col">
-      <div class="colhead">With codeintel <span class="tag new">search → read span</span></div>
+      <div class="colhead">With Loom Code <span class="tag new">index → rank → pack</span></div>
       <div class="body" id="right"><span class="dim">waiting…</span></div>
     </div>
   </main>
 
   <div class="meter">
-    <div class="m"><span class="k">whole-file bytes</span><span class="v bad" id="m-full">—</span></div>
-    <div class="m"><span class="k">codeintel bytes</span><span class="v good" id="m-served">—</span></div>
+    <div class="m"><span class="k">whole-file tokens</span><span class="v bad" id="m-full">—</span></div>
+    <div class="m"><span class="k">pack tokens</span><span class="v good" id="m-served">—</span></div>
     <div class="m"><span class="k">reduction</span><span class="v good" id="m-ratio">—</span></div>
     <div class="m"><span class="k">tokens avoided</span><span class="v good" id="m-tokens">—</span></div>
-    <div class="m"><span class="k">indexed</span><span class="v" id="m-lines">—</span></div>
+    <div class="m"><span class="k">indexed lines</span><span class="v" id="m-lines">—</span></div>
   </div>
 
   <footer>
@@ -105,12 +116,13 @@ const H = { "Authorization": "Bearer " + KEY, "Content-Type": "application/json"
 const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const step = (t) => { $("step").textContent = t; };
+const esc = (s) => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 
-// The demo indexes a real file and then performs a real edit-location task
-// against it. Nothing here is pre-baked: every number on screen comes back
-// from the API.
-const FILE_PATH = "pricing.py";
-let FILE_TEXT = "";
+// The demo indexes real files and then performs a real edit-location task
+// against them. Nothing here is pre-baked: every number on screen comes back
+// from the API during the run.
+const FILES = ["pricing.py", "orders.py"];
+const TEXT = {};
 
 async function api(path, opts = {}) {
   const r = await fetch(API + path, { headers: H, ...opts });
@@ -125,23 +137,17 @@ async function boot() {
     $("api-badge").classList.add("live");
   } catch { $("api-badge").textContent = "api unreachable"; return; }
 
-  FILE_TEXT = await (await fetch("./pricing.py")).text();
-  const res = await api(`/v1/repos/${REPO}/files`, {
+  for (const f of FILES) TEXT[f] = await (await fetch("./" + f)).text();
+  await api(`/v1/repos/${REPO}/files`, {
     method: "POST",
-    body: JSON.stringify({ files: [{ path: FILE_PATH, content: FILE_TEXT }] }),
+    body: JSON.stringify({ files: FILES.map(p => ({ path: p, content: TEXT[p] })) }),
   });
   const stats = await api(`/v1/repos/${REPO}/stats`);
-  $("repo-badge").textContent = `${stats.files} file · ${stats.lines} lines · ${stats.symbols} symbols`;
+  const g = await api(`/v1/repos/${REPO}/graph`);
+  $("repo-badge").textContent = `${stats.files} files · ${stats.lines} lines · ${stats.symbols} symbols`;
+  $("graph-badge").textContent = `graph ${g.edges} edges · ${g.by_confidence.exact || 0} exact`;
   $("m-lines").textContent = stats.lines.toLocaleString();
-  step(`Indexed ${FILE_PATH} — ${stats.symbols} symbols. Source was parsed and discarded.`);
-}
-
-function typeset(el, text, cls) {
-  el.innerHTML = "";
-  const pre = document.createElement("span");
-  if (cls) pre.className = cls;
-  pre.textContent = text;
-  el.appendChild(pre);
+  step(`Indexed ${stats.files} files and resolved ${g.edges} call edges. Source was parsed and discarded.`);
 }
 
 async function run() {
@@ -149,48 +155,82 @@ async function run() {
   const q = $("q").value.trim();
 
   // ---- left: what an agent does today -----------------------------------
-  step("Without codeintel: the agent has no idea where the symbol is, so it loads the entire file.");
-  const fullBytes = new TextEncoder().encode(FILE_TEXT).length;
-  const lines = FILE_TEXT.split("\n");
-  typeset($("left"), lines.map((l, i) => String(i + 1).padStart(4) + " | " + l).join("\n"));
-  $("m-full").textContent = fullBytes.toLocaleString() + " B";
-  await sleep(1600);
+  step("Without Loom Code: the agent cannot tell which file holds the symbol, so it loads both.");
+  let all = "", fullBytes = 0;
+  for (const f of FILES) {
+    fullBytes += new TextEncoder().encode(TEXT[f]).length;
+    all += `# ===== ${f} =====\n` +
+      TEXT[f].split("\n").map((l, i) => String(i + 1).padStart(4) + " | " + l).join("\n") + "\n\n";
+  }
+  $("left").textContent = all;
+  const fullTokens = Math.ceil(fullBytes / 4);
+  $("m-full").textContent = fullTokens.toLocaleString();
+  await sleep(1500);
 
-  // ---- right step 1: search ----------------------------------------------
-  step(`With codeintel, step 1 — search the index for “${q}”. No file content moves.`);
+  // ---- right step 1: rank -------------------------------------------------
+  step(`Step 1 — rank the index for “${q}”. Lexical, name match and centrality fused. No file content moves.`);
   $("right").innerHTML = "";
   const hits = await api(`/v1/repos/${REPO}/search?q=${encodeURIComponent(q)}&top_k=3`);
   for (const h of hits.results) {
     const d = document.createElement("div");
     d.className = "hit";
-    d.innerHTML = `<span class="n">${h.name}</span> <span class="loc">${h.path}:L${h.line_start}–${h.line_end}</span>`
-                + `<div class="loc">score ${h.score} · ${h.intent || ""}</div>`;
+    d.innerHTML = `<span class="n">${esc(h.name)}</span> <span class="loc">${esc(h.path)}:L${h.line_start}–${h.line_end}</span>`
+                + `<div class="sig">signals ${esc(JSON.stringify(h.signals))} · centrality ${h.centrality}</div>`;
     $("right").appendChild(d);
-    await sleep(320);
+    await sleep(300);
   }
-  await sleep(900);
+  await sleep(800);
 
-  // ---- right step 2: read only that span ---------------------------------
+  // ---- right step 2: pack -------------------------------------------------
   const top = hits.results[0];
-  step(`Step 2 — read only ${top.name}, lines ${top.line_start}–${top.line_end}. That is the whole request.`);
-  const r = await api(`/v1/repos/${REPO}/read_symbol`, {
+  step(`Step 2 — build a context pack around ${top.name}: the span, what it calls, what calls it — under budget.`);
+  const pack = await api(`/v1/repos/${REPO}/context_pack`, {
     method: "POST",
-    body: JSON.stringify({ name: top.name, content: FILE_TEXT, path: top.path, pad: 1 }),
+    body: JSON.stringify({
+      query: q, budget_tokens: 1200,
+      files: FILES.map(p => ({ path: p, content: TEXT[p] })),
+    }),
   });
-  typeset($("right"), r.text, "hl");
 
-  const served = r.context.bytes_served;
-  const ratio = r.context.reduction_factor;
-  $("m-served").textContent = served.toLocaleString() + " B";
+  $("right").innerHTML = "";
+  let last = null;
+  for (const e of pack.elements) {
+    if (e.tier !== last) {
+      const t = document.createElement("span");
+      t.className = "tier"; t.textContent = e.tier;
+      $("right").appendChild(t); last = e.tier;
+    }
+    const head = document.createElement("div");
+    head.innerHTML = `<span class="cite">${esc(e.citation)}</span> ${esc(e.name)}`
+      + (e.confidence ? `<span class="conf c-${esc(e.confidence)}">${esc(e.confidence)}</span>` : "")
+      + ` <span class="sig">${e.tokens}t · ${esc(e.why)}</span>`;
+    $("right").appendChild(head);
+    const pre = document.createElement("div");
+    pre.textContent = e.text;
+    $("right").appendChild(pre);
+    await sleep(420);
+  }
+  if (pack.omitted.length) {
+    const o = document.createElement("div");
+    o.className = "cut";
+    o.textContent = "\n" + pack.omitted.map(x =>
+      `omitted ${x.tier} ${x.citation} (${x.tokens}t) — ${x.reason}`).join("\n");
+    $("right").appendChild(o);
+  }
+
+  const used = pack.used_tokens;
+  const ratio = (fullTokens / used).toFixed(2);
+  $("m-served").textContent = used.toLocaleString();
   $("m-ratio").textContent = ratio + "×";
-  $("m-tokens").textContent = Math.round((fullBytes - served) / 4).toLocaleString();
-  step(`Same edit, same information — ${served} bytes instead of ${fullBytes}. ${ratio}× less context.`);
+  $("m-tokens").textContent = (fullTokens - used).toLocaleString();
+  step(`Same edit, more context than a raw span — ${used} tokens instead of ${fullTokens}. ${ratio}× less, with citations.`);
   $("run").disabled = false;
 }
 
 $("run").addEventListener("click", () => run().catch(e => step("error: " + e.message)));
 $("reset").addEventListener("click", () => {
-  typeset($("left"), "waiting…", "dim"); typeset($("right"), "waiting…", "dim");
+  $("left").innerHTML = '<span class="dim">waiting…</span>';
+  $("right").innerHTML = '<span class="dim">waiting…</span>';
   ["m-full","m-served","m-ratio","m-tokens"].forEach(i => $(i).textContent = "—");
   step("Ready. Press “Run the loop”.");
 });

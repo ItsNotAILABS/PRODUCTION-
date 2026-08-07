@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Loom Code — launch gallery source</title>
+<style>
+  /* Product Hunt gallery images are 1270x760. These are laid out at exactly
+     that size and screenshotted by selector, so what ships is what is composed
+     here — no scaling, no letterboxing, no "close enough" crop.
+
+     The palette matches the product site rather than reaching for the neon-on-
+     black that most launch galleries use. A tool whose whole job is counting
+     tokens should look like an instrument, and on a feed of dark cards a light
+     one is the thing that stops the scroll. */
+  :root{
+    --paper:#f7f6f3; --card:#fffefb; --sunk:#eeece6; --ink:#16181d; --soft:#5c6270;
+    --rule:#d9d6ce; --accent:#2f5fd0;
+    --excess:#b4402c; --kept:#1f7a4d;
+    --t1:#1f7a4d; --t2:#2f5fd0; --t3:#7a6a1f; --t4:#6b5b95;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,monospace;
+    --sans:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#555;font-family:var(--sans);-webkit-font-smoothing:antialiased}
+
+  .card{width:1270px;height:760px;background:var(--paper);color:var(--ink);
+    padding:44px 58px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+  .card + .card{margin-top:24px}
+
+  .mark{font-family:var(--mono);font-weight:700;font-size:19px;letter-spacing:-.03em}
+  .mark i{font-style:normal;color:var(--accent)}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--soft);font-weight:700}
+  .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px}
+
+  h1{font-family:var(--mono);font-weight:700;letter-spacing:-.045em;line-height:1.05;
+    margin:0 0 14px;font-size:44px;max-width:24ch}
+  h2{font-family:var(--mono);font-weight:700;letter-spacing:-.04em;line-height:1.06;
+    margin:0 0 12px;font-size:38px;max-width:26ch}
+  .lede{font-size:19px;color:var(--soft);max-width:78ch;margin:0;line-height:1.5}
+  .lede b{color:var(--ink);font-weight:600}
+
+  /* card 1 — the bar */
+  .gauge{margin-top:auto;border:1px solid var(--rule);background:var(--card);border-radius:5px;
+    overflow:hidden}
+  .ghead{display:flex;justify-content:space-between;padding:13px 18px;background:var(--sunk);
+    border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:13px;color:var(--soft)}
+  .rows{padding:18px 18px;display:flex;flex-direction:column;gap:16px}
+  .lab{display:flex;justify-content:space-between;align-items:baseline;
+    font-family:var(--mono);font-size:14px;margin-bottom:8px}
+  .lab .who{color:var(--soft)}
+  .lab .amt{font-weight:700;font-size:19px;font-variant-numeric:tabular-nums}
+  .bar{height:32px;border-radius:2px;background:var(--sunk);display:flex;overflow:hidden}
+  .fill{height:100%;background:repeating-linear-gradient(135deg,var(--excess),var(--excess) 8px,
+    color-mix(in srgb,var(--excess) 70%,transparent) 8px,
+    color-mix(in srgb,var(--excess) 70%,transparent) 16px)}
+  .seg{height:100%}
+  .legend{display:flex;gap:20px;font-family:var(--mono);font-size:12px;color:var(--soft);margin-top:9px}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw{width:11px;height:11px;border-radius:2px}
+  .verdict{display:flex;align-items:baseline;gap:16px;padding:16px 18px;background:var(--sunk);
+    border-top:1px solid var(--rule)}
+  .verdict .big{font-family:var(--mono);font-size:38px;font-weight:700;letter-spacing:-.045em;
+    color:var(--kept);line-height:1;font-variant-numeric:tabular-nums}
+  .verdict .say{font-size:16px;color:var(--soft);max-width:64ch}
+
+  /* card 2 — pipeline */
+  .stages{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:auto}
+  .stage{border:1px solid var(--rule);background:var(--card);border-radius:5px;padding:20px;
+    display:flex;flex-direction:column;gap:9px}
+  .stage .n{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);
+    letter-spacing:.1em}
+  .stage h3{margin:0;font-size:24px;font-weight:700;letter-spacing:-.02em}
+  .stage p{margin:0;font-size:15px;color:var(--soft);line-height:1.45}
+  .stage code{font-family:var(--mono);font-size:13px;background:var(--sunk);padding:1px 5px;
+    border-radius:3px;color:var(--ink)}
+
+  /* card 3 — confidence */
+  .tiers{display:flex;flex-direction:column;gap:12px;margin-top:auto}
+  .tier{display:grid;grid-template-columns:150px 1fr;gap:22px;align-items:center;
+    border:1px solid var(--rule);background:var(--card);border-radius:5px;padding:15px 22px}
+  .pill{font-family:var(--mono);font-size:15px;font-weight:700;padding:6px 14px;border-radius:4px;
+    text-align:center;letter-spacing:.03em}
+  .p1{background:color-mix(in srgb,var(--t1) 18%,transparent);color:var(--t1)}
+  .p2{background:color-mix(in srgb,var(--t2) 18%,transparent);color:var(--t2)}
+  .p3{background:color-mix(in srgb,var(--t3) 24%,transparent);color:var(--t3)}
+  .p4{background:var(--sunk);color:var(--soft)}
+  .tier .d{font-size:17px;line-height:1.4}
+  .tier .d b{font-weight:600}
+  .tier .d em{font-style:normal;color:var(--soft);display:block;font-size:15px;margin-top:3px}
+
+  /* card 4 — languages */
+  .langs{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:auto}
+  .lang{border:1px solid var(--rule);background:var(--card);border-radius:5px;padding:20px 18px;
+    display:flex;flex-direction:column;gap:5px}
+  .lang b{font-family:var(--mono);font-size:21px;font-weight:700;letter-spacing:-.02em}
+  .lang span{font-family:var(--mono);font-size:12px;color:var(--soft)}
+
+  /* card 5 — numbers */
+  .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:auto}
+  .num{border:1px solid var(--rule);background:var(--card);border-radius:5px;padding:22px}
+  .num .v{font-family:var(--mono);font-size:44px;font-weight:700;letter-spacing:-.045em;
+    line-height:1;font-variant-numeric:tabular-nums;color:var(--kept)}
+  .num .v.plain{color:var(--ink)}
+  .num .k{font-size:16px;font-weight:600;margin-top:9px}
+  .num .h{font-size:14px;color:var(--soft);margin-top:4px;line-height:1.4}
+
+  .foot{font-family:var(--mono);font-size:13px;color:var(--soft);margin-top:20px}
+
+  /* thumbnail */
+  .thumb{width:240px;height:240px;background:var(--ink);display:flex;align-items:center;
+    justify-content:center;flex-direction:column;gap:6px;border-radius:0}
+  .thumb .t1{font-family:var(--mono);font-size:38px;font-weight:700;letter-spacing:-.05em;
+    color:#f7f6f3;line-height:1}
+  .thumb .t1 i{font-style:normal;color:#6f9dff}
+  .thumb .t2{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:#8b93a3}
+  .thumb .bars{display:flex;flex-direction:column;gap:5px;margin-top:14px;width:150px}
+  .thumb .b{height:9px;border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- ===== 1 · hero ===== -->
+<div class="card" id="c1">
+  <div class="head">
+    <span class="mark">loom<i>code</i></span>
+    <span class="eyebrow">selective retrieval for coding agents</span>
+  </div>
+  <h1>Stop paying your agent to read files it doesn't need.</h1>
+  <p class="lede">To change six lines, your agent loads whole files — and you're billed for every
+    token. Loom Code parses the repo, resolves its call graph, and returns
+    <b>a budgeted pack</b>: the exact span, its callers and callees, all cited.</p>
+
+  <div class="gauge">
+    <div class="ghead">
+      <span>one edit · 2 files · 334 lines · 30 symbols</span>
+      <span>task: locate the elasticity-based pricing rule</span>
+    </div>
+    <div class="rows">
+      <div>
+        <div class="lab"><span class="who">read the files</span><span class="amt" style="color:var(--excess)">2,920 tokens</span></div>
+        <div class="bar"><div class="fill" style="width:100%"></div></div>
+      </div>
+      <div>
+        <div class="lab"><span class="who">one context pack</span><span class="amt" style="color:var(--kept)">791 tokens</span></div>
+        <div class="bar">
+          <div class="seg" style="width:7.671%;background:var(--t1)"></div>
+          <div class="seg" style="width:7.979%;background:var(--t2)"></div>
+          <div class="seg" style="width:4.623%;background:var(--t3)"></div>
+          <div class="seg" style="width:6.815%;background:var(--t4)"></div>
+        </div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--t1)"></i>primary span 224</span>
+          <span><i class="sw" style="background:var(--t2)"></i>cross-file caller 233</span>
+          <span><i class="sw" style="background:var(--t3)"></i>file's other symbols 135</span>
+          <span><i class="sw" style="background:var(--t4)"></i>second file's shape 199</span>
+        </div>
+      </div>
+    </div>
+    <div class="verdict">
+      <span class="big">3.69&times;</span>
+      <span class="say">less context — and the pack carries <b>more</b> than a raw span would.
+        Bars are to true scale; segments are the real tier sizes.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 2 · pipeline ===== -->
+<div class="card" id="c2">
+  <div class="head">
+    <span class="mark">loom<i>code</i></span>
+    <span class="eyebrow">how it works</span>
+  </div>
+  <h2>Four stages. No embeddings, no GPU.</h2>
+  <p class="lede">Every request costs CPU and nothing else. That is what makes it sellable
+    per-seat instead of per-token — and self-hostable inside your own perimeter.</p>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="n">01</div>
+      <h3>Parse</h3>
+      <p>Real ASTs for ten languages. Exact end lines, so you can edit against them — not a
+        regex guessing where the next declaration starts.</p>
+    </div>
+    <div class="stage">
+      <div class="n">02</div>
+      <h3>Resolve</h3>
+      <p>Call sites become edges, each tagged with how much was actually known. It never
+        silently guesses which <code>validate</code> you meant.</p>
+    </div>
+    <div class="stage">
+      <div class="n">03</div>
+      <h3>Rank</h3>
+      <p>BM25, name match and PageRank centrality fused by <b>RRF</b> — positions, not scores.
+        BM25 7.4 and PageRank 0.003 have no exchange rate.</p>
+    </div>
+    <div class="stage">
+      <div class="n">04</div>
+      <h3>Pack</h3>
+      <p>Fill a token budget by priority, every tier capped. Anything cut is
+        <b>reported with a reason</b>, never dropped in silence.</p>
+    </div>
+  </div>
+  <div class="foot">POST /v1/repos/{repo}/context_pack &nbsp;·&nbsp; every element cited as path:Lstart-Lend</div>
+</div>
+
+<!-- ===== 3 · confidence ===== -->
+<div class="card" id="c3">
+  <div class="head">
+    <span class="mark">loom<i>code</i></span>
+    <span class="eyebrow">the part nobody else ships</span>
+  </div>
+  <h2>Every edge says how much was actually known.</h2>
+  <p class="lede">A call graph that hides its guesses is worse than no graph: your agent follows
+    a wrong edge into the wrong file and <b>never learns the edge was a guess</b>.</p>
+
+  <div class="tiers">
+    <div class="tier">
+      <span class="pill p1">exact</span>
+      <span class="d"><b>One definition of that name in the same file.</b>
+        <em>It cannot be wrong — local scope resolves it.</em></span>
+    </div>
+    <div class="tier">
+      <span class="pill p2">likely</span>
+      <span class="d"><b>One definition in the whole repo.</b>
+        <em>An import of a same-named third-party symbol would fool it.</em></span>
+    </div>
+    <div class="tier">
+      <span class="pill p3">ambiguous</span>
+      <span class="d"><b>Several share the name — every candidate is recorded.</b>
+        <em>You get all of them. It does not pick one and hope.</em></span>
+    </div>
+    <div class="tier">
+      <span class="pill p4">external</span>
+      <span class="d"><b>Not indexed — a dependency or a builtin.</b>
+        <em>Kept, not dropped: a leaf calling into an SDK is not self-contained.</em></span>
+    </div>
+  </div>
+  <div class="foot">Confidence feeds PageRank — a guessed edge moves less rank than a resolved one.</div>
+</div>
+
+<!-- ===== 4 · languages ===== -->
+<div class="card" id="c4">
+  <div class="head">
+    <span class="mark">loom<i>code</i></span>
+    <span class="eyebrow">ten languages, exact spans</span>
+  </div>
+  <h2>Line spans you can actually edit against.</h2>
+  <p class="lede">Every span comes from a real parse. Each grammar needed its own correction —
+    Go files a method's receiver first; Delphi writes <b>procedure TCatalog.Total</b>, where the
+    leading name is the owner, not the member. Both have tests.</p>
+
+  <div class="langs">
+    <div class="lang"><b>Python</b><span>stdlib ast</span></div>
+    <div class="lang"><b>Go</b><span>tree-sitter</span></div>
+    <div class="lang"><b>TypeScript</b><span>tree-sitter</span></div>
+    <div class="lang"><b>JavaScript</b><span>tree-sitter</span></div>
+    <div class="lang"><b>PHP</b><span>tree-sitter</span></div>
+    <div class="lang"><b>Pascal</b><span>delphi</span></div>
+    <div class="lang"><b>Java</b><span>tree-sitter</span></div>
+    <div class="lang"><b>Rust</b><span>tree-sitter</span></div>
+    <div class="lang"><b>Ruby</b><span>tree-sitter</span></div>
+    <div class="lang"><b>Kotlin</b><span>tree-sitter</span></div>
+  </div>
+  <div class="foot">Anything else is indexed as metadata and says so, rather than returning a guess.</div>
+</div>
+
+<!-- ===== 5 · numbers ===== -->
+<div class="card" id="c5">
+  <div class="head">
+    <span class="mark">loom<i>code</i></span>
+    <span class="eyebrow">measured on its own source</span>
+  </div>
+  <h2>Both numbers, including the less flattering one.</h2>
+  <p class="lede">A bare span read is the bigger multiple. A <b>context pack</b> is the more useful
+    answer, and costs more precisely because it brings the callers and callees with it.
+    Quoting only the first would misdescribe what you get.</p>
+
+  <div class="nums">
+    <div class="num">
+      <div class="v">2.76&times;</div>
+      <div class="k">six real edit tasks</div>
+      <div class="h">8,454 pack tokens vs 23,356 reading the matched file whole</div>
+    </div>
+    <div class="num">
+      <div class="v">8.76&times;</div>
+      <div class="k">bare span read</div>
+      <div class="h">the cheaper mode, when you only want the lines</div>
+    </div>
+    <div class="num">
+      <div class="v">8.1%</div>
+      <div class="k">profile card size</div>
+      <div class="h">of the source it describes, across 8 modules</div>
+    </div>
+    <div class="num">
+      <div class="v plain">356</div>
+      <div class="k">resolved call edges</div>
+      <div class="h">88 exact · 45 likely · 2 ambiguous · 221 external</div>
+    </div>
+    <div class="num">
+      <div class="v plain">71</div>
+      <div class="k">tests passing</div>
+      <div class="h">span exactness per language, budget caps, tenant isolation</div>
+    </div>
+    <div class="num">
+      <div class="v plain">$0</div>
+      <div class="k">inference cost</div>
+      <div class="h">AST + BM25 + PageRank. No GPU, no LLM, no egress.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== thumbnail ===== -->
+<div class="thumb" id="thumb">
+  <div class="t1">loom<i>code</i></div>
+  <div class="t2">context packs</div>
+  <div class="bars">
+    <div class="b" style="width:100%;background:#b4402c"></div>
+    <div class="b" style="width:27%;background:#5fc98d"></div>
+  </div>
+</div>
+
+</body>
+</html>
