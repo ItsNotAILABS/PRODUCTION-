@@ -6,6 +6,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Not `import.meta.dirname`: that landed in Node 20.11, and the CI matrix still
+// builds on Node 18, where it is undefined and path.join then throws.
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 import { MCPGatewayProtocol }                                  from '../../protocols/integrations/mcp-gateway-protocol.js';
 import { IntegrationOrchestrationProtocol, WORKFLOW_STATUS }   from '../../protocols/integrations/integration-orchestration-protocol.js';
@@ -38,7 +43,7 @@ describe('integrations/index', () => {
   // now fails exactly when someone adds a protocol and forgets to bump it.
   it('declares a protocol count matching the protocols it exports', () => {
     const index = fs.readFileSync(
-      path.join(import.meta.dirname, '../../protocols/integrations/index.js'), 'utf8');
+      path.join(HERE, '../../protocols/integrations/index.js'), 'utf8');
     const exported = index.match(/^export \{[^}]*Protocol\b/gm) || [];
     assert.ok(exported.length > 0, 'no protocol exports found');
     assert.equal(INTEGRATIONS_PROTOCOL_COUNT, exported.length,
