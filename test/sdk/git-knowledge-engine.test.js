@@ -234,15 +234,28 @@ describe('GitMissionQueue', () => {
   });
 
   it('should run jobs in parallel up to maxConcurrent', async () => {
-    const q = new GitMissionQueue({ maxConcurrent: 3, maxDepth: 10, timeoutMs: 5000 });
-    const start = Date.now();
-    await Promise.all([
-      q.enqueue(async () => { await new Promise(r => setTimeout(r, 50)); }),
-      q.enqueue(async () => { await new Promise(r => setTimeout(r, 50)); }),
-      q.enqueue(async () => { await new Promise(r => setTimeout(r, 50)); }),
-    ]);
-    const elapsed = Date.now() - start;
-    assert.ok(elapsed < 120, `Expected parallel run <120ms, got ${elapsed}ms`);
+    // Measured against a serial baseline rather than a fixed millisecond
+    // ceiling. Three 50ms jobs run serially take ~150ms, so the old `< 120`
+    // bound sat only 30ms clear of the thing it was distinguishing from — on a
+    // CI runner sharing cores, a genuinely parallel run can drift past that and
+    // fail for load rather than for behaviour. Timing both on the same machine
+    // in the same moment cancels the load out.
+    const run = async (maxConcurrent) => {
+      const q = new GitMissionQueue({ maxConcurrent, maxDepth: 10, timeoutMs: 5000 });
+      const start = Date.now();
+      await Promise.all([
+        q.enqueue(async () => { await new Promise(r => setTimeout(r, 50)); }),
+        q.enqueue(async () => { await new Promise(r => setTimeout(r, 50)); }),
+        q.enqueue(async () => { await new Promise(r => setTimeout(r, 50)); }),
+      ]);
+      return Date.now() - start;
+    };
+
+    const serial = await run(1);
+    const parallel = await run(3);
+    assert.ok(parallel < serial * 0.75,
+      `expected concurrency 3 to beat concurrency 1 clearly; `
+      + `serial ${serial}ms vs parallel ${parallel}ms`);
   });
 
   it('should reject when queue is full', async () => {

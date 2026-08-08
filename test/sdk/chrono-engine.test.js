@@ -313,27 +313,35 @@ describe('ChronoEngine', () => {
     });
   });
 
+  // decay(value, beats, halfLife) — the arguments were previously passed as
+  // (0, 1, age), which set the decaying *value* to zero. That returns 0 for
+  // every input, so "should return 1 at age 0" could never have passed no
+  // matter what the implementation did.
   describe('decay()', () => {
     it('should return value between 0 and 1', () => {
-      const result = engine.decay(0, 1, 5);
+      const result = engine.decay(1, 5);
       assert.ok(result >= 0);
       assert.ok(result <= 1);
     });
 
-    it('should return 1 at age 0', () => {
-      const result = engine.decay(0, 1, 0);
+    it('should return the full value at zero beats', () => {
+      const result = engine.decay(1, 0);
       assert.equal(result, 1);
     });
 
-    it('should decrease with age', () => {
-      const young = engine.decay(0, 1, 1);
-      const old = engine.decay(0, 1, 10);
+    it('should decrease as beats accumulate', () => {
+      const young = engine.decay(1, 1);
+      const old = engine.decay(1, 10);
       assert.ok(young >= old);
     });
 
-    it('should approach 0 for large age', () => {
-      const result = engine.decay(0, 1, 1000);
+    it('should approach 0 well past the half-life', () => {
+      const result = engine.decay(1, 1000);
       assert.ok(result < 0.1);
+    });
+
+    it('should scale linearly in the value', () => {
+      assert.ok(Math.abs(engine.decay(2, 7) - 2 * engine.decay(1, 7)) < 1e-12);
     });
   });
 

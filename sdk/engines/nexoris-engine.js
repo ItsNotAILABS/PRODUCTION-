@@ -98,12 +98,22 @@ class NexorisEngine {
   /**
    * Update entire register at once
    */
-  setRegister(register, values) {
+  updateRegister(register, values, immediate = false) {
     for (const [dimension, value] of Object.entries(values)) {
       if (DIMENSIONS.includes(dimension)) {
-        this.set(register, dimension, value);
+        this.set(register, dimension, value, immediate);
       }
     }
+    return this.getRegister(register);
+  }
+
+  /**
+   * Older name for updateRegister. Kept because it is the published surface;
+   * it never forwarded `immediate`, so a caller asking for an exact value got a
+   * phi-weighted approach to it instead and had no way to say otherwise.
+   */
+  setRegister(register, values, immediate = false) {
+    return this.updateRegister(register, values, immediate);
   }
 
   /**
@@ -132,41 +142,53 @@ class NexorisEngine {
   /**
    * Create a named state store
    */
-  createStore(name, initialState = {}) {
-    this.stores.set(name, {
-      state: { ...initialState },
+  createStore(name, initialValue = {}) {
+    const store = {
+      value: { ...initialValue },
       version: 0,
-      subscribers: new Map(),
-    });
-    return name;
+      subscribers: [],
+    };
+    this.stores.set(name, store);
+    return store;
   }
 
   /**
-   * Get value from a store
+   * Get a store by name, or undefined if it does not exist.
+   *
+   * Returns the store itself — value *and* version — not a bare copy of the
+   * value. Without the version a caller cannot tell a store that was updated to
+   * the same value from one that was never touched, which is the whole point of
+   * versioning it.
    */
-  getStore(name, key) {
+  getStore(name) {
+    return this.stores.get(name);
+  }
+
+  /**
+   * Merge a patch into a store's value and bump its version.
+   */
+  updateStore(name, patch = {}) {
     const store = this.stores.get(name);
-    if (!store) return undefined;
-    return key ? store.state[key] : { ...store.state };
+    if (!store) return this.createStore(name, patch);
+    store.value = { ...store.value, ...patch };
+    store.version++;
+    for (const { callback } of [...store.subscribers]) {
+      try {
+        callback(store.value, store.version);
+      } catch (e) {
+        console.error(`[NEXORIS] Store subscriber error:`, e.message);
+      }
+    }
+    return store;
   }
 
   /**
    * Set value in a store
    */
   setStore(name, key, value) {
-    const store = this.stores.get(name);
-    if (!store) {
-      this.createStore(name, { [key]: value });
-      return;
-    }
-    
-    store.state[key] = value;
-    store.version++;
-    
-    // Notify store subscribers
-    for (const callback of store.subscribers.values()) {
-      callback(key, value, store.state);
-    }
+    // Single-key sugar over updateStore, so both paths bump the version and
+    // notify through exactly one code path.
+    return this.updateStore(name, { [key]: value });
   }
 
   /**
@@ -175,10 +197,12 @@ class NexorisEngine {
   subscribeStore(name, callback) {
     const store = this.stores.get(name);
     if (!store) return null;
-    
+
     const subId = `sub-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    store.subscribers.set(subId, callback);
-    return subId;
+    store.subscribers.push({ id: subId, callback });
+    const unsubscribe = () => this.unsubscribeStore(name, subId);
+    unsubscribe.subId = subId;
+    return unsubscribe;
   }
 
   /**
@@ -186,9 +210,10 @@ class NexorisEngine {
    */
   unsubscribeStore(name, subId) {
     const store = this.stores.get(name);
-    if (store) {
-      store.subscribers.delete(subId);
-    }
+    if (!store) return false;
+    const before = store.subscribers.length;
+    store.subscribers = store.subscribers.filter((s) => s.id !== subId);
+    return store.subscribers.length < before;
   }
 
   // ── Reactive Subscriptions ─────────────────────────────────────────────
@@ -197,40 +222,49 @@ class NexorisEngine {
    * Subscribe to register dimension changes
    */
   subscribe(register, dimension, callback) {
-    const key = `${register}.${dimension}`;
+    const key = `${register}:${dimension}`;
     if (!this.subscribers.has(key)) {
-      this.subscribers.set(key, new Map());
+      this.subscribers.set(key, []);
     }
-    
+
     const subId = `sub-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    this.subscribers.get(key).set(subId, callback);
-    return subId;
+    this.subscribers.get(key).push({ id: subId, callback });
+
+    // Return a closure rather than an id. Handing back an id forces every
+    // caller to remember the register and dimension as well in order to undo
+    // itself, and the three of them drift apart the moment the subscription is
+    // set up somewhere other than where it is torn down.
+    const unsubscribe = () => this.unsubscribe(register, dimension, subId);
+    unsubscribe.subId = subId;
+    return unsubscribe;
   }
 
   /**
    * Unsubscribe from changes
    */
   unsubscribe(register, dimension, subId) {
-    const key = `${register}.${dimension}`;
+    const key = `${register}:${dimension}`;
     const subs = this.subscribers.get(key);
-    if (subs) {
-      subs.delete(subId);
-    }
+    if (!subs) return false;
+    const before = subs.length;
+    this.subscribers.set(key, subs.filter((s) => s.id !== subId));
+    return this.subscribers.get(key).length < before;
   }
 
   /**
    * Notify subscribers of state change
    */
   notifySubscribers(register, dimension, value) {
-    const key = `${register}.${dimension}`;
+    const key = `${register}:${dimension}`;
     const subs = this.subscribers.get(key);
-    if (subs) {
-      for (const callback of subs.values()) {
-        try {
-          callback(value, register, dimension);
-        } catch (e) {
-          console.error(`[NEXORIS] Subscriber error:`, e.message);
-        }
+    if (!subs) return;
+    // Iterate a copy: a callback that unsubscribes itself would otherwise
+    // mutate the array mid-loop and silently skip the next subscriber.
+    for (const { callback } of [...subs]) {
+      try {
+        callback(value, register, dimension);
+      } catch (e) {
+        console.error(`[NEXORIS] Subscriber error:`, e.message);
       }
     }
   }
@@ -379,11 +413,32 @@ class NexorisEngine {
   /**
    * Get engine status
    */
+  getHealth() {
+    // One number per register, plus an overall. The three positive dimensions
+    // (awareness, coherence, resonance) average together; entropy is the only
+    // dimension where more is worse, so it discounts rather than averages in —
+    // folding it into the mean would let a register look healthy purely because
+    // it is disordered in a high-signal way.
+    const health = {};
+    for (const register of REGISTERS) {
+      const r = this.state[register];
+      const signal = (r.awareness + r.coherence + r.resonance) / 3;
+      const disorder = this.clamp(r.entropy / PHI, 0, 1);
+      health[register] = this.clamp(signal * (1 - disorder), 0, PHI);
+    }
+    health.overall = this.clamp(
+      REGISTERS.reduce((sum, r) => sum + health[r], 0) / REGISTERS.length, 0, PHI);
+    return health;
+  }
+
+  /**
+   * Operational counters and derived scores
+   */
   getStatus() {
     return {
       version: this.version,
       historyLength: this.history.length,
-      subscriberCount: Array.from(this.subscribers.values()).reduce((sum, m) => sum + m.size, 0),
+      subscriberCount: Array.from(this.subscribers.values()).reduce((sum, a) => sum + a.length, 0),
       peerCount: this.syncPeers.size,
       storeCount: this.stores.size,
       resonanceScore: this.getResonanceScore(),

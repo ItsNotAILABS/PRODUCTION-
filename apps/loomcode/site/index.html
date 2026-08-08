@@ -374,8 +374,28 @@
       <div class="note"><span class="m">why</span><span>Charging per request would punish you for the tool working &mdash; the entire value is <b>fewer, smaller calls</b>. So the meter is the size of the estate under management. <code>/v1/usage</code> reports context saved separately and says plainly that it is the value delivered, not the thing being charged for.</span></div>
     </div>
     <div class="cta">
-      <a class="btn" href="#">Start free</a>
-      <a class="btn ghost" href="#">Read the API docs</a>
+      <a class="btn" href="#run">Run it yourself</a>
+      <a class="btn ghost"
+         href="https://github.com/ItsNotAILABS/PRODUCTION-/tree/main/apps/loomcode">Read the source</a>
+    </div>
+  </section>
+
+  <section id="run">
+    <h2>Run it</h2>
+    <p class="h2sub">Self-hosting is the product, so that is the quickstart.</p>
+<pre><span class="c1"># the whole thing, on your own machine</span>
+export LOOM_KEY_SALT=$(openssl rand -hex 32)   <span class="c1"># required; rotating invalidates keys</span>
+docker compose up -d
+
+<span class="c1"># accounts and keys are created via shell, never over HTTP</span>
+docker compose exec loomcode python admin.py account create you@co.com --plan team
+docker compose exec loomcode python admin.py key issue acct_xxx --label ci
+
+<span class="c1"># interactive API docs are generated from the app itself</span>
+open http://localhost:8080/docs</pre>
+    <div class="notes" style="margin-top:20px">
+      <div class="note"><span class="m">no signup</span><span>There is no hosted tier to sign up for yet, so this page does not pretend otherwise. Everything on it &mdash; the numbers, the video, the call graph &mdash; came from an instance running exactly these commands.</span></div>
+      <div class="note"><span class="m">no keys needed</span><span>Nothing phones home. No model API key, no telemetry endpoint, no license check. <code>docker compose up</code> is the entire dependency list.</span></div>
     </div>
   </section>
 

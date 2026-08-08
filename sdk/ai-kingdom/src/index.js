@@ -141,7 +141,15 @@ export { DreamWeaver, DreamOrchestra, DREAM_MODALITIES, GROUNDING_LEVELS, WEAVER
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHRONO VAULT — Temporal versioning and time-travel state management
 // ═══════════════════════════════════════════════════════════════════════════════
-export { ChronoVault, ChronoSnapshot, TemporalQueryEngine, TEMPORAL_STATES, TIMELINE_TYPES } from './chrono-vault.js';
+// Both chrono-vault and temporal-engine define a TEMPORAL_STATES, and they are
+// genuinely different sets — the vault records/rewinds/branches, the engine
+// ticks/forecasts/schedules. Re-exporting both under one name is a hard ESM
+// error that took the entire barrel down with it, so each is domain-prefixed,
+// the same way protocols/index.js already resolves this collision with
+// `TEMPORAL_STATES as TEMPORAL_PROTOCOL_STATES`. Neither keeps the bare name:
+// leaving one unprefixed would make ownership of the name a coin flip, which is
+// the ambiguity that caused this in the first place.
+export { ChronoVault, ChronoSnapshot, TemporalQueryEngine, TEMPORAL_STATES as VAULT_TEMPORAL_STATES, TIMELINE_TYPES } from './chrono-vault.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SYNAPSE GARDEN — Organic neural pathway growth and pruning
@@ -159,7 +167,7 @@ export { NeuralForge, ForgeNetwork, FORGE_STATES, TRAINING_MODES, OPTIMIZATION_S
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEMPORAL ENGINE — Time-aware scheduling and forecasting
 // ═══════════════════════════════════════════════════════════════════════════════
-export { TemporalEngine, TemporalNetwork, TEMPORAL_STATES, TIME_SCALES, SCHEDULE_PRIORITIES } from './temporal-engine.js';
+export { TemporalEngine, TemporalNetwork, TEMPORAL_STATES as ENGINE_TEMPORAL_STATES, TIME_SCALES, SCHEDULE_PRIORITIES } from './temporal-engine.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSCIOUSNESS BRIDGE — Inter-AI awareness and collective reasoning

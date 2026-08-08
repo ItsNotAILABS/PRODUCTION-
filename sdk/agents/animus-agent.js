@@ -244,7 +244,13 @@ class AnimusAgent {
   }
 
   addPattern(pattern) {
-    const p = { ...pattern, strength: 1.0, createdAt: Date.now() };
+    // Start at φ⁻¹, not 1.0. Patterns used to be born at the cap that
+    // _exploitMode clamps to, so `Math.min(1.0, strength * PHI)` returned the
+    // same 1.0 forever — reinforcement was a permanent no-op and the exploit
+    // half of the homeostat could not do its job. Starting at the phi-inverse
+    // baseline gives it somewhere to go, and one successful exploit
+    // (0.618 * φ) lands a pattern at exactly full strength.
+    const p = { ...pattern, strength: PHI_INV, createdAt: Date.now() };
     this.patterns.push(p);
     this.stats.patternsRecognized++;
     return p;
