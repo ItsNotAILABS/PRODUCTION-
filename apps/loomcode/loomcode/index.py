@@ -38,6 +38,7 @@ from loomcode import graph as G
 from loomcode import parse as P
 from loomcode import rank as R
 from loomcode.pack import Pack as PackModel
+from loomcode.pack import estimate_tokens
 from loomcode.pack import sort_relations as PackSort
 
 # --- profiling ---------------------------------------------------------------
@@ -269,9 +270,16 @@ class CodeIndex:
                    json.dumps(card.notes), int(card.exact), time.time()))
         for s in card.symbols:
             d = asdict(s) if not isinstance(s, dict) else s
-            doc = " ".join(tokens(d["name"])) * 4 + " " \
-                + " ".join(tokens(f"{d.get('signature','')} {d.get('intent','')}")) * 2 + " " \
-                + " ".join(tokens(f"{d.get('parent') or ''} {Path(path).stem}"))
+            # Repeat the token *list*, not the joined string. `" ".join(t) * 4`
+            # concatenates without a separator, so `optimal_price` produced
+            # ['optimal', 'priceoptimal', 'priceoptimal', 'priceoptimal', 'price']
+            # — three tokens that match nothing, and the real ones appearing once
+            # instead of four times. A single-word name fared worse still: `price`
+            # became `pricepricepriceprice` and the actual token appeared zero
+            # times. The 4x/2x field weighting has never been in effect.
+            doc = " ".join(tokens(d["name"]) * 4
+                           + tokens(f"{d.get('signature','')} {d.get('intent','')}") * 2
+                           + tokens(f"{d.get('parent') or ''} {Path(path).stem}"))
             c.execute("""INSERT INTO nodes (repo, path, name, kind, line_start, line_end,
                          signature, intent, parent, complexity, doc)
                          VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
@@ -466,7 +474,10 @@ class CodeIndex:
             rankings["name"] = (w["name"], R.order(names, pool))
 
         central = self.centrality(repo)
-        cvals = [central.get((r["path"], r["name"]), 0.0) for r in rows]
+        # Quantise before ranking: see the note in portal/engine.js. Two symbols
+        # whose centrality agrees to nine places should tie, not be ordered by
+        # floating-point accumulation noise.
+        cvals = [round(central.get((r["path"], r["name"]), 0.0), 9) for r in rows]
         # Centrality only votes among documents the text signals already
         # surfaced. Left unconstrained it returns the same hub functions for
         # every query, which reads as the index being broken.
@@ -489,7 +500,12 @@ class CodeIndex:
                 # A provider outage must degrade to lexical, not fail the query.
                 pass
 
-        fused = R.rrf(rankings, top_k=top_k)
+        # Break remaining ties on file then line rather than on row order. Row
+        # order is a storage detail, and a ranking that depends on it cannot be
+        # reproduced by another implementation — or by this one after a reindex.
+        fused = R.rrf(rankings)
+        fused.sort(key=lambda t: (-t[1], rows[t[0]]["path"], rows[t[0]]["line_start"]))
+        fused = fused[:top_k]
         out = []
         for i, score, where in fused:
             r = rows[i]
@@ -569,19 +585,28 @@ class CodeIndex:
             # them because the twentieth did not fit is none of it.
             rows = sorted(siblings, key=lambda r: -central.get((top["path"], r["name"]), 0.0))
             cap_tokens = int(budget_tokens * 0.12)
-            kept, used = [], 0
+            # Measure the joined body rather than summing per-line estimates.
+            # The builder and the tier cap must agree on cost, or a tier that is
+            # a couple of tokens over gets discarded whole after being built.
+            def render(rows):
+                # The "… N more" footer is part of the body, so it has to be
+                # part of the measurement. Appending it after the fill loop
+                # lets an assembled tier land past its own cap and be thrown
+                # away whole.
+                out = "\n".join(l for _, l in sorted(rows))
+                if len(rows) < len(siblings):
+                    out += f"\n  … {len(siblings) - len(rows)} more, lowest-centrality omitted"
+                return out
+
+            kept = []
             for r in rows:
                 line = (f"  L{r['line_start']}-{r['line_end']} {r['kind']:<8} {r['name']}"
                         + (f" — {r['intent']}" if r["intent"] else ""))
-                cost = (len(line.encode()) + 4) // 4
-                if used + cost > cap_tokens:
+                if estimate_tokens(render(kept + [(r["line_start"], line)])) > cap_tokens:
                     break
                 kept.append((r["line_start"], line))
-                used += cost
             if kept:
-                body = "\n".join(l for _, l in sorted(kept))
-                if len(kept) < len(siblings):
-                    body += f"\n  … {len(siblings) - len(kept)} more, lowest-centrality omitted"
+                body = render(kept)
                 pk.add("sibling", top["path"], f"{len(kept)} of {len(siblings)} other symbols",
                        1, top["line_start"], body, "same file, names only")
 

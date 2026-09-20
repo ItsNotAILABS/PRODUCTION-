@@ -130,7 +130,12 @@ def rrf(rankings: dict, k: int = 60, top_k: int | None = None) -> list:
         for pos, doc_id in enumerate(ids, start=1):
             fused[doc_id] = fused.get(doc_id, 0.0) + weight / (k + pos)
             where.setdefault(doc_id, {})[ranker] = pos
-    out = sorted(fused.items(), key=lambda kv: -kv[1])
+    # Ties break on the document id, not on whatever order the dict happened to
+    # be built in. Two symbols can easily fuse to the same score, and without an
+    # explicit rule the winner depends on insertion order — which makes results
+    # irreproducible across runs and impossible to cache or compare against
+    # another implementation.
+    out = sorted(fused.items(), key=lambda kv: (-kv[1], kv[0]))
     if top_k is not None:
         out = out[:top_k]
     return [(doc_id, round(score, 6), where[doc_id]) for doc_id, score in out]
@@ -138,7 +143,7 @@ def rrf(rankings: dict, k: int = 60, top_k: int | None = None) -> list:
 
 def order(scores: list, limit: int) -> list:
     """Indices of the ``limit`` highest scores, best first, zeroes dropped."""
-    ranked = sorted(range(len(scores)), key=lambda i: -scores[i])
+    ranked = sorted(range(len(scores)), key=lambda i: (-scores[i], i))
     return [i for i in ranked[:limit] if scores[i] > 0]
 
 

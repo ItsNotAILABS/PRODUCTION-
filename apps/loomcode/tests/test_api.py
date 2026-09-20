@@ -6,7 +6,9 @@ ambiguous symbol get guessed at, is a revoked key really dead. Correctness of
 the index is table stakes; those properties are what make it sellable.
 """
 
+import contextlib
 import os
+import sys
 import tempfile
 
 import pytest
@@ -767,3 +769,143 @@ def test_graph_data_is_scoped_to_the_calling_account(graphed):
         {"path": "solo.py", "content": '"""Solo."""\ndef only(x):\n    """One."""\n    return x\n'}]})
     rows = client.get("/v1/repos/g/important", headers=other).json()["symbols"]
     assert {r["name"] for r in rows} == {"only"}
+
+
+# --- self-serve signup --------------------------------------------------------
+#
+# The one unauthenticated endpoint that mints credentials. Everything here is
+# about the door being narrow: off by default, free plan only, one account per
+# address, and a ceiling per source.
+
+@contextlib.contextmanager
+def _app_with_signup(enabled=True, per_hour=20):
+    """Configure signup for one test and put the environment back afterwards.
+
+    No module reload: the handler reads its flags per request, so the already
+    built `client` picks them up. Reloading would also rebuild the Billing and
+    CodeIndex singletons, leaving a second SQLite connection open on the same
+    file for every test that did it.
+
+    The signup ledger is cleared too. Every test here shares one client IP, so
+    without that each inherits the rate-limit budget the previous ones spent —
+    the ceiling test passing alone and failing in the suite was the tell.
+    """
+    import loomcode.api as api_mod
+
+    prev = {k: os.environ.get(k) for k in ("LOOM_SIGNUP", "LOOM_SIGNUP_PER_HOUR")}
+    os.environ["LOOM_SIGNUP"] = "1" if enabled else "0"
+    os.environ["LOOM_SIGNUP_PER_HOUR"] = str(per_hour)
+    # Resolve app and billing from the module *now*, not from the import-time
+    # binding at the top of this file. The CORS tests above reload the module,
+    # which rebuilds those singletons — holding the old ones means clearing one
+    # connection's ledger while the handlers read another.
+    api_mod.billing.conn.execute("DELETE FROM signups")
+    api_mod.billing.conn.commit()
+    try:
+        yield TestClient(api_mod.app)
+    finally:
+        for k, v in prev.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def test_signup_is_off_unless_an_operator_opts_in():
+    with _app_with_signup(enabled=False) as c:
+        r = c.post("/v1/signup", json={"email": "someone@example.com"})
+        assert r.status_code == 404
+        assert "not enabled" in r.json()["detail"]
+
+
+def test_signup_returns_a_working_key_once():
+    with _app_with_signup() as c:
+        r = c.post("/v1/signup", json={"email": "newuser@example.com"})
+        assert r.status_code == 201, r.text
+        body = r.json()
+        assert body["api_key"].startswith("lc_")
+        assert body["plan"]["slug"] == "free"
+
+        # the key it just handed out must actually authenticate
+        me = c.get("/v1/account", headers={"Authorization": f"Bearer {body['api_key']}"})
+        assert me.status_code == 200
+        assert me.json()["account_id"] == body["account_id"]
+
+
+def test_signup_only_ever_provisions_the_free_plan():
+    # There is no plan field on the request, and there must not be a way to
+    # smuggle one in — a public endpoint that can mint a $2,500 tier is a bug
+    # with an invoice attached.
+    with _app_with_signup() as c:
+        r = c.post("/v1/signup", json={"email": "sneaky@example.com", "plan": "enterprise"})
+        assert r.status_code == 201
+        assert r.json()["plan"]["slug"] == "free"
+
+
+def test_signup_refuses_a_second_account_for_the_same_address():
+    with _app_with_signup() as c:
+        first = c.post("/v1/signup", json={"email": "dupe@example.com"})
+        assert first.status_code == 201
+        again = c.post("/v1/signup", json={"email": "DUPE@example.com"})   # case-folded
+        assert again.status_code == 409
+        assert "already exists" in again.json()["detail"]
+
+
+def test_signup_rejects_malformed_addresses():
+    with _app_with_signup() as c:
+        for bad in ("not-an-email", "@example.com", "a@b", "spaces in@example.com"):
+            assert c.post("/v1/signup", json={"email": bad}).status_code == 422, bad
+
+
+def test_signup_ceiling_stops_a_script_draining_the_namespace():
+    with _app_with_signup(per_hour=3) as c:
+        codes = [c.post("/v1/signup", json={"email": f"flood{i}@example.com"}).status_code
+                 for i in range(5)]
+        assert codes[:3] == [201, 201, 201]
+        assert codes[3:] == [429, 429]
+
+
+def test_a_signed_up_account_is_isolated_like_any_other():
+    # The cheapest way in must not be a weaker tenant.
+    with _app_with_signup() as c:
+        a = c.post("/v1/signup", json={"email": "tenant-a@example.com"}).json()
+        b = c.post("/v1/signup", json={"email": "tenant-b@example.com"}).json()
+        ha = {"Authorization": f"Bearer {a['api_key']}"}
+        hb = {"Authorization": f"Bearer {b['api_key']}"}
+
+        c.post("/v1/repos/shared-name/files", headers=ha,
+               json={"files": [{"path": "a.py", "content": '"""A."""\ndef only_a():\n    """A."""\n    return 1\n'}]})
+        seen = c.get("/v1/repos/shared-name/search", headers=hb, params={"q": "only a"})
+        assert seen.status_code == 200
+        assert seen.json()["results"] == []
+
+
+def test_free_plan_quota_actually_binds_on_a_signed_up_account():
+    with _app_with_signup() as c:
+        acct = c.post("/v1/signup", json={"email": "quota@example.com"}).json()
+        h = {"Authorization": f"Bearer {acct['api_key']}"}
+        limit = PLANS["free"].max_indexed_lines
+        huge = "\n".join(f"x = {i}" for i in range(limit + 100))
+        r = c.post("/v1/repos/big/files", headers=h,
+                   json={"files": [{"path": "big.py", "content": huge}]})
+        assert r.status_code == 402
+
+
+# --- the browser engine must agree with the service ---------------------------
+
+def test_browser_engine_matches_the_service():
+    """The portal runs the pipeline client-side so a visitor needs no account.
+
+    That is only honest while both implementations return the same answer. A
+    playground that quietly disagrees with the API is a demo that lies, and it
+    lies most convincingly to exactly the people deciding whether to trust it.
+    """
+    import shutil
+    import subprocess
+    if shutil.which("node") is None:
+        pytest.skip("node is not available to run the browser engine")
+
+    script = os.path.join(os.path.dirname(__file__), "..", "portal", "crosscheck.py")
+    proc = subprocess.run([sys.executable, os.path.abspath(script)],
+                          capture_output=True, text=True, timeout=300)
+    assert proc.returncode == 0, proc.stdout + proc.stderr

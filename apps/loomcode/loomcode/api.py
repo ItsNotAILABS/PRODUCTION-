@@ -22,9 +22,11 @@ perimeter on the enterprise plan.
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Path as PathParam, Query
+from fastapi import (Depends, FastAPI, Header, HTTPException, Path as PathParam, Query,
+                     Request)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -86,6 +88,11 @@ class ReadRequest(BaseModel):
     pad: int = Field(0, ge=0, le=50, description="Extra context lines each side")
 
 
+class SignupRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=254,
+                       description="Where to reach you. Not verified, not emailed, not sold.")
+
+
 class ContextPackRequest(BaseModel):
     query: str = Field(..., min_length=2, description="What you are trying to change")
     files: list[FileIn] = Field(
@@ -129,6 +136,69 @@ async def caller(authorization: str = Header(None, description="Bearer <api key>
                  f"({PLANS[ident['plan']].rate_limit_per_min}/min)")
     ident["rate_remaining"] = remaining
     return ident
+
+
+# --- signup -------------------------------------------------------------------
+
+# Self-serve is off unless an operator opts in, and it only ever provisions the
+# free plan. A public endpoint that mints credentials is the one place where the
+# default has to be "closed", because the cost of getting it wrong is someone
+# else's bill.
+# Read at request time rather than import time. The cost is one dict lookup per
+# call; the benefit is that nothing has to reconstruct the app to change the
+# setting — which matters because reconstructing it also reconstructs the
+# database connections, and those do not appreciate being cloned.
+def signup_enabled() -> bool:
+    return os.environ.get("LOOM_SIGNUP", "").lower() in ("1", "true", "yes", "on")
+
+
+def signup_per_hour() -> int:
+    try:
+        return max(1, int(os.environ.get("LOOM_SIGNUP_PER_HOUR", "20")))
+    except ValueError:
+        return 20
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
+
+
+@app.post("/v1/signup", tags=["account"], status_code=201)
+def signup(payload: SignupRequest, request: Request) -> dict:
+    """Create a free account and return its first API key.
+
+    The key is shown **once**. There is no password and no session to recover it
+    from — the same discipline as every other key this service issues.
+    """
+    if not signup_enabled():
+        raise HTTPException(
+            404, "self-serve signup is not enabled on this instance. Run your own with "
+                 "LOOM_SIGNUP=1, or ask the operator for a key.")
+
+    email = payload.email.strip().lower()
+    if not _EMAIL_RE.match(email):
+        raise HTTPException(422, "that does not look like an email address")
+
+    # The client IP is the coarsest honest bucket available here. Behind a proxy
+    # it is the proxy, which is why the ceiling is per-hour and generous rather
+    # than per-minute and tight — it is a brake, not an identity check.
+    source = request.client.host if request.client else "unknown"
+    ok, why = billing.signup_allowed(source, signup_per_hour())
+    if not ok:
+        raise HTTPException(429, why)
+
+    try:
+        created = billing.signup(email, source=source)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+
+    plan = PLANS[created["plan"]]
+    return {
+        "account_id": created["account_id"],
+        "email": created["email"],
+        "plan": plan.as_dict(),
+        "api_key": created["api_key"],
+        "warning": created["warning"],
+        "next": "send it as 'Authorization: Bearer <key>' — start with GET /v1/account",
+    }
 
 
 # --- meta ---------------------------------------------------------------------
