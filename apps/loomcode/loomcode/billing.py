@@ -79,6 +79,21 @@ CREATE TABLE IF NOT EXISTS usage (
 CREATE INDEX IF NOT EXISTS ix_usage_acct ON usage(account_id, ts);
 CREATE TABLE IF NOT EXISTS rate (
   account_id TEXT, minute INTEGER, count INTEGER, PRIMARY KEY (account_id, minute));
+
+-- Self-serve signups, tracked by source so the free tier can be opened to the
+-- public without becoming a key vending machine.
+--
+-- The uniqueness constraint lives here rather than on accounts.email, for two
+-- reasons. A unique index on an existing table fails at startup if any deployed
+-- database already holds a duplicate, which turns a feature addition into an
+-- outage. And an operator provisioning two accounts for one address — separate
+-- orgs, a migration, a test — is legitimate; it is only the *public* door that
+-- needs "one account per email" to mean anything. This table is new, so the
+-- index is free, and it is the right scope.
+CREATE TABLE IF NOT EXISTS signups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, source TEXT, ts REAL);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_signups_email ON signups(email);
+CREATE INDEX IF NOT EXISTS ix_signups_source_ts ON signups(source, ts);
 """
 
 _SALT = os.environ.get("LOOM_KEY_SALT", "loomcode-dev-salt-change-me")
@@ -118,6 +133,61 @@ class Billing:
         self.conn.commit()
         return {"api_key": raw, "prefix": raw[:11], "label": label,
                 "warning": "store this now — it is hashed at rest and cannot be shown again"}
+
+    # -- self-serve -----------------------------------------------------------
+    #
+    # Everything above assumes an operator at a shell. A product people can
+    # actually use needs one unauthenticated door, and an unauthenticated door
+    # that mints credentials needs to be narrow on purpose:
+    #
+    #   * free plan only — it cannot be used to provision a paid tier
+    #   * one account per email — a second attempt is refused, not silently
+    #     given a parallel account the first key can no longer reach
+    #   * a per-source hourly ceiling, so a script cannot drain the namespace
+    #   * off unless an operator turns it on
+    #
+    # None of this is authentication. It is the minimum that makes a public
+    # signup endpoint something other than a key vending machine.
+
+    SIGNUP_PLAN = "free"
+
+    def signup_allowed(self, source: str, per_hour: int) -> tuple[bool, str]:
+        """Whether this source may sign up again within the hourly ceiling."""
+        since = time.time() - 3600
+        n = self.conn.execute(
+            "SELECT COUNT(*) FROM signups WHERE source=? AND ts>=?", (source, since)).fetchone()[0]
+        if n >= per_hour:
+            return False, (f"{per_hour} signups per hour from one source is the limit; "
+                           "self-host for unlimited accounts, or contact us for a raise")
+        return True, ""
+
+    def email_taken(self, email: str) -> bool:
+        return self.conn.execute(
+            "SELECT 1 FROM signups WHERE email=?", (email.strip().lower(),)).fetchone() is not None
+
+    def signup(self, email: str, source: str = "web") -> dict:
+        """Create a free account and its first key in one step.
+
+        Returns the plaintext key exactly once, like `issue_key` — there is no
+        password and no session, so this response is the only time the caller
+        can capture it.
+        """
+        email = email.strip().lower()
+        # Claim the email *first* and let the unique index arbitrate. Checking
+        # then inserting leaves a window where two concurrent signups both see
+        # "available" and both mint an account, and the second key silently
+        # owns a different one.
+        try:
+            self.conn.execute(
+                "INSERT INTO signups (email, source, ts) VALUES (?,?,?)",
+                (email, source, time.time()))
+        except sqlite3.IntegrityError:
+            raise ValueError("an account already exists for that address")
+
+        acct = self.create_account(email, plan=self.SIGNUP_PLAN)
+        key = self.issue_key(acct["account_id"], label="signup")
+        self.conn.commit()
+        return {**acct, **key}
 
     def revoke_key(self, prefix: str) -> bool:
         cur = self.conn.execute("UPDATE api_keys SET revoked=1 WHERE prefix=?", (prefix,))

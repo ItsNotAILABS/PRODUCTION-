@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Loom Code</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2316181d'/%3E%3Cpath d='M8 8h3v13h8v3H8z' fill='%232f5fd0'/%3E%3C/svg%3E" />
+<style>
+  :root{
+    --paper:#f7f6f3; --card:#fffefb; --sunk:#eeece6; --ink:#16181d; --soft:#5c6270;
+    --rule:#d9d6ce; --accent:#2f5fd0; --accent-ink:#ffffff;
+    --excess:#b4402c; --kept:#1f7a4d;
+    --t1:#1f7a4d; --t2:#2f5fd0; --t3:#7a6a1f; --t4:#6b5b95; --t5:#8a5a2b;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,monospace;
+    --sans:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#101216; --card:#171a20; --sunk:#1c2029; --ink:#e9ecf1; --soft:#96a0b0;
+      --rule:#262b34; --accent:#6f9dff; --accent-ink:#0a1020;
+      --excess:#ef7f68; --kept:#5fc98d;
+      --t1:#5fc98d; --t2:#6f9dff; --t3:#d8bf5e; --t4:#a894d8; --t5:#d79a62;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#101216; --card:#171a20; --sunk:#1c2029; --ink:#e9ecf1; --soft:#96a0b0;
+    --rule:#262b34; --accent:#6f9dff; --accent-ink:#0a1020;
+    --excess:#ef7f68; --kept:#5fc98d;
+    --t1:#5fc98d; --t2:#6f9dff; --t3:#d8bf5e; --t4:#a894d8; --t5:#d79a62;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} }
+  body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 var(--sans);
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  section{padding:52px 0;border-top:1px solid var(--rule)}
+  section:first-of-type{border-top:0}
+  a{color:var(--accent)}
+
+  /* masthead */
+  .top{display:flex;align-items:center;gap:18px;padding:22px 0 0;flex-wrap:wrap}
+  .mark{font-family:var(--mono);font-weight:700;font-size:17px;letter-spacing:-.03em}
+  .mark i{font-style:normal;color:var(--accent)}
+  .fam{display:flex;gap:8px;font-family:var(--mono);font-size:11.5px;flex-wrap:wrap}
+  .fam span{padding:3px 9px;border:1px solid var(--rule);border-radius:20px;color:var(--soft)}
+  .fam span.on{color:var(--ink);border-color:var(--accent);
+    background:color-mix(in srgb,var(--accent) 10%,transparent)}
+  .navspace{flex:1}
+  .nav{display:flex;gap:16px;font-family:var(--mono);font-size:12.5px;flex-wrap:wrap}
+  .nav a{color:var(--soft);text-decoration:none}
+  .nav a:hover,.nav a:focus-visible{color:var(--ink)}
+
+  h1{font-family:var(--mono);font-weight:700;font-size:clamp(28px,4.6vw,46px);line-height:1.06;
+    letter-spacing:-.045em;margin:20px 0 14px;text-wrap:balance;max-width:20ch}
+  .lede{font-size:18px;color:var(--soft);max-width:66ch;margin:0}
+  .lede b{color:var(--ink);font-weight:600}
+  h2{font-family:var(--mono);font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--soft);margin:0 0 6px;font-weight:700}
+  .h2sub{font-size:23px;font-weight:600;letter-spacing:-.02em;margin:0 0 22px;max-width:36ch;
+    text-wrap:balance}
+
+  /* hero gauge */
+  .gauge{margin-top:34px;border:1px solid var(--rule);background:var(--card);border-radius:4px;
+    overflow:hidden}
+  .ghead{display:flex;justify-content:space-between;gap:12px;padding:11px 16px;
+    border-bottom:1px solid var(--rule);background:var(--sunk);font-family:var(--mono);
+    font-size:11.5px;color:var(--soft);flex-wrap:wrap}
+  .rows{padding:18px 16px;display:flex;flex-direction:column;gap:16px}
+  .lab{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+    font-family:var(--mono);font-size:12.5px;margin-bottom:7px}
+  .lab .amt{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px}
+  .bar{height:28px;border-radius:2px;background:var(--sunk);display:flex;overflow:hidden}
+  .fill{height:100%;width:0;transition:width 900ms cubic-bezier(.16,.9,.3,1);
+    background:repeating-linear-gradient(135deg,var(--excess),var(--excess) 7px,
+      color-mix(in srgb,var(--excess) 70%,transparent) 7px,
+      color-mix(in srgb,var(--excess) 70%,transparent) 14px)}
+  .seg{height:100%;width:0;transition:width 900ms cubic-bezier(.16,.9,.3,1)}
+  .verdict{display:flex;align-items:baseline;gap:14px;padding:14px 16px;background:var(--sunk);
+    border-top:1px solid var(--rule);flex-wrap:wrap}
+  .verdict .big{font-family:var(--mono);font-size:32px;font-weight:700;letter-spacing:-.045em;
+    color:var(--kept);line-height:1;font-variant-numeric:tabular-nums}
+  .verdict .say{font-size:14.5px;color:var(--soft);max-width:60ch}
+  @media (prefers-reduced-motion:reduce){ .fill,.seg{transition:none} }
+
+  /* playground */
+  .pg{border:1px solid var(--rule);border-radius:4px;background:var(--card);overflow:hidden}
+  .pgbar{display:flex;gap:10px;align-items:center;padding:10px 12px;background:var(--sunk);
+    border-bottom:1px solid var(--rule);flex-wrap:wrap}
+  .tabs{display:flex;gap:4px}
+  .tab{font-family:var(--mono);font-size:11.5px;padding:5px 10px;border:1px solid var(--rule);
+    border-radius:3px;background:var(--card);color:var(--soft);cursor:pointer}
+  .tab[aria-selected="true"]{color:var(--accent-ink);background:var(--accent);
+    border-color:var(--accent)}
+  .pgmain{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  @media (max-width:860px){ .pgmain{grid-template-columns:minmax(0,1fr)} }
+  .pane{min-width:0;display:flex;flex-direction:column}
+  .pane + .pane{border-left:1px solid var(--rule)}
+  @media (max-width:860px){ .pane + .pane{border-left:0;border-top:1px solid var(--rule)} }
+  .panehead{padding:8px 13px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--soft);border-bottom:1px solid var(--rule);
+    display:flex;gap:8px;align-items:center}
+  textarea{width:100%;height:340px;border:0;resize:vertical;padding:12px 13px;background:transparent;
+    color:var(--ink);font-family:var(--mono);font-size:12px;line-height:1.55;outline:none;
+    tab-size:4}
+  .out{height:340px;overflow:auto;padding:12px 13px;font-family:var(--mono);font-size:12px;
+    line-height:1.55}
+  .controls{display:flex;gap:10px;align-items:center;padding:10px 13px;
+    border-top:1px solid var(--rule);background:var(--sunk);flex-wrap:wrap}
+  input[type="text"]{flex:1;min-width:190px;font-family:var(--mono);font-size:12.5px;
+    padding:8px 11px;border:1px solid var(--rule);border-radius:3px;background:var(--card);
+    color:var(--ink)}
+  input[type="text"]:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);
+    outline-offset:-2px}
+  input[type="range"]{accent-color:var(--accent)}
+  label.rng{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;
+    color:var(--soft)}
+  .meters{display:flex;gap:20px;padding:11px 13px;border-top:1px solid var(--rule);flex-wrap:wrap}
+  .m{display:flex;flex-direction:column;gap:1px}
+  .m .k{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--soft)}
+  .m .v{font-family:var(--mono);font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+  .v.bad{color:var(--excess)} .v.good{color:var(--kept)}
+
+  .hit{padding:6px 8px;border:1px solid var(--rule);border-radius:3px;margin-bottom:5px;
+    background:var(--sunk)}
+  .hit b{color:var(--accent);font-weight:700}
+  .hit .meta{color:var(--soft);font-size:10.5px}
+  .tierhead{display:block;margin:12px -13px 5px;padding:3px 13px;background:var(--sunk);
+    color:var(--soft);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+  .tierhead:first-child{margin-top:0}
+  .cite{color:var(--accent);font-size:11px}
+  .pill{font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:5px;
+    font-family:var(--mono);letter-spacing:.03em;white-space:nowrap}
+  .p-exact{background:color-mix(in srgb,var(--t1) 20%,transparent);color:var(--t1)}
+  .p-likely{background:color-mix(in srgb,var(--t2) 20%,transparent);color:var(--t2)}
+  .p-ambiguous{background:color-mix(in srgb,var(--t3) 26%,transparent);color:var(--t3)}
+  .p-external{background:var(--sunk);color:var(--soft)}
+  .code{white-space:pre-wrap;word-break:break-word;color:var(--ink);margin:2px 0 0}
+  .cut{color:var(--t3);font-size:11px;margin-top:8px;white-space:pre-wrap}
+  .dim{color:var(--soft)}
+
+  pre{margin:0;background:var(--sunk);border:1px solid var(--rule);border-radius:3px;
+    padding:11px 13px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55}
+  pre .c1{color:var(--soft)} pre .k{color:var(--accent)}
+  code{font-family:var(--mono);font-size:.92em}
+  figure{margin:0;display:flex;flex-direction:column;gap:9px}
+  video{width:100%;border:1px solid var(--rule);border-radius:4px;display:block;background:#000}
+  figcaption{font-family:var(--mono);font-size:11.5px;color:var(--soft);line-height:1.6}
+
+  .scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:4px;background:var(--card)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule);
+    font-variant-numeric:tabular-nums;vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--soft);background:var(--sunk);font-weight:700}
+  td.n{font-family:var(--mono);font-weight:600}
+  td.ep{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+  .verb{font-weight:700;font-size:10.5px;padding:1px 6px;border-radius:3px;margin-right:6px;
+    background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+  .tier-name{font-weight:600}
+  .tier-name small{display:block;font-weight:400;color:var(--soft);font-size:12.5px;
+    font-family:var(--sans)}
+
+  .notes{display:flex;flex-direction:column;gap:13px}
+  .note{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;
+    font-size:14.5px;color:var(--soft)}
+  .note .m2{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--excess);font-weight:700;padding-top:3px;white-space:nowrap}
+  .note b{color:var(--ink);font-weight:600}
+
+  .cta{display:flex;gap:11px;flex-wrap:wrap;align-items:center;margin-top:20px}
+  .btn{font-family:var(--mono);font-size:13px;font-weight:600;text-decoration:none;
+    padding:10px 18px;border-radius:3px;border:1px solid var(--accent);
+    background:var(--accent);color:var(--accent-ink);cursor:pointer}
+  .btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  footer{padding:28px 0 52px;color:var(--soft);font-family:var(--mono);font-size:11.5px;
+    border-top:1px solid var(--rule);line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <span class="mark">loom<i>code</i></span>
+    <span class="fam">
+      <span class="on">Loom Code — context for coding agents</span>
+      <span>Loom Memory</span>
+    </span>
+    <span class="navspace"></span>
+    <nav class="nav">
+      <a href="#playground">Playground</a>
+      <a href="#api">API</a>
+      <a href="#start">Get a key</a>
+      <a href="#pricing">Pricing</a>
+    </nav>
+  </div>
+
+  <section>
+    <h1>Stop paying your agent to read files it doesn't need.</h1>
+    <p class="lede">To change six lines, your agent loads whole files — and you're billed for every
+      token. Loom Code parses the repo, resolves its call graph, and returns
+      <b>a budgeted pack</b>: the matched span, what it calls, what calls it, every line cited.
+      <b>Try it below on your own code</b> — no account, nothing leaves the page.</p>
+
+    <div class="gauge">
+      <div class="ghead">
+        <span id="g-scope">one edit · 2 files · 334 lines · 30 symbols</span>
+        <span id="g-task">task: locate the elasticity-based pricing rule</span>
+      </div>
+      <div class="rows">
+        <div>
+          <div class="lab"><span class="dim">read the files</span>
+            <span class="amt" style="color:var(--excess)" id="g-full">2,920 tokens</span></div>
+          <div class="bar"><div class="fill" id="g-f1"></div></div>
+        </div>
+        <div>
+          <div class="lab"><span class="dim">one context pack</span>
+            <span class="amt" style="color:var(--kept)" id="g-pack">791 tokens</span></div>
+          <div class="bar" id="g-segs"></div>
+        </div>
+      </div>
+      <div class="verdict">
+        <span class="big" id="g-ratio">3.69×</span>
+        <span class="say">less context, and the pack carries <b>more</b> than a raw span would —
+          the cross-file caller comes with it. Bars are to true scale.</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="playground">
+    <h2>Playground</h2>
+    <p class="h2sub">The real pipeline, running in your browser.</p>
+
+    <div class="pg">
+      <div class="pgbar">
+        <div class="tabs" id="tabs" role="tablist"></div>
+        <span class="navspace"></span>
+        <span class="dim" style="font-family:var(--mono);font-size:11px" id="pg-stats">—</span>
+      </div>
+
+      <div class="pgmain">
+        <div class="pane">
+          <div class="panehead">Your code <span class="dim">— edit it, results update</span></div>
+          <textarea id="src" spellcheck="false" aria-label="Source code"></textarea>
+        </div>
+        <div class="pane">
+          <div class="panehead">The pack <span class="dim" id="pack-head"></span></div>
+          <div class="out" id="out"><span class="dim">…</span></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <input type="text" id="q" value="optimal price from elasticity"
+               aria-label="What are you trying to change?" />
+        <label class="rng">budget
+          <input type="range" id="budget" min="200" max="4000" step="100" value="1200" />
+          <span id="budget-v" style="font-variant-numeric:tabular-nums">1200</span>t
+        </label>
+        <button class="btn" id="run">Run</button>
+      </div>
+
+      <div class="meters">
+        <div class="m"><span class="k">whole-file tokens</span><span class="v bad" id="m-full">—</span></div>
+        <div class="m"><span class="k">pack tokens</span><span class="v good" id="m-pack">—</span></div>
+        <div class="m"><span class="k">reduction</span><span class="v good" id="m-ratio">—</span></div>
+        <div class="m"><span class="k">call edges</span><span class="v" id="m-edges">—</span></div>
+        <div class="m"><span class="k">resolved exactly</span><span class="v" id="m-exact">—</span></div>
+      </div>
+    </div>
+
+    <div class="notes" style="margin-top:18px">
+      <div class="note"><span class="m2">python only</span><span>The playground parses Python by indentation rather than shipping ten tree-sitter grammars as WASM. The hosted and self-hosted service uses real parsers for <b>Python, Go, TypeScript, JavaScript, PHP, Pascal/Delphi, Java, Rust, Ruby and Kotlin</b>.</span></div>
+      <div class="note"><span class="m2">verified</span><span>Both implementations are checked against each other on every commit — same edges, same confidence tiers, same ranked hits, same pack, token for token. <b>A playground that disagreed with the API would be a demo that lies.</b></span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Watch it</h2>
+    <p class="h2sub">A real recording against the running service.</p>
+    <figure>
+      <!-- Both encodings. mp4/H.264 is what Safari and iOS will take; webm/VP8 is
+           what a Chromium build without proprietary codecs will take. Offering one
+           leaves a real slice of visitors looking at a black rectangle. -->
+      <video controls muted playsinline preload="metadata" poster="./poster.png">
+        <source src="./demo.mp4" type="video/mp4" />
+        <source src="./demo.webm" type="video/webm" />
+        Your browser cannot play this video.
+      </video>
+      <figcaption>
+        Captured by driving a real browser against the API. Every number on screen came back from a
+        live HTTP call during the recording — if the service broke, the video would break.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section id="start">
+    <h2>Get a key</h2>
+    <p class="h2sub">Two doors, and the second one needs nothing from us.</p>
+<pre><span class="c1"># 1 · hosted — self-serve, free tier, key returned once</span>
+curl -X POST https://your-instance/v1/signup \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@company.com"}'
+<span class="c1">→ {"api_key":"lc_…","plan":{"slug":"free","max_indexed_lines":25000}}</span>
+
+<span class="c1"># 2 · self-host — the identical application, inside your perimeter</span>
+export LOOM_KEY_SALT=$(openssl rand -hex 32)
+export LOOM_SIGNUP=1                      <span class="c1"># open self-serve on your instance</span>
+docker compose up -d
+docker compose exec loomcode python admin.py account create you@co.com --plan team
+open http://localhost:8080/docs           <span class="c1"># generated OpenAPI, always current</span></pre>
+    <div class="notes" style="margin-top:18px">
+      <div class="note"><span class="m2">shown once</span><span>There is no password and no session, so the signup response is the only time the key exists in readable form. It is stored as a salted SHA-256 hash and <b>cannot be recovered</b> — only replaced.</span></div>
+      <div class="note"><span class="m2">closed by default</span><span>Self-serve is off unless an operator sets <code>LOOM_SIGNUP=1</code>. When on, it provisions the free plan only, one account per address, with an hourly ceiling per source — <b>a public endpoint that mints credentials should not also be a key vending machine.</b></span></div>
+    </div>
+  </section>
+
+  <section id="api">
+    <h2>API</h2>
+    <p class="h2sub">Every endpoint. Bearer token, JSON in, JSON out.</p>
+    <div class="scroll">
+      <table>
+        <tr><th>endpoint</th><th>what it does</th></tr>
+        <tr><td class="ep"><span class="verb">POST</span>/v1/signup</td><td>Free account + first key. Public, off by default.</td></tr>
+        <tr><td class="ep"><span class="verb">POST</span>/v1/repos/{repo}/files</td><td>Index files. Text is parsed and <b>discarded</b>; unchanged content is a no-op.</td></tr>
+        <tr><td class="ep"><span class="verb">GET</span>/v1/repos/{repo}/search</td><td>Rank symbols by a natural-language query. Returns the signals behind each placement.</td></tr>
+        <tr><td class="ep"><span class="verb">POST</span>/v1/repos/{repo}/context_pack</td><td><b>The one most agents want.</b> Budgeted pack: span, callees, callers, siblings, file cards — all cited.</td></tr>
+        <tr><td class="ep"><span class="verb">GET</span>/v1/repos/{repo}/graph</td><td>Edge counts by confidence tier.</td></tr>
+        <tr><td class="ep"><span class="verb">GET</span>/v1/repos/{repo}/relations</td><td>Callers, callees and external calls for one symbol.</td></tr>
+        <tr><td class="ep"><span class="verb">GET</span>/v1/repos/{repo}/important</td><td>The repo map — PageRank over the call graph.</td></tr>
+        <tr><td class="ep"><span class="verb">GET</span>/v1/repos/{repo}/card</td><td>The shape of one file, at ~8% of its bytes.</td></tr>
+        <tr><td class="ep"><span class="verb">POST</span>/v1/repos/{repo}/read_symbol</td><td>A symbol's exact span. <b>409 with candidates</b> if the name is ambiguous.</td></tr>
+        <tr><td class="ep"><span class="verb">POST</span>/v1/repos/{repo}/read</td><td>A line range, clamped and flagged if out of bounds.</td></tr>
+        <tr><td class="ep"><span class="verb">GET</span>/v1/repos/{repo}/locate</td><td>Every symbol with an exact name.</td></tr>
+        <tr><td class="ep"><span class="verb">GET</span>/v1/usage · /v1/account</td><td>Billing basis, value delivered, remaining headroom.</td></tr>
+      </table>
+    </div>
+
+    <p class="h2sub" style="margin:26px 0 14px">Every call edge says how much was known.</p>
+    <div class="scroll">
+      <table>
+        <tr><th>tier</th><th>meaning</th><th>how it can be wrong</th></tr>
+        <tr><td><span class="pill p-exact">exact</span></td><td>One definition of that name in the same file.</td><td>It can't — local scope resolves it.</td></tr>
+        <tr><td><span class="pill p-likely">likely</span></td><td>One definition in the whole repo.</td><td>An import of a same-named third-party symbol.</td></tr>
+        <tr><td><span class="pill p-ambiguous">ambiguous</span></td><td>Several share the name — <b>all</b> recorded.</td><td>It doesn't guess; you get every candidate.</td></tr>
+        <tr><td><span class="pill p-external">external</span></td><td>Not indexed — a dependency or builtin.</td><td>Kept, not dropped: a leaf calling an SDK isn't self-contained.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <h2>Pricing</h2>
+    <p class="h2sub">Billed on the estate you index, never per call.</p>
+    <div class="scroll">
+      <table>
+        <tr><th>plan</th><th>per month</th><th>indexed lines</th><th>rate</th><th>runs</th></tr>
+        <tr><td class="tier-name">Free<small>self-serve</small></td><td class="n">$0</td><td class="n">25,000</td><td class="n">60/min</td><td>hosted</td></tr>
+        <tr><td class="tier-name">Team<small>one squad</small></td><td class="n">$99</td><td class="n">1,000,000</td><td class="n">600/min</td><td>hosted</td></tr>
+        <tr><td class="tier-name">Business<small>a whole org</small></td><td class="n">$499</td><td class="n">10,000,000</td><td class="n">3,000/min</td><td>hosted</td></tr>
+        <tr><td class="tier-name">Enterprise<small>your infrastructure</small></td><td class="n">$2,500</td><td class="n">unlimited</td><td class="n">100,000/min</td><td><b>self-hosted</b></td></tr>
+      </table>
+    </div>
+    <div class="notes" style="margin-top:18px">
+      <div class="note"><span class="m2">why</span><span>Charging per request would punish you for the tool working — the entire value is <b>fewer, smaller calls</b>. So the meter is the size of the estate under management. <code>/v1/usage</code> reports context saved separately and says plainly that it is the value delivered, not the thing being charged for.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What it doesn't do</h2>
+    <p class="h2sub">Worth knowing before you build on it.</p>
+    <div class="notes">
+      <div class="note"><span class="m2">no embeddings</span><span>Search is <b>lexical plus structural</b>. There is a <code>DenseProvider</code> slot and nothing ships in it — the moment an embedding model is in the request path, the claim that a request costs CPU and nothing else is gone. An earlier build tried a dependency-free hashing pseudo-embedding; across 7,641 symbols the collisions ranked an unrelated activation function above the pricing model being searched for. Bring your own and it fuses as a fourth ranker.</span></div>
+      <div class="note"><span class="m2">no stemming</span><span>Words match as written. Searching <code>reorder widgets</code> will not match a symbol named <code>widget_reorder_threshold</code> on the word <b>widgets</b> — only its docstring matches, and a shorter-named neighbour like <code>reorder_point</code> can outrank it on BM25 length normalisation. Try it in the playground above; it is rank two, not rank one. <b>Query with the words the code uses.</b></span></div>
+      <div class="note"><span class="m2">name-based</span><span>Resolution matches the trailing name, so <code>a.b.parse(x)</code> resolves as <code>parse</code>. Receiver types aren't inferred — which is exactly why the confidence tier is on every edge instead of hidden.</span></div>
+      <div class="note"><span class="m2">coarse</span><span>Rate limiting is a fixed per-minute window, so it's approximate at boundaries. Adequate for abuse control; not a fairness guarantee.</span></div>
+      <div class="note"><span class="m2">single node</span><span>SQLite backs the index. Comfortable to low millions of symbols on one box; a multi-node deployment wants Postgres.</span></div>
+    </div>
+  </section>
+
+  <footer>
+    Loom Code · selective retrieval for coding agents · no model inference, no GPU, no egress<br />
+    Every figure here was measured on a running instance and is reproducible with
+    <code>pytest</code>, <code>portal/crosscheck.py</code> and the demo recorder in the repo.
+  </footer>
+</div>
+
+<script type="module">
+import { run } from "./engine.js";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const fmt = (n) => n.toLocaleString();
+const TIER_COLOR = { primary: "var(--t1)", callee: "var(--t2)", caller: "var(--t3)",
+                     sibling: "var(--t4)", map: "var(--t5)" };
+
+let sources = {};
+let active = null;
+
+function renderTabs() {
+  $("tabs").innerHTML = "";
+  for (const path of Object.keys(sources)) {
+    const b = document.createElement("button");
+    b.className = "tab";
+    b.type = "button";
+    b.role = "tab";
+    b.textContent = path;
+    b.setAttribute("aria-selected", String(path === active));
+    b.addEventListener("click", () => { active = path; renderTabs(); $("src").value = sources[path]; });
+    $("tabs").appendChild(b);
+  }
+}
+
+function renderPack(r) {
+  const out = $("out");
+  if (!r.found) {
+    out.innerHTML = '<span class="dim">Nothing matched that query. Try words that appear in a '
+      + 'name or docstring — search here is lexical, not semantic.</span>';
+    $("pack-head").textContent = "";
+    return;
+  }
+  const parts = [];
+  parts.push('<span class="tierhead">ranked hits</span>');
+  for (const h of r.hits.slice(0, 3)) {
+    parts.push(`<div class="hit"><b>${esc(h.name)}</b> `
+      + `<span class="cite">${esc(h.path)}:L${h.lineStart}-${h.lineEnd}</span>`
+      + `<div class="meta">signals ${esc(JSON.stringify(h.signals))} · `
+      + `centrality ${h.centrality.toFixed(5)}</div></div>`);
+  }
+  let last = null;
+  for (const e of r.pack.elements) {
+    if (e.tier !== last) {
+      parts.push(`<span class="tierhead" style="color:${TIER_COLOR[e.tier]}">${e.tier}</span>`);
+      last = e.tier;
+    }
+    parts.push(`<div><span class="cite">${esc(e.citation)}</span> ${esc(e.name)}`
+      + (e.confidence ? `<span class="pill p-${esc(e.confidence)}">${esc(e.confidence)}</span>` : "")
+      + ` <span class="meta dim">${e.tokens}t · ${esc(e.why)}</span></div>`
+      + `<div class="code">${esc(e.text)}</div>`);
+  }
+  if (r.pack.omitted.length) {
+    parts.push('<div class="cut">' + r.pack.omitted
+      .map((o) => `omitted ${o.tier} ${o.citation} (${o.tokens}t) — ${o.reason}`).join("\n")
+      + "</div>");
+  }
+  out.innerHTML = parts.join("");
+  $("pack-head").textContent = `— ${r.pack.used}/${r.pack.budget}t used`;
+}
+
+function renderGauge(r) {
+  const segs = $("g-segs");
+  segs.innerHTML = "";
+  if (!r.found) return;
+  for (const e of r.pack.elements) {
+    const d = document.createElement("div");
+    d.className = "seg";
+    d.style.background = TIER_COLOR[e.tier];
+    d.title = `${e.tier} · ${e.tokens} tokens`;
+    segs.appendChild(d);
+    requestAnimationFrame(() => {
+      d.style.width = ((e.tokens / r.fullTokens) * 100).toFixed(3) + "%";
+    });
+  }
+  requestAnimationFrame(() => { $("g-f1").style.width = "100%"; });
+  $("g-full").textContent = fmt(r.fullTokens) + " tokens";
+  $("g-pack").textContent = fmt(r.pack.used) + " tokens";
+  $("g-ratio").textContent = r.reduction + "×";
+  $("g-scope").textContent = `one edit · ${r.stats.files} files · ${fmt(r.stats.lines)} lines · `
+    + `${r.stats.symbols} symbols`;
+  $("g-task").textContent = `task: ${r.query}`;
+}
+
+function go() {
+  if (active) sources[active] = $("src").value;
+  const budget = Number($("budget").value);
+  $("budget-v").textContent = budget;
+  let r;
+  try {
+    r = run(sources, $("q").value, budget);
+  } catch (err) {
+    $("out").innerHTML = `<span class="dim">The parser could not read that: ${esc(err.message)}</span>`;
+    return;
+  }
+  const c = r.stats.byConfidence || {};
+  $("pg-stats").textContent = `${r.stats.files} files · ${r.stats.symbols} symbols · `
+    + `${r.stats.edges} edges`;
+  $("m-full").textContent = r.found ? fmt(r.fullTokens) : "—";
+  $("m-pack").textContent = r.found ? fmt(r.pack.used) : "—";
+  $("m-ratio").textContent = r.found && r.reduction ? r.reduction + "×" : "—";
+  $("m-edges").textContent = fmt(r.stats.edges);
+  $("m-exact").textContent = fmt(c.exact || 0);
+  renderPack(r);
+  renderGauge(r);
+}
+
+let timer;
+const schedule = () => { clearTimeout(timer); timer = setTimeout(go, 260); };
+
+$("run").addEventListener("click", go);
+$("q").addEventListener("input", schedule);
+$("src").addEventListener("input", schedule);
+$("budget").addEventListener("input", () => { $("budget-v").textContent = $("budget").value; schedule(); });
+
+fetch("./samples.json")
+  .then((r) => r.json())
+  .then((data) => {
+    sources = data;
+    active = Object.keys(sources)[0];
+    renderTabs();
+    $("src").value = sources[active];
+    go();
+  })
+  .catch(() => {
+    $("out").innerHTML = '<span class="dim">Could not load the sample files. '
+      + 'Paste any Python into the editor and it will still run.</span>';
+    sources = { "scratch.py": "" };
+    active = "scratch.py";
+    renderTabs();
+  });
+</script>
+</body>
+</html>

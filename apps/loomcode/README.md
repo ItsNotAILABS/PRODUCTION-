@@ -127,6 +127,7 @@ pitch deck.
 | `GET` | `/v1/repos/{repo}/important` | the repo map — PageRank over the call graph |
 | `GET` | `/v1/repos/{repo}/relations` | callers, callees, external calls for one symbol |
 | `POST` | `/v1/repos/{repo}/context_pack` | budgeted pack: span + relations + citations |
+| `POST` | `/v1/signup` | free account + first key; public, off by default |
 | `GET` | `/v1/usage` | billing basis and value delivered |
 | `GET` | `/v1/account` | plan and remaining headroom |
 | `GET` | `/v1/plans`, `/health` | public, no auth |
@@ -178,6 +179,59 @@ Or without Docker:
 pip install -r requirements.txt
 LOOM_KEY_SALT=$(openssl rand -hex 32) uvicorn loomcode.api:app --port 8080
 ```
+
+## Getting a key
+
+Two doors. The second needs nothing from us.
+
+```bash
+# 1 · self-serve, free tier, key returned exactly once
+curl -X POST $API/v1/signup -H 'Content-Type: application/json' \
+  -d '{"email":"you@company.com"}'
+# -> {"api_key":"lc_...","plan":{"slug":"free","max_indexed_lines":25000}}
+
+# 2 · operator-issued, no HTTP involved
+python3 admin.py account create you@co.com --plan team
+python3 admin.py key issue acct_xxx --label ci
+```
+
+Self-serve is **off unless an operator turns it on** (`LOOM_SIGNUP=1`), and it is
+deliberately narrow: free plan only, one account per address, and an hourly
+ceiling per source (`LOOM_SIGNUP_PER_HOUR`, default 20). A public endpoint that
+mints credentials is the one place where the default has to be "closed", because
+the cost of getting it wrong lands on someone else's bill.
+
+There is no password and no session, so the signup response is the only time the
+key exists in readable form. It is stored as a salted SHA-256 hash and cannot be
+recovered — only replaced.
+
+## The portal
+
+`portal/` is the product surface: a landing page, the API reference, the
+quickstart, and **a playground that runs the real pipeline in the browser** over
+whatever Python you paste. No account, no network, nothing leaves the page.
+
+```bash
+python3 -m http.server 8080 --directory portal   # any static host will do
+```
+
+`portal/engine.js` is a port of `loomcode/{parse,graph,rank,pack}.py`. It exists
+because a page that explains how something works and then shows a recording is
+asking for trust it has not earned — paste your own code and the numbers move.
+
+That is only honest while the two agree, so `portal/crosscheck.py` runs both over
+the same corpus and fails on any difference in symbols, resolved edges, their
+confidence tiers, ranked hits, or any element of the assembled pack. It is part
+of the test suite and skips only if `node` is missing.
+
+```bash
+python3 portal/crosscheck.py
+# engines agree across 5 queries (2 files, budget 1200 tokens)
+```
+
+The playground parses Python by indentation rather than shipping ten tree-sitter
+grammars as WASM; the service itself uses real parsers for all ten languages.
+That difference is stated on the page.
 
 ## Browser clients
 
@@ -240,7 +294,7 @@ self-contained `site/dist/index.html` that renders with no external requests.
 ## Tests
 
 ```bash
-python3 -m pytest tests/ -q     # 71 passing
+python3 -m pytest tests/ -q     # 80 passing
 ```
 
 Weighted toward what a customer or security reviewer will probe: tenant
